@@ -5,7 +5,8 @@
 // Tiers: 0 floor (0 m, the vac) · 1 furniture (0.4–1.0 m) · 2 high routes (1.5–2.2 m).
 // Hose reach tops out near 1.8 m (TUNING.hose.reachV, build decision): tier-2 perches above that are out of reach.
 
-const T = 0.15, H = 2.6; // wall thickness, ceiling height
+// DESIGN NOTE: a 3 m ceiling (a tall old bungalow) so a jump from a 2 m perch has headroom; at 2.6 m the cat bonked its head on every high-route jump.
+const T = 0.15, H = 3.0; // wall thickness, ceiling height
 const IN = T / 2; // wall face offset from the wall's centre line
 
 /** A solid box. o: land (top is a walkable perch: tan), stripes (faces you can claw: 'n' 's' 'e' 'w'), collide, room. */

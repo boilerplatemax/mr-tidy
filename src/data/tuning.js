@@ -98,7 +98,7 @@ export const TUNING = {
     accel: 18, // 1/s: reaches 63 % of target speed in 1/accel s. Snappy
     decel: 22, // 1/s: stops faster than it starts
     airAccel: 9, // 1/s: tight air control while steering
-    airDecel: 1.5, // 1/s: with no keys held the leap keeps its momentum
+    airDecel: 6, // 1/s: letting go of the keys mid-air brakes, so you can stop on a narrow perch
     lookRadPerPx: 0.0021, // mouselook: radians per mouse count at sensitivity 1
     pitchLimit: 1.48, // rad (~85°)
     // Head-bob: amplitude in metres per gait; sway = sideways share; roll = radians of tilt at walk amplitude.
@@ -110,6 +110,25 @@ export const TUNING = {
     landDip: 0.03, // m: camera dip when landing
     landSoft: 2.2, // m/s: impacts below this make no sound at all
     landHeavy: 5.2, // m/s: impacts above this (a drop of about 0.75 m) are the heavy thud the vac can hear
+  },
+
+  // ---------------------------------------------------------------- the charged jump (src/player/player.js)
+  // A full charge rises maxVy² / 2g = 0.95 m: floor to counter top. Re-run the route check after changing any of these.
+  jump: {
+    chargeTime: 0.55, // s to full charge. Tap = no charge
+    minVy: 3.0, maxVy: 5.85, // m/s up at no charge / full charge
+    minSpeed: 1.4, maxSpeed: 3.2, // m/s forward at no charge / full charge: the charge sets the distance, not a run-up
+    runCarry: 2.2, // m/s: a tap at a run keeps at most this much speed (so a run-and-tap can't clear the counter gaps)
+    moveMul: 0.5, // walking speed multiplier while charging
+    pounceMin: 0.15, // charge above which a jump with no keys held leaps the way you're looking
+    coyote: 0.1, // s after leaving an edge you can still jump
+    coyoteCharge: 0.3, // the charge you get for a fresh press during coyote time
+    buffer: 0.12, // s a press before landing still counts
+    airSteerMin: 1.0, // m/s: steering speed in the air on a very short hop
+    dip: 0.03, dipPitch: 0.06, // the camera dips (m, rad) at full charge
+    wiggle: 0.012, wiggleRate: 30, // rad, rad/s: the pounce wiggle at full charge
+    predictDt: 0.02, predictT: 1.4, // s: landing-spot prediction step and horizon
+    markerSize: 0.2, markerColor: 0xfff0c8, // m: the landing-spot outline
   },
 
   debug: {

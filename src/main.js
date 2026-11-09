@@ -18,6 +18,7 @@ import { Menu } from './ui/menu.js';
 import { DevOverlay } from './ui/dev-overlay.js';
 import { buildHouse } from './world/house.js';
 import { Debug } from './debug/debug.js';
+import { LandingMarker } from './player/landing-marker.js';
 
 const params = new URLSearchParams(location.search);
 const R = TUNING.render;
@@ -42,6 +43,8 @@ PS1.setLightZones(house.zones);
 PS1.setIndoorBoxes(house.indoor);
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
+
+const marker = new LandingMarker(scene);
 
 // ---------------------------------------------------------------- audio + captions
 audio.world = world;
@@ -91,6 +94,7 @@ function frame(alpha, dt, frameMs) {
     if (input.live) player.look();
     player.render(alpha);
     debug.frame();
+    marker.update(player.aim);
   }
   env.update(camera);
   audio.update(dt, camera);
@@ -107,5 +111,6 @@ document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
 window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug };
+if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();
