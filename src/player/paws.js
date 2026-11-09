@@ -12,7 +12,7 @@ const ease = (t) => t * t * (3 - 2 * t);
 function buildPaw(mat) {
   const g = new THREE.Group();
   // the forearm pivots at the wrist (the group's origin) and runs back toward the cat along +z
-  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.035, 0.14).translate(0, 0, 0.08), mat);
+  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.035, 0.14).translate(0, 0, 0.07), mat);
   const pad = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.05), mat);
   g.add(leg, pad);
   for (const x of [-0.018, -0.006, 0.006, 0.018]) {

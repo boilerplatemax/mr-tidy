@@ -1,6 +1,6 @@
 // Knockable objects (build prompt 0.5, 6.2): a small custom physics, no library. Objects rest on surfaces, slide with
 // friction when batted, tip when their centre passes an edge, tumble as they fall, and land on whatever is below.
-// Breaking, mess decals and noise events arrive in step 8; for now a fall ends in a bounce and a thud.
+// Hitting the floor counts as a knock-over: it breaks into cubes or bounces, leaves a mess, and makes a noise event.
 //
 // DESIGN NOTE: objects are not colliders for the cat. They're small, and a cat stumbling on a mug would fight the jumps.
 import * as THREE from 'three';
@@ -11,16 +11,18 @@ import { audio } from '../audio/audio.js';
 
 const K = TUNING.knock, TYPES = TUNING.knockTypes, S = TUNING.swipe;
 
-const buildGeometry = (t) => (t.shape === 'cyl'
-  ? new THREE.CylinderGeometry(t.r, t.r, t.h, 10)
+const buildGeometry = (t) => (t.shape === 'cyl' ? new THREE.CylinderGeometry(t.r, t.r, t.h, 10)
+  : t.shape === 'sphere' ? new THREE.IcosahedronGeometry(t.r, 1)
   : new THREE.BoxGeometry(t.w, t.h, t.d));
+const roomAt = (x, z) => LEVEL.rooms.find((r) => x >= r.min[0] && x <= r.max[0] && z >= r.min[1] && z <= r.max[1])?.id || null;
 
 const _axis = new THREE.Vector3(), _dq = new THREE.Quaternion(), _up = new THREE.Quaternion();
 const _v = new THREE.Vector3();
 
 export class Knockables {
-  constructor({ scene, world, byId }) {
-    this.world = world;
+  constructor({ scene, world, byId, noise, debris }) {
+    this.world = world; this.noise = noise; this.debris = debris;
+    this.count = 0; // knock-overs so far (the vac's anger and the win screen read this)
     this.list = [];
     this.byId = new Map();
     this._g = { y: 0, surface: '', collider: null };
@@ -31,12 +33,12 @@ export class Knockables {
       const t = TYPES[d.type];
       if (!geos.has(d.type)) geos.set(d.type, buildGeometry(t));
       const mesh = new THREE.Mesh(geos.get(d.type), mat);
-      const top = byId.get(d.on).max[1];
+      const top = d.on === 'floor' ? 0 : byId.get(d.on).max[1];
       const o = {
-        id: d.id, type: d.type, t, mesh, mass: t.mass, h: t.h, r: t.shape === 'cyl' ? t.r : Math.max(t.w, t.d) * 0.45,
+        id: d.id, type: d.type, t, mesh, mass: t.mass, h: t.h, r: t.shape === 'box' ? Math.max(t.w, t.d) * 0.45 : t.r,
         x: d.x, y: top, z: d.z, vx: 0, vy: 0, vz: 0, q: new THREE.Quaternion(), wx: 0, wy: 0, wz: 0,
         px: d.x, py: top, pz: d.z, pq: new THREE.Quaternion(),
-        state: 'rest', tipT: 0, bounces: 0, dirty: true, start: { x: d.x, y: top, z: d.z },
+        state: 'rest', tipT: 0, bounces: 0, dirty: true, knocked: false, start: { x: d.x, y: top, z: d.z },
       };
       scene.add(mesh);
       this.list.push(o); this.byId.set(o.id, o);
@@ -52,6 +54,7 @@ export class Knockables {
     const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
     let hits = 0;
     for (const o of this.list) {
+      if (o.state === 'gone') continue;
       const cx = o.x - eye.x, cy = o.y + o.h / 2 - eye.y, cz = o.z - eye.z, d = Math.hypot(cx, cy, cz);
       if (d > S.reach || d < 1e-3 || (cx * _v.x + cy * _v.y + cz * _v.z) / d < S.cone) continue;
       this.shove(o, dx, dz, Math.min(S.maxSpeed, S.impulse / o.mass));
@@ -63,14 +66,29 @@ export class Knockables {
 
   /** Give an object a push along (dx, dz) at this speed. */
   shove(o, dx, dz, speed) {
+    if (o.t.topple && !o.knocked) { if (speed >= K.toppleSpeed) this._knockOver(o); return; } // knocked over where it stands
     o.vx += dx * speed; o.vz += dz * speed; o.dirty = true;
     if (o.state === 'rest') o.state = 'slide';
+  }
+
+  /** It hit the floor for the first time: that's a knock-over. Counts once, makes the noise and the mess, and breaks if it can. */
+  _knockOver(o) {
+    o.knocked = true; this.count++;
+    const t = o.t, room = roomAt(o.x, o.z), D = this.debris;
+    const cubes = t.breakable ? D.burst(o.x, o.z, TUNING.debris.cubeSize, t.cubes[0] + Math.floor(Math.random() * (t.cubes[1] - t.cubes[0] + 1))) : [];
+    const decal = D.decal(o.x, o.z, t.decalSize, t.decal, Math.random() * Math.PI);
+    D.messes.push({ id: o.id, x: o.x, z: o.z, room, decal, cubes, cleaned: false });
+    if (t.breakable) {
+      o.state = 'gone'; o.mesh.visible = false; o.vx = o.vy = o.vz = 0;
+      audio.play('knock.break', { pos: o, rate: 0.9 + Math.random() * 0.25 });
+    }
+    this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.noise, room, objectId: o.id });
   }
 
   /** Per fixed tick. */
   tick(dt) {
     for (const o of this.list) {
-      if (o.state === 'rest') continue;
+      if (o.state === 'rest' || o.state === 'gone') continue;
       o.px = o.x; o.py = o.y; o.pz = o.z; o.pq.copy(o.q); o.dirty = true;
       this._cur = o;
       if (o.state === 'slide') this._slide(o, dt);
@@ -141,6 +159,7 @@ export class Knockables {
     if (o.y > g.y) return;
     const impact = -o.vy, floor = !g.collider;
     o.y = g.y;
+    if (floor && !o.knocked) { this._knockOver(o); if (o.state === 'gone') return; }
     if (impact > K.bounceMin && o.bounces < 1) { // one bounce, then it settles
       o.bounces++;
       o.vy = impact * K.bounce;
@@ -161,7 +180,7 @@ export class Knockables {
       const a = L[i];
       for (let j = i + 1; j < L.length; j++) {
         const b = L[j];
-        if ((a.state === 'rest' && b.state === 'rest') || Math.abs(a.y - b.y) > 0.05) continue;
+        if (a.state === 'gone' || b.state === 'gone' || (a.state === 'rest' && b.state === 'rest') || Math.abs(a.y - b.y) > 0.05) continue;
         const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz), min = a.r + b.r;
         if (d >= min || d < 1e-4) continue;
         const nx = dx / d, nz = dz / d, push = min - d, ma = a.mass, mb = b.mass, tot = ma + mb;
@@ -181,7 +200,7 @@ export class Knockables {
   /** Per rendered frame: draw what moved, interpolated between ticks. */
   frame(alpha) {
     for (const o of this.list) {
-      if (!o.dirty) continue;
+      if (!o.dirty || o.state === 'gone') continue;
       o.mesh.position.set(o.px + (o.x - o.px) * alpha, o.py + (o.y - o.py) * alpha + o.h / 2, o.pz + (o.z - o.pz) * alpha);
       o.mesh.quaternion.slerpQuaternions(o.pq, o.q, alpha);
       if (o.state === 'rest') { o.px = o.x; o.py = o.y; o.pz = o.z; o.pq.copy(o.q); o.dirty = alpha < 1; }

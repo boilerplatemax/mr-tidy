@@ -26,8 +26,8 @@ function buildCatProxy() { // what you see in third person: a grey-box cat
 }
 
 export class Debug {
-  constructor({ input, player, world, scene, camera, overlay, env, ps1, audio }) {
-    Object.assign(this, { input, player, world, scene, camera, overlay, env, ps1, audio });
+  constructor({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise }) {
+    Object.assign(this, { input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise });
     this.thirdPerson = false;
     this.cat = buildCatProxy();
     scene.add(this.cat);
@@ -72,6 +72,7 @@ export class Debug {
     return [
       `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
       `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'} · stamina ${P.stamina.toFixed(2)}`,
+      `knocked ${this.knock.count}/${this.knock.list.length} · messes ${this.debris.messes.length} · last noise ${this.noise.last ? this.noise.last.kind + (this.noise.last.objectId ? ' ' + this.noise.last.objectId : '') : 'none'}`,
       `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
     ];
   }

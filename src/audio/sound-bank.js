@@ -48,6 +48,13 @@ export const SOUNDS = {
   'cat.huff': { gen: v((sr) => thud(sr, 180, 0.1), 1), gain: 0.2 }, // a held jump given up
   'paw.swipe': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.12, sr)), sr, 'bp', (t) => 900 + 1800 * t, 1.2), sr, 0.02, 0.03), 0.6), sr), 3), gain: 0.22 },
   'knock.clink': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.07, sr)), sr, 'bp', rand(1800, 3000), 5), sr, 0.0005, 0.016), 0.8), sr), 4), gain: 0.4 },
+  'knock.break': { gen: v((sr) => {
+    const x = S.buffer(0.32, sr);
+    S.grains(x, sr, 34, 0.012, 0.16, 0.0);
+    S.biquad(x, sr, 'hp', 1400);
+    S.mix(x, S.env(S.sine(S.buffer(0.14, sr), sr, 150), sr, 0.001, 0.03), 0.5);
+    return S.declick(S.normalise(x, 0.9), sr);
+  }, 4), gain: 0.85 },
   'knock.thud': { gen: v((sr) => thud(sr, 95, 0.2, 0.3), 3), gain: 0.7 },
   'cat.dash': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.16, sr)), sr, 'bp', (t) => 1400 - 900 * t, 0.9), sr, 0.008, 0.05), 0.7), sr), 3), gain: 0.3 },
   'foot.thud': { gen: v((sr) => thud(sr, 62, 0.28), 2), gain: 0.75 }, // a big drop: the vac can hear this one

@@ -122,14 +122,33 @@ export const LEVEL = {
   // The links a player must be able to jump, checked against TUNING (src/world/route-check.js). Every one is two-way
   // unless oneWay. grab: true means a clean jump isn't enough, the link is meant to need a ledge grab.
   // Knockables: { id, type (TUNING.knockTypes), on (a solid's id), x, z }. Height comes from the surface, so nothing floats.
-  // A test set for step 7; the full 20, weighted toward the far end of the hallway, arrive with breaking in step 8.
+  // on: 'floor' stands it on the ground. 20 in all, weighted toward tiers 1–2 and the far end of the hallway.
+  // Living room 4, kitchen 6, hallway 4, storage 6. Tier 0: 2 · tier 1: 9 · tier 2: 9.
   knockables: [
+    // living room
     { id: 'mug1', type: 'mug', on: 'coffeeTable', x: 3.15, z: 2.35 },
+    { id: 'plate1', type: 'plate', on: 'book4', x: 1.76, z: 5.18 },
+    { id: 'treeVase', type: 'vase', on: 'tree4', x: 1.2, z: 0.55 },
+    { id: 'floorVaseL', type: 'floorVase', on: 'floor', x: 5.5, z: 0.45 },
+    // kitchen
     { id: 'mug2', type: 'mug', on: 'c1', x: 7.2, z: 0.5 },
     { id: 'book1', type: 'book', on: 'c1', x: 7.7, z: 0.35 },
-    { id: 'vase1', type: 'vase', on: 'sideTable', x: 10.35, z: -1.1 },
-    { id: 'plate1', type: 'plate', on: 'book4', x: 1.76, z: 5.18 },
+    { id: 'shelfPlate', type: 'plate', on: 'shelfD2', x: 7.2, z: 0.21 },
+    { id: 'fridgeJar', type: 'jar', on: 'fridge', x: 10.35, z: 4.95 },
     { id: 'mug3', type: 'mug', on: 'k1', x: 7.1, z: 5.18 },
+    { id: 'k2Vase', type: 'vase', on: 'k2', x: 8.7, z: 5.18 },
+    // hallway: louder the closer to Grandma's door
+    { id: 'vase1', type: 'vase', on: 'sideTable', x: 10.35, z: -1.1 },
+    { id: 'hallPlate', type: 'plate', on: 'sideTable', x: 10.13, z: -1.05 },
+    { id: 'standJar', type: 'jar', on: 'plantStand', x: 15.0, z: -1.1 },
+    { id: 'floorVaseH', type: 'floorVase', on: 'floor', x: 17.3, z: -1.15 },
+    // storage: the rewards are high up
+    { id: 'w1Mug', type: 'mug', on: 'w1', x: 12.3, z: 1.6 },
+    { id: 's1Jar', type: 'jar', on: 's1', x: 13.2, z: 3.5 },
+    { id: 'e1Yarn', type: 'yarn', on: 'e1', x: 15.1, z: 1.2 },
+    { id: 'w2Vase', type: 'vase', on: 'w2', x: 12.3, z: 2.7 },
+    { id: 'e2Plate', type: 'plate', on: 'e2', x: 15.1, z: 2.5 },
+    { id: 's2Mug', type: 'mug', on: 's2', x: 14.2, z: 3.5 },
   ],
 
   // Links that need a ledge grab (a clean jump can't reach). from: a solid id, or 'floor' with a start point.

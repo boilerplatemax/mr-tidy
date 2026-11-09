@@ -82,7 +82,7 @@ function grabAttempt(kit, from, to, start, charge) {
 function knockChecks(kit) {
   const P = kit.player, I = kit.input, K = kit.knock, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} KNOCK ${name}${note ? ' (' + note + ')' : ''}`);
-  const settle = (o) => { for (let i = 0; i < 300 && o.state !== 'rest'; i++) kit.tick(dt); };
+  const settle = (o) => { for (let i = 0; i < 300 && o.state !== 'rest' && o.state !== 'gone'; i++) kit.tick(dt); };
   const stand = (x, y, z, yaw, pitch = 0) => { I.keys.clear(); I.edges.clear(); P.frozen = false; P.resetMotion(); P.teleport(x, y + 0.001, z, yaw); P.yaw = yaw; P.pitch = pitch; for (let i = 0; i < 6 && !P.grounded; i++) kit.tick(dt); P.render(1); kit.camera.updateMatrixWorld(); };
 
   // a real click: the paw knocks a mug off the coffee table
@@ -92,6 +92,8 @@ function knockChecks(kit) {
   for (let i = 0; i < 12; i++) kit.tick(dt);
   const hit = mug.state !== 'rest';
   settle(mug);
+  const mess = kit.debris.messes.find((m) => m.id === 'mug1'), noise = kit.noise.last;
+  report('a broken mug: gone, cubes, one mess, one crash', mug.state === 'gone' && !!mess && mess.cubes.length >= 3 && mess.cubes.length <= 6 && noise?.kind === 'crash' && noise.objectId === 'mug1' && kit.knock.count === 1, `${mess?.cubes.length} cubes, room ${mess?.room}, count ${kit.knock.count}`);
   report('click swipes a mug off the table', hit && mug.y === 0, `ended at ${mug.x.toFixed(2)}, ${mug.y.toFixed(2)}, ${mug.z.toFixed(2)}`);
 
   // a heavy book only inches: it takes several swipes to reach the edge
@@ -111,6 +113,22 @@ function knockChecks(kit) {
   report('plate lands on the lower shelf', Math.abs(plate.y - 1.4) < 0.01, `ended at height ${plate.y.toFixed(2)}`);
 
   // nothing is left in a broken state
+  // a heavy book doesn't break: it's on the floor, counted once, with a mess
+  report('an unbreakable book stays whole and counts once', book.state === 'rest' && book.knocked && kit.debris.messes.filter((m) => m.id === 'book1').length === 1 && kit.knock.count === 2, `count ${kit.knock.count}`);
+  K.shove(book, 1, 0, 1); settle(book);
+  report('knocking it around the floor again does not recount', kit.knock.count === 2);
+
+  // something standing on the floor topples where it is
+  const fv = K.byId.get('floorVaseL');
+  stand(fv.x - 0.3, 0, fv.z, -Math.PI / 2, -0.15);
+  const before = kit.knock.count, hits = K.swipe(P, kit.camera);
+  report('a swipe topples a floor vase', hits >= 1 && fv.state === 'gone' && kit.knock.count === before + 1, `hits ${hits}`);
+
+  // cubes settle on the floor and stop
+  for (let i = 0; i < 240; i++) kit.tick(dt);
+  report('debris settles', kit.debris.live.length === 0, `${kit.debris.nextCube} cubes placed`);
+  report('all 20 objects placed, each over a surface', K.list.length === 20 && K.list.filter((o) => o.state === 'rest' || o.knocked).every((o) => { const g = kit.world.ground(o.start.x, o.start.z, 0.01, o.start.y + 0.04, { y: 0, surface: '', collider: null }); return Math.abs(g.y - o.start.y) < 0.001; }));
+
   report('every object has finite numbers', K.list.every((o) => Number.isFinite(o.x + o.y + o.z + o.q.w)));
   return rows;
 }

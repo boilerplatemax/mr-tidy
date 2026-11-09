@@ -202,13 +202,28 @@ export const TUNING = {
     gravity: 18, // m/s²
     tipTime: 0.12, tipRate: 5, tipSpeed: 0.45, tipGravity: 0.45, // tipping over an edge: s, rad/s, m/s minimum outward, share of gravity
     spin: 14, // rad/s of random tumble as it falls
+    toppleSpeed: 0.5, // m/s: a shove at least this hard knocks over something standing on the floor
     bounce: 0.3, bounceMin: 1.2, bounceKeep: 0.55, // first-hit bounce: share of impact speed, least impact to bounce, share of sideways speed kept
   },
-  knockTypes: { // shape, size (m) and mass (kg-ish: only the ratio to swipe.impulse matters)
-    mug: { shape: 'cyl', r: 0.042, h: 0.095, mass: 0.2 },
-    plate: { shape: 'cyl', r: 0.1, h: 0.025, mass: 0.25 },
-    vase: { shape: 'cyl', r: 0.06, h: 0.24, mass: 0.55 },
-    book: { shape: 'box', w: 0.16, h: 0.04, d: 0.22, mass: 0.9 },
+  // shape, size (m), mass (only the ratio to swipe.impulse matters), breakable, noise (points toward waking Grandma, scaled
+  // by distance to her door in step 9), cubes (min, max when it breaks), decal (the mess square's colour and size in m).
+  // topple: stands on the floor, and a swipe knocks it over where it stands.
+  knockTypes: {
+    mug: { shape: 'cyl', r: 0.042, h: 0.095, mass: 0.2, breakable: true, noise: 8, cubes: [3, 4], decal: 0xbfb5a0, decalSize: 0.22 },
+    plate: { shape: 'cyl', r: 0.1, h: 0.025, mass: 0.25, breakable: true, noise: 11, cubes: [4, 6], decal: 0xd6d0c2, decalSize: 0.28 },
+    vase: { shape: 'cyl', r: 0.06, h: 0.24, mass: 0.55, breakable: true, noise: 11, cubes: [4, 6], decal: 0x9fb2c0, decalSize: 0.3 },
+    jar: { shape: 'cyl', r: 0.05, h: 0.12, mass: 0.42, breakable: true, noise: 10, cubes: [4, 6], decal: 0xa8b878, decalSize: 0.26 },
+    book: { shape: 'box', w: 0.16, h: 0.04, d: 0.22, mass: 0.9, breakable: false, noise: 5, decal: 0x7a6a55, decalSize: 0.18 },
+    yarn: { shape: 'sphere', r: 0.06, h: 0.12, mass: 0.12, breakable: false, noise: 3, decal: 0xb07a90, decalSize: 0.14 },
+    floorVase: { shape: 'cyl', r: 0.1, h: 0.46, mass: 0.7, breakable: true, topple: true, noise: 12, cubes: [5, 6], decal: 0x8fa08f, decalSize: 0.36 },
+  },
+  debris: {
+    cubeSize: [0.02, 0.04], // m: the small cubes a broken thing turns into
+    speed: [0.5, 1.6], up: [0.8, 2.0], // m/s: how they scatter
+    bounce: 0.35, bounces: 3, // share of speed kept per bounce; how many before they stop
+    startY: 0.06, // m above the floor they burst from
+    maxCubes: 160, maxDecals: 40,
+    decalY: 0.004, decalStep: 0.0004, // m off the floor; extra lift per decal so overlaps never z-fight
   },
   paws: {
     color: 0xa89a88, glow: 0x2a241e, // a little light of its own, so an underside isn't black
