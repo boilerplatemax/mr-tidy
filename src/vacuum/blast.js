@@ -13,6 +13,7 @@ export class Blast {
     this.vox = vox; this.knock = knock;
     this.onHit = null; // the cat was hit
     this.state = 'idle'; // 'idle' | 'fly' | 'puff'
+    this.gravity = B.gravity; this.lob = false;
     this.pos = new THREE.Vector3(); this.prev = new THREE.Vector3(); this.vel = new THREE.Vector3();
     this.t = 0;
     const mat = makePS1(new THREE.MeshLambertMaterial({ color: B.color }));
@@ -28,10 +29,11 @@ export class Blast {
 
   reset() { this.state = 'idle'; for (const c of this.cubes) c.m.visible = false; }
 
-  fire(origin, dir) {
-    this.state = 'fly'; this.t = 0; this.lastHit = 'none';
+  /** velocity: m/s. gravity: how hard it droops (a flat shot barely does). lob: it comes down on you, and splashes. */
+  fire(origin, velocity, gravity = B.gravity, lob = false) {
+    this.state = 'fly'; this.t = 0; this.lastHit = 'none'; this.gravity = gravity; this.lob = lob;
     this.pos.copy(origin); this.prev.copy(origin);
-    this.vel.copy(dir).multiplyScalar(B.speed);
+    this.vel.copy(velocity);
     for (const c of this.cubes) {
       c.off.set(rnd(B.spread), rnd(B.spread), rnd(B.spread)); c.out.set(rnd(1), Math.random() * 0.8 - 0.1, rnd(1)).normalize();
       c.size = B.cubeSize * (0.6 + Math.random() * 0.8); c.spin = Math.random() * 6;
@@ -51,9 +53,9 @@ export class Blast {
     if (this.state === 'idle') return;
     this.t += dt;
     if (this.state === 'puff') { if (this.t >= B.puffTime) this.reset(); return; }
-    this.vel.y -= B.gravity * dt;
+    this.vel.y -= this.gravity * dt;
     this.pos.addScaledVector(this.vel, dt);
-    if (Math.hypot(this.pos.x - player.pos.x, this.pos.y - (player.feetY + 0.12), this.pos.z - player.pos.z) <= B.hit && !player.noclip) { this._burst('cat'); this.onHit?.(); return; }
+    if (Math.hypot(this.pos.x - player.pos.x, this.pos.y - (player.feetY + 0.12), this.pos.z - player.pos.z) <= B.hit && !player.noclip) { this._burst('cat'); this.onHit?.(this.vel.x, this.vel.z); return; }
     for (const o of this.knock.list) {
       if (o.state === 'gone' || o.knocked) continue;
       const dx = o.x - this.pos.x, dy = o.y + o.h / 2 - this.pos.y, dz = o.z - this.pos.z;
@@ -63,7 +65,11 @@ export class Blast {
       this._burst('object');
       return;
     }
-    if (this.vox.blocked(this.pos.x, this.pos.y, this.pos.z) || this.pos.y <= 0.03) { this._burst('surface'); return; }
+    if (this.vox.blocked(this.pos.x, this.pos.y, this.pos.z) || this.pos.y <= 0.03) {
+      // a lob that lands next to you still gets you
+      if (this.lob && this.vel.y < 0 && !player.noclip && Math.hypot(this.pos.x - player.pos.x, this.pos.y - (player.feetY + 0.12), this.pos.z - player.pos.z) <= B.splash) { this._burst('cat'); this.onHit?.(this.vel.x, this.vel.z); return; }
+      this._burst('surface'); return;
+    }
     if (this.t >= B.life) this._burst('air');
   }
 

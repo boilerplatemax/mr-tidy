@@ -171,6 +171,7 @@ export const TUNING = {
     chaseSpeed: [1.3, 1.3, 2.3, 3.1], // m/s. The cat runs at 3.6, so it can always just outrun him
     replan: 0.15, // s between re-thinking the route while chasing
     catchReach: 0.14, // m past his body at which he catches the cat
+    solidShare: 0.85, // how much of the cat's radius his body keeps out: it can brush him, not go through him
     catchHeight: 0.42, // m: a cat with its feet above this is out of reach of his body
     investigateMul: 1.25, // he goes to a noise this much faster than he patrols
     cleanTime: 2.2, // s to suck up a mess: the player's window to get away or set up the next crash
@@ -180,8 +181,14 @@ export const TUNING = {
     model: {
       scaleY: 0.45, scaleXZ: 0.58, // the model is 1 unit tall and 0.78 wide: this makes it a squat 0.45 m drum, 0.45 m across
       holeY: 0.115, holeR: 0.09, holeZ: 0.2225, // the black mouth (m): height, radius, how far forward
-      faceY: 0.29, faceW: 0.26, faceH: 0.19, faceZ: 0.236, // the face plate on the dome, above the hole
-      catchDist: 0.2, // m in front of the hole where the camera ends up: close enough that he fills the screen
+      faceY: 0.29, faceW: 0.26, faceH: 0.19, faceZ: 0.236, // the calm faces' plate on the dome, above the hole
+      face: { // the skin the face is painted on: it follows his outline ([height, radius] in m)
+        profile: [[0.0225, 0.151], [0.045, 0.194], [0.18, 0.204], [0.2025, 0.222], [0.225, 0.226], [0.236, 0.222], [0.281, 0.211], [0.326, 0.206], [0.36, 0.19]],
+        lift: 0.006, arc: 3.6, y0: 0.02, y1: 0.36, pxPerM: 358, centerY: 0.15, // m off his surface; rad round him; the height range the canvas covers; canvas px per m; where the camera looks at him
+      },
+      stretch: [1, 1, 1.08, 1.22], holeRs: [0.09, 0.085, 0.058, 0.066], tone: [1, 0.92, 0.72, 0.5], // by stage: how tall he stands; the intake's radius; how dark his body has gone
+      twitch: 0.09, listenTilt: 0.14, flickTime: 0.45, // rad of twitching at the end; rad he leans back when he stops to listen; s his face flickers when he changes
+      catchDist: 0.42, // m in front of the hole where the camera ends up: close, but you see the whole of his face
       reelY: 0.2, reelZ: 0.275, // the cord reel on his back (m): height, how far behind him
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
     },
@@ -194,25 +201,63 @@ export const TUNING = {
     arc: 0.9, rate: [0, 0, 2.6, 3.6], speed: 5, // rad either side of where he faces; how fast it swings, by stage; m/s the nozzle can move
     pullRadius: 0.8, pull: 0.8, // m from the nozzle that drags a cat on the ground in, and m/s at its strongest. A run beats it; a slink doesn't
   },
+  // ---------------------------------------------------------------- how he thinks and what gives him away
+  alert: { // he heard something: he stops dead, the motor drops, the nozzle lifts toward it
+    time: [1.0, 0.9, 0.65, 0.5], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
+    dip: 0.72, rateDip: 0.22, dipEase: 9, // how far the motor falls away (share of volume, share of pitch), 1/s
+    sniffOut: 0.55, sniffUp: 0.5, sniffSpeed: 2.5, // m the nozzle lifts toward the sound
+    stingEvery: 4, // s between heard-you stingers
+  },
+  roam: { // the patrol isn't a circuit: he picks where to go next, and changes his mind
+    think: [5, 11], // s between second thoughts
+    pauseChance: 0.32, backChance: [0.2, 0.2, 0.3, 0.35], pause: [0.9, 2.4], // stops to look around; turns round and goes back, by stage; s
+    hunchChance: [0, 0, 0.16, 0.28], // by stage: the odd hunch that takes him to the room you're in
+    noiseBonus: 18, randomWeight: 16, distWeight: 0.7, // how he scores a place: age in seconds, plus somewhere noisy, a dice roll, minus m away
+    noiseLasts: 40, // s a crash keeps pulling him toward its room
+    lookSpeed: 1.3, // rad/s looking around
+  },
+  sting: { // eye contact and being spotted
+    eyeCos: 0.94, cooldown: 9, freeze: 0.32, pulse: 0.6, // how squarely you must be looking at him; s between stingers; s he freezes, staring back; s the screen flinches
+    shriekEvery: 16, shriekFace: 1.3, // s between shrieks; s his mouth stays open
+  },
+  creep: { // the hose comes for a cat hiding up high: slowly, from a long way off, with the motor nearly silent
+    minAnger: 3, minHeight: 1.2, // from the angry stage, for a cat at least this high
+    after: 2.0, // s of knowing where you are up there before it starts
+    range: 8, length: 9, speed: 0.72, replan: 0.5, maxTime: 16, // m it can reach and stretch to; m/s; s between re-routes; s before it gives up
+    motor: 0.22, // how quiet the motor goes
+    floorY: 0.6, // m: a cat below this has come down, and he goes after it instead
+    cooldown: [0, 0, 16, 10], // s before he tries again, by stage
+  },
+  fog: { // the dust cloud (src/vacuum/dust-cloud.js)
+    minAnger: 4, cooldown: 28, minDist: 2.5, lostFor: 0.4, // furious only; s before he can do it again (from when the last cloud has gone); only if you're this far off, or he lost you this long ago
+    wind: 1.4, recover: 0.7, // s of telegraph (planted, nozzle up, screaming); s standing still after
+    radius: 4.8, grow: 1.6, hold: 8, fade: 3, density: 1.45, // m; s to fill; s at full; s to clear; how thick (per metre)
+    color: 0x8a7a60, moteColor: 0xbfae8a, moteSize: 0.018, motes: 120, moteAlpha: 0.75, puffs: 14, puffSize: 2.6, puffSpeed: 1.6, puffAlpha: 0.32,
+    // Fair play: he's blind in his own cloud, and slow, and the strike is much easier to dodge.
+    sight: 1.5, speedMul: 0.62, strikeRangeMul: 0.6, extraWindup: 0.45, strikeCdMul: 2,
+  },
   blast: { // the dust blast: he spits a glob of dirt at a cat he can see (src/vacuum/blast.js)
     minAnger: 3, cooldown: [0, 0, 8, 5], // from the angry stage; s between blasts by stage
     range: 7, minRange: 1.2, // m: how far it's aimed from
     aim: 0.6, recover: 0.5, // s of telegraph (the wheeze, the nozzle lifting), s after firing
     speed: 9, gravity: 2.5, lead: 0.5, // m/s, m/s² of droop, how much of the cat's movement it aims ahead for
-    hit: 0.32, life: 1.4, // m from the cat that counts as a hit; s before it falls apart
+    hit: 0.32, life: 3, // m from the cat that counts as a hit; s before it falls apart
+    // The lob: a slow high arc that comes down on you. For a cat up high or behind something, and now and then anyway.
+    lobAbove: 0.55, lobChance: 0.3, lobGravity: 9, lobApex: 0.75, lobCeiling: 0.25, lobAimOut: 0.35, lobAimUp: 0.8, splash: 0.42, // m cat height it's always a lob from; the chance otherwise; m/s²; m above the higher end its arc peaks; m kept under the ceiling; where the nozzle aims from; m round where it lands that still hits you
     knockRadius: 0.2, knockSpeed: 2.2, // an object it hits gets shoved (which can knock it off: that still counts for you)
     aimOut: 0.7, aimUp: 0.35, // m: where the nozzle lifts to, to aim
     cubes: 8, cubeSize: 0.05, spread: 0.08, color: 0x7d7360, puffTime: 0.4, puffSize: 0.35,
   },
-  dust: { // what a dust blast does to the cat (src/player/player.js)
-    time: 3, speedMul: 0.6, // s it lasts; how much it slows you
-    sneezeDelay: 1, sneezeDip: 0.05, // s until the sneeze; m the camera jolts
-    opacity: 0.85, fadeFrom: 1, // how thick it looks; s from the end at which it starts to clear
+  dust: { // what a dust blast does to the cat (src/player/player.js): it bowls you over, then you stagger
+    tumble: 0.8, knock: 2.6, knockUp: 2.4, // s you've no control; m/s it throws you along the shot, and up (enough to come off a shelf)
+    roll: 1.3, pitch: 0.55, drop: 0.13, // the view: rad it rolls, rad it tips, m it falls toward the floor
+    time: 3.4, speedMul: 0.55, weave: 0.55, weaveRate: 4.6, lean: 0.08, // dazed: s; how much it slows you; rad your steering wanders; rad/s; rad the view hangs off level
+    sneezeDelay: 1.6, sneezeDip: 0.05, // s until the sneeze; m the camera jolts
   },
   hose: { // the snake out of the hole (src/vacuum/hose.js, src/vacuum/voxels.js)
     minLength: 1.6, // m: the hose is never shorter than this. When the tip is close, the excess hangs and bows aside like a chain
     slackPull: 0.02, damping: 0.92, sag: 6, aside: 14, chainPasses: 6, // the chain: how much a slack hose keeps to its route, how fast swinging dies down, m/s² of droop, of bowing sideways; how stiffly the links hold
-    length: 3.8, segments: 14, radius: 0.028, tubeSegments: 34, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
+    length: 3.8, segments: 22, radius: 0.028, tubeSegments: 56, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
     restReach: 0.7, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up
     track: 34, trailStep: 0.06, // 1/s: how fast the body settles onto its trail; m between trail points
@@ -236,15 +281,14 @@ export const TUNING = {
   },
   catch: { // the catch: the most important moment in the game (src/vacuum/catch.js)
     // The ride: you're reeled across the floor along a route of its own that keeps the camera out of everything.
-    rideSpeed: 3.0, rideMin: 0.55, rideMax: 1.6, // m/s on average; shortest and longest it can take (s)
+    rideSpeed: 1.9, rideMin: 1.1, rideMax: 2.4, // m/s on average; shortest and longest it can take (s)
     clearance: 0.12, minY: 0.12, // m the camera keeps from every surface (more than the near plane reaches); m it stays above the floor
     smooth: 4, step: 0.04, // the route is resampled every step m and averaged over this many samples either way, to round its corners
-    lookAhead: 0.35, lookEase: 9, lookFaceFrom: 0.35, // m ahead it looks; 1/s how fast the view follows; share of the ride after which the view starts turning to his face
-    shake: 0.006, // m of screen shake at the start of the ride
-    hoseBelow: 0.07, hoseAhead: 0.05, // m: where the nozzle sits on you during the ride
+    lookEase: 5, // 1/s how fast the view comes round to him. It looks at him the whole way: steady, however the route bends
+    hoseGap: 0.6, // m the end of the hose stays ahead of you as it reels in: never around the camera
     turn: 0.16, // s to turn and face him at the end of it
     hold: 1.2, // s held on his face
-    faceJitter: 0.0035, // m his face trembles
+    faceJitter: 0.0008, // m his face trembles
     beat: 0.8, // s of black silence before the restart screen
     screamRate: 2.3, screamGain: 1.4, screamRamp: 0.9, // the motor at the end: pitch, loudness, s to get there
   },
@@ -259,7 +303,8 @@ export const TUNING = {
   },
   cord: { // the power cord: one outlet, by Grandma's door, and a fixed length (src/vacuum/cord.js)
     length: 24, // m. Every room is in reach, but not by every route: when he'd run out he goes back the way he came
-    spacing: 0.25, capacity: 180, // m between points on the tube; the most points it can have
+    spacing: 0.2, capacity: 420, round: 0.6, roundTight: 0.14, roundSteps: 8, wander: 0.05, wanderRate: 1.7, // (the last five: m it curves round a waypoint, and round a tight spot off the graph; points per curve; m it drifts off a straight line; how fast)
+    // m between points on the tube; the most points it can have
     radius: 0.009, y: 0.012, slack: 0.018, // m: thickness, height off the floor, how much it wanders
     color: 0x2a2a2c, plugColor: 0x141414,
     // Swipe the outlet he's plugged into: the cord whips back, he's dead for a moment, then he plugs into the nearest outlet.

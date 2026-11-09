@@ -21,7 +21,7 @@ export class Hose {
     this.old = Array.from({ length: n + 1 }, () => new THREE.Vector3()); // last tick's positions, for the chain
     this.trail = []; // the path the tip has taken, from the hole outward
     this.tipPos = new THREE.Vector3(); this.dir = new THREE.Vector3(0, 0, 1);
-    this.active = false; this.plan = null; this.planI = 1; this.planT = 0; this.len = 0;
+    this.maxLen = H.length; this.active = false; this.plan = null; this.planI = 1; this.planT = 0; this.len = 0;
     this.arrived = false; this.maxed = false; this.stuck = false; // what the tip has done, for whoever is steering it
     this.t = 0; this.hover = false; this.placed = false;
     this.curve = new THREE.CatmullRomCurve3(this.draw);
@@ -81,7 +81,7 @@ export class Hose {
     let L = 0;
     for (let i = 1; i < T.length; i++) L += T[i].distanceTo(T[i - 1]);
     this.len = L;
-    if (L >= H.length) this.maxed = true;
+    if (L >= this.maxLen) this.maxed = true;
   }
 
   /** A route for the tip: an arching curve if it's clear, else around whatever's in the way. */
@@ -106,7 +106,7 @@ export class Hose {
 
   _approach(dt, cmd) { // along a route to the goal, stopping there
     this.planT -= dt;
-    if (!this.plan || this.planT <= 0) { this.planT = H.replan; this.plan = this._route(cmd.goal, true); this.planI = 1; }
+    if (!this.plan || this.planT <= 0) { this.planT = cmd.replan ?? H.replan; this.plan = this._route(cmd.goal, !cmd.straight); this.planI = 1; }
     if (!this.plan) { this.stuck = true; return; }
     if (this.maxed) return;
     let rem = cmd.speed * dt;
@@ -251,6 +251,7 @@ export class Hose {
     }
     P[0].set(base.x, base.y, base.z);
     if (cmd && !this.active) this._begin(base, s, c);
+    this.maxLen = cmd?.maxLen ?? H.length;
     if (!cmd && !this.active) { // at rest: the nozzle lies in front of him, the rest of it on the floor as it falls
       P[n].lerp(this._restTarget(base, s, c, _b), expK(H.follow, dt));
       for (let i = 1; i < n; i++) this.want[i].lerpVectors(P[0], P[n], i / n);

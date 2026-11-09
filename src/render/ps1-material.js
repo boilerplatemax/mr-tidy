@@ -38,6 +38,10 @@ export const PS1 = {
     uPs1RingPos: { value: new THREE.Vector3() },
     uPs1RingRad: { value: new THREE.Vector2(0.08, 0.13) },
     uPs1RingColor: { value: new THREE.Color(0xffffff) },
+    // the dust cloud: a sphere of smog, cut off by the room it's in (src/vacuum/dust-cloud.js)
+    uPs1CloudAmt: { value: 0 }, uPs1CloudR: { value: 1 }, uPs1CloudDensity: { value: 1 }, uPs1CloudTime: { value: 0 },
+    uPs1CloudPos: { value: new THREE.Vector3() }, uPs1CloudMin: { value: new THREE.Vector3() }, uPs1CloudMax: { value: new THREE.Vector3() },
+    uPs1CloudColor: { value: new THREE.Color(0x8a7a60) },
   },
   /** Light zones (array of THREE.Box3, world space). A point light lights only its own zone. */
   setLightZones(boxes) {
@@ -108,8 +112,36 @@ uniform float uPs1RingOn;
 uniform vec3 uPs1RingPos;
 uniform vec2 uPs1RingRad;
 uniform vec3 uPs1RingColor;
+uniform float uPs1CloudAmt;
+uniform float uPs1CloudR;
+uniform float uPs1CloudDensity;
+uniform float uPs1CloudTime;
+uniform vec3 uPs1CloudPos;
+uniform vec3 uPs1CloudMin;
+uniform vec3 uPs1CloudMax;
+uniform vec3 uPs1CloudColor;
 varying vec3 vPs1Affine;
 varying vec3 vPs1World;
+// how much of the view to this fragment passes through the cloud: the ray, inside the sphere and inside the room
+float ps1Cloud() {
+  vec3 ro = cameraPosition, rd = vPs1World - ro;
+  float len = length( rd ); rd /= max( len, 1e-4 );
+  vec3 oc = ro - uPs1CloudPos;
+  float b = dot( oc, rd ), h = b * b - dot( oc, oc ) + uPs1CloudR * uPs1CloudR;
+  if ( h <= 0.0 ) return 0.0;
+  h = sqrt( h );
+  float t0 = max( - b - h, 0.0 ), t1 = min( - b + h, len );
+  vec3 sg = vec3( rd.x < 0.0 ? -1.0 : 1.0, rd.y < 0.0 ? -1.0 : 1.0, rd.z < 0.0 ? -1.0 : 1.0 );
+  vec3 inv = sg / ( abs( rd ) + 1e-5 );
+  vec3 s0 = ( uPs1CloudMin - ro ) * inv, s1 = ( uPs1CloudMax - ro ) * inv;
+  vec3 lo = min( s0, s1 ), hi = max( s0, s1 );
+  t0 = max( t0, max( lo.x, max( lo.y, lo.z ) ) ); t1 = min( t1, min( hi.x, min( hi.y, hi.z ) ) );
+  float path = max( t1 - t0, 0.0 );
+  if ( path <= 0.0 ) return 0.0;
+  vec3 m = ro + rd * ( t0 + t1 ) * 0.5;
+  float n = 0.78 + 0.22 * sin( m.x * 2.7 + uPs1CloudTime * 0.6 ) * sin( m.z * 2.3 - uPs1CloudTime * 0.45 ) + 0.1 * sin( m.y * 3.7 + uPs1CloudTime * 0.3 + m.x );
+  return 1.0 - exp( - path * uPs1CloudDensity * n * uPs1CloudAmt );
+}
 float ps1Indoor() {
   float f = 0.0;
   for ( int i = 0; i < ${MAX_BOXES}; i ++ ) {
@@ -179,6 +211,9 @@ function onBeforeCompile(shader, renderer) {
     .replace('#include <common>', '#include <common>\n' + FRAG_HEAD)
     .replace('#include <map_fragment>', FRAG_MAP)
     .replace('#include <fog_fragment>', `#include <fog_fragment>
+  #ifdef USE_FOG
+  if ( uPs1CloudAmt > 0.002 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPs1CloudColor, ps1Cloud() );
+  #endif
   if ( uPs1RingOn > 0.5 ) { float ps1D = distance( vPs1World, uPs1RingPos ); if ( ps1D > uPs1RingRad.x && ps1D < uPs1RingRad.y ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPs1RingColor, 0.85 ); }`)
     .replace('#include <lights_fragment_begin>', patchLights(THREE.ShaderChunk.lights_fragment_begin))
     .replace('#include <opaque_fragment>', '#include <opaque_fragment>\n  gl_FragColor.rgb = gl_FragColor.rgb * ( 1.0 + uPs1Highlight ) + uPs1Highlight * 0.012;');

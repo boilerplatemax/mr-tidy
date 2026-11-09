@@ -30,6 +30,7 @@ export class Cord {
     scene.add(this.mesh);
     this.plug = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.03), makePS1(new THREE.MeshLambertMaterial({ color: C.plugColor })));
     scene.add(this.plug);
+    this.via = [];
     this.trim = 0; // 0 = all the way to the outlet .. 1 = fully back at the vac
     this.setOutlet(this.outlet);
     this.pts = Array.from({ length: max }, () => ({ x: 0, y: 0, z: 0 }));
@@ -61,15 +62,34 @@ export class Cord {
     add(ox + nx * 0.04, oy, oz + nz * 0.04);
     add(fx, C.y, fz);
     let lx = fx, lz = fz;
-    const run = (tx, tz) => { // a stretch of floor, in short pieces with a slight wander, so it doesn't look ruled
+    const run = (tx, tz) => { // a stretch of floor, drifting a little off straight (and back to it at both ends, so the curves join up)
       const len = Math.hypot(tx - lx, tz - lz), steps = Math.max(1, Math.ceil(len / C.spacing));
+      const nx = len > 1e-5 ? -(tz - lz) / len : 0, nz = len > 1e-5 ? (tx - lx) / len : 0;
       for (let i = 1; i <= steps; i++) {
-        const t = i / steps, w = i === steps ? 0 : Math.sin((s + len * t) * 3.1) * C.slack;
-        add(lx + (tx - lx) * t + w, C.y, lz + (tz - lz) * t - w);
+        const t = i / steps, w = Math.sin(t * Math.PI) * (Math.sin((s + len * t) * C.wanderRate) + 0.5 * Math.sin((s + len * t) * C.wanderRate * 2.3 + 1)) * Math.min(C.wander, len * 0.08);
+        add(lx + (tx - lx) * t + nx * w, C.y, lz + (tz - lz) * t + nz * w);
       }
       s += len; lx = tx; lz = tz;
     };
-    for (let i = 0; i < count; i++) run(nodes[i].x, nodes[i].z);
+    // the points it passes, each corner taken as a curve (a tight one off the graph, where something solid is right there)
+    const via = this.via; via.length = 0;
+    via.push(fx, fz, 0);
+    for (let i = 0; i < count; i++) via.push(nodes[i].x, nodes[i].z, nodes[i].virtual ? 1 : 0);
+    via.push(sx, sz, 0);
+    const N = via.length / 3;
+    for (let i = 1; i < N - 1; i++) {
+      const cx = via[i * 3], cz = via[i * 3 + 1], ax = via[i * 3 - 3], az = via[i * 3 - 2], bx = via[i * 3 + 3], bz = via[i * 3 + 4];
+      const la = Math.hypot(cx - ax, cz - az), lb = Math.hypot(bx - cx, bz - cz);
+      if (la < 1e-4 || lb < 1e-4) continue;
+      const r = Math.min(via[i * 3 + 2] ? C.roundTight : C.round, la * 0.48, lb * 0.48);
+      const ex = cx - ((cx - ax) / la) * r, ez = cz - ((cz - az) / la) * r, ox = cx + ((bx - cx) / lb) * r, oz = cz + ((bz - cz) / lb) * r;
+      run(ex, ez);
+      const bend = Math.acos(Math.max(-1, Math.min(1, ((cx - ax) * (bx - cx) + (cz - az) * (bz - cz)) / (la * lb)))), curve = Math.max(C.roundSteps, Math.ceil(bend / 0.09));
+      for (let k = 1; k <= curve; k++) { // a quadratic curve with the waypoint as its control point
+        const t = k / curve, u = 1 - t, x = u * u * ex + 2 * u * t * cx + t * t * ox, z = u * u * ez + 2 * u * t * cz + t * t * oz;
+        add(x, C.y, z); lx = x; lz = z;
+      }
+    }
     run(sx, sz); // straight to the reel, not under his body
     add(sx, sy, sz);
     // trimming drops points from the outlet end: the free end whips along the floor toward the reel

@@ -37,7 +37,7 @@ export class Player {
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
     this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 0; this.airDashUsed = false; this.fovKick = 0; this.prevFovKick = 0;
-    this.dust = 0; this.sneezeT = 0; this.onSneeze = null; // dusted: slowed, and a sneeze on the way
+    this.dust = 0; this.tumbleT = 0; this.hitAge = 99; this.hitSide = 1; this.sneezeT = 0; this.onSneeze = null; // dusted: bowled over, then slow, with a sneeze on the way
     this.pullX = 0; this.pullZ = 0; // m/s of suction dragging the cat along the ground, set by the vac each tick
     this.wedgedT = 0;
     this.swipeT = -1; this.prevSwipeT = -1; this.swipeCd = 0; this.swipeHit = false;
@@ -61,14 +61,21 @@ export class Player {
   }
 
   /** Back to plain movement, whatever the cat was doing. */
-  /** Hit by a dust blast: slowed, shaken off whatever it was holding, and about to sneeze. */
-  dustHit() {
+  /** Hit by a dust blast: bowled over along the line of the shot (off whatever it was on or holding), then dazed. */
+  dustHit(dx = 0, dz = 0) {
     this.dust = DUST.time; this.sneezeT = DUST.sneezeDelay;
     if (this.mode === 'hang') this._letGo();
     else if (this.mode === 'climb' || this.mode === 'slide') this._offWall();
+    if (this.mode === 'mantle') this.mode = 'move';
+    const l = Math.hypot(dx, dz);
+    if (l < 1e-4) { dx = -this.fx; dz = -this.fz; } else { dx /= l; dz /= l; }
+    this.tumbleT = DUST.tumble; this.hitAge = 0; this.hitSide = Math.random() < 0.5 ? -1 : 1;
+    this.charging = false; this.chargeT = 0; this.dashT = 0; this.swipeT = -1;
+    this.vel.x = dx * DUST.knock; this.vel.z = dz * DUST.knock; this.vy = DUST.knockUp; this.grounded = false;
+    this.launched = true; this.launchX = dx; this.launchZ = dz; this.launchSpeed = DUST.knock;
   }
 
-  resetMotion() { this.pullX = this.pullZ = 0; this.dust = 0; this.sneezeT = 0; this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
+  resetMotion() { this.tumbleT = 0; this.hitAge = 99; this.pullX = this.pullZ = 0; this.dust = 0; this.sneezeT = 0; this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
 
   /** Put the feet at (x, y, z) facing yaw (rad, 0 = toward −z), with no interpolation from the old spot. */
   teleport(x, y, z, yaw = this.yaw) {
@@ -106,6 +113,9 @@ export class Player {
     this.prevSlink = this.slink; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
     if (this.noclip) { this._fly(dt); return; }
     if (this.dust > 0) this.dust = Math.max(0, this.dust - dt);
+    this.hitAge += dt;
+    const held = this.frozen;
+    if (this.tumbleT > 0) { this.tumbleT -= dt; this.frozen = true; } // bowled over: no control until it's over
     if (this.sneezeT > 0) {
       this.sneezeT -= dt;
       if (this.sneezeT <= 0) { this.landDip = DUST.sneezeDip; audio.play('cat.sneeze', { rate: 0.95 + Math.random() * 0.15 }); this.onSneeze?.(); }
@@ -127,6 +137,7 @@ export class Player {
       if (this.mode === 'move' && this.grounded) this.stamina = Math.min(1, this.stamina + ST.regen * dt);
     }
     this._swipe(dt);
+    this.frozen = held;
     this.fovKick += ((this.dashT > 0 ? 1 : 0) - this.fovKick) * expK(D.fovEase, dt);
     this._eyeAndSteps(dt);
   }
@@ -320,7 +331,11 @@ export class Player {
     let speed = (this.gait === 'run' ? P.runSpeed : this.gait === 'slink' ? P.slinkSpeed : P.walkSpeed) * (surf.speed ?? 1);
     if (this.wfwd < 0) speed *= P.backwardMul;
     if (this.charging) speed *= J.moveMul;
-    if (this.dust > 0) speed *= DUST.speedMul;
+    if (this.dust > 0) { // dazed: slow, and it can't quite walk straight
+      speed *= DUST.speedMul;
+      const w = Math.sin(this.time * DUST.weaveRate) * DUST.weave * Math.min(1, this.dust), c = Math.cos(w), s = Math.sin(w), wx = this.wx;
+      this.wx = wx * c - this.wz * s; this.wz = wx * s + this.wz * c;
+    }
     const dashing = this.dashT > 0;
     if (dashing) { // the dash owns the cat's speed until it ends
       this.dashT -= dt;
@@ -731,17 +746,24 @@ export class Player {
     this.bobA = lerp(this.prevBobGait, this.bobGait, alpha);
     const V = this._pv;
     const landDip = lerp(V.landDip, this.landDip, alpha) + lerp(V.chargeDip, this.chargeDip, alpha), viewDip = lerp(V.viewDip, this.viewDip, alpha);
-    let bobY = 0, bobX = 0, roll = 0;
+    let bobY = 0, bobX = 0, roll = 0, tipped = 0, fallen = 0;
+    if (this.hitAge < 3) { // the view goes over with the cat, and rights itself
+      const u = this.hitAge + alpha * (1 / 60), rise = Math.min(1, u / 0.14);
+      roll = this.hitSide * DUST.roll * rise * Math.exp(-u * 2.1) * Math.cos(u * 4.2);
+      tipped = -DUST.pitch * rise * Math.exp(-u * 2.8) * Math.sin(u * 5.5 + 0.8);
+      fallen = DUST.drop * rise * Math.exp(-Math.max(0, u - 0.5) * 2.6);
+    }
+    if (this.dust > 0) roll += Math.sin(this.time * DUST.weaveRate * 0.7) * DUST.lean * Math.min(1, this.dust);
     if (settings.headBob) {
       const amp = this.bobA * this.bobW;
       // DESIGN NOTE: one dip per TWO footsteps. A cat's stride is short, so a dip per step shook the camera 6–9 times a second.
       bobY = -amp * (0.5 + 0.5 * Math.cos(this.bobPh * Math.PI));
       bobX = Math.sin(this.bobPh * Math.PI) * amp * P.bob.sway;
-      roll = bobX * P.bob.roll / Math.max(1e-4, P.bob.walk);
+      roll += bobX * P.bob.roll / Math.max(1e-4, P.bob.walk);
     }
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
-    cam.position.set(x + c * bobX, feet + eye + bobY - landDip, z - s * bobX);
-    cam.rotation.set(this.pitch - viewDip, this.yaw, roll, 'YXZ');
+    cam.position.set(x + c * bobX, feet + Math.max(0.07, eye - fallen) + bobY - landDip, z - s * bobX);
+    cam.rotation.set(this.pitch - viewDip + tipped, this.yaw, roll, 'YXZ');
     const fov = TUNING.render.fov + lerp(this.prevFovKick, this.fovKick, alpha) * D.fovKick;
     if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
     cam.updateMatrixWorld();

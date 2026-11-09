@@ -8,7 +8,7 @@ import { audio } from '../audio/audio.js';
 import { Voxels } from './voxels.js';
 
 const C = TUNING.catch, V = TUNING.vac;
-const _p = new THREE.Vector3(), _a = new THREE.Vector3(), _look = new THREE.Vector3(), _hole = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _dir = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
+const _p = new THREE.Vector3(), _look = new THREE.Vector3(), _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _dir = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0);
 const rnd = () => Math.random() * 2 - 1;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const smooth = (t) => t * t * (3 - 2 * t);
@@ -84,21 +84,23 @@ export class CatchSequence {
     const v = this.vac, cam = this.camera, m = v.model;
     this.active = true; this.phase = 'drag'; this.t = 0;
     this._plan(cam.position.clone());
-    m.setFace(4); m.face.visible = true; // furious, whatever he was before
+    m.setFace(4); m.face.visible = true; m.still = true; // furious, whatever he was before, and for once perfectly still
     this.faceBase.copy(m.face.position);
     audio.play('vac.fwoomp', { gain: 0.7 });
     v.scream();
   }
 
-  /** The hose, from the hole, out along what's left of the ride, to the nozzle holding you. */
-  _reel(s, eye) {
-    const v = this.vac, i = this._at(s, _a), h = v._hole(), pts = [_hole.set(h.x, h.y, h.z).clone()];
-    for (let k = this.ride.length - 1; k > i; k -= 3) pts.push(this.ride[k]);
-    _dir.copy(_a).sub(eye);
-    const tip = eye.clone().addScaledVector(_look.copy(this.camera.getWorldDirection(_look)).setY(0), C.hoseAhead);
-    tip.y = Math.max(TUNING.hose.floorY, tip.y - C.hoseBelow);
-    pts.push(tip);
-    v.hose.lay(pts);
+  /** The hose reeling in ahead of you: every point slides along the same smooth route, so its shape never shifts. */
+  _reel(s) {
+    const v = this.vac, H = v.hose, n = H.n, h = v._hole(), from = Math.min(this.len, s + C.hoseGap);
+    H.active = true;
+    H.pts[0].set(h.x, h.y, h.z);
+    for (let i = 1; i <= n; i++) { // (the first stretch is the short hop from the hole to the end of the route)
+      this._at(this.len + (from - this.len) * ((i - 1) / (n - 1)), H.pts[i]);
+      H.pts[i].y = Math.max(TUNING.hose.floorY, H.pts[i].y - 0.05);
+    }
+    for (let i = 0; i <= n; i++) { H.prev[i].copy(H.pts[i]); H.old[i].copy(H.pts[i]); }
+    H.tipPos.copy(H.pts[n]);
   }
 
   /** Per rendered frame while active. */
@@ -108,11 +110,8 @@ export class CatchSequence {
     if (this.phase === 'drag') {
       const u = Math.min(1, this.t / this.time), s = smooth(u) * this.len;
       this._at(s, _p);
-      this._at(Math.min(this.len, s + C.lookAhead), _a);
-      const shake = C.shake * (1 - u);
-      cam.position.set(_p.x + rnd() * shake, _p.y + rnd() * shake, _p.z + rnd() * shake);
-      // along the way at first, then round to his face: no whip, however the route bends
-      _look.copy(_a).lerp(this.faceAt, smooth(Math.max(0, (u - C.lookFaceFrom) / (1 - C.lookFaceFrom))));
+      cam.position.copy(_p);
+      _look.copy(this.faceAt);
       if (cam.position.distanceToSquared(_look) > 1e-6) {
         _m.lookAt(cam.position, _look, _up);
         _q.setFromRotationMatrix(_m);
@@ -120,7 +119,7 @@ export class CatchSequence {
       }
       cam.updateMatrixWorld();
       v.heading = v.prevHeading = this.heading0 + (this.heading1 - this.heading0) * smooth(Math.min(1, u * 1.4)); // he swings round to meet you
-      this._reel(s, cam.position);
+      this._reel(s);
       if (u >= 1) this._toHold();
       return;
     }
@@ -143,7 +142,7 @@ export class CatchSequence {
     this.from.copy(cam.quaternion);
     _m.lookAt(this.end, this.faceAt, _up);
     this.to.setFromRotationMatrix(_m);
-    this.vac.hose.lay([this.vac._hole(), this.end.clone().setY(TUNING.hose.floorY + 0.05)].map((p) => new THREE.Vector3(p.x, p.y, p.z)));
+    const h = this.vac._hole(), a = new THREE.Vector3(h.x, h.y, h.z), b = a.clone().lerp(this.end, 0.35); b.y = TUNING.hose.floorY; this.vac.hose.lay([a, b]); // (the slack, on the floor between you)
   }
 
   _toCut() {
@@ -155,5 +154,5 @@ export class CatchSequence {
   }
 
   /** Clears everything for a new run. */
-  reset() { this.active = false; this.phase = 'none'; this.t = 0; this.cut.hidden = true; }
+  reset() { this.active = false; this.phase = 'none'; this.t = 0; this.cut.hidden = true; this.vac.model.still = false; }
 }

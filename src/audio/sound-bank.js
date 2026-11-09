@@ -76,7 +76,57 @@ function drone(sr) { // a 2 s seamless loop: built 0.25 s long, then the tail is
   return S.normalise(S.loopable(n, sr, 0.25), 0.8);
 }
 
+// ---------------------------------------------------------------- horror: the shriek and the stingers (all generated)
+/** A throat tearing itself open: a few detuned voices, a pitch that lurches up and warbles, rasp, vowel-like resonances. */
+function shriek(sr, len = 1.9) {
+  const out = S.buffer(len, sr), T = rand(0.2, 0.3), peak = rand(1050, 1300), last = rand(560, 760), flutter = rand(11, 16);
+  const contour = (t, det) => {
+    const u = t * len;
+    let f = u < T ? 320 + (peak - 320) * Math.pow(u / T, 0.6) : peak + (last - peak) * Math.pow((u - T) / (len - T), 1.4);
+    f *= 1 + 0.045 * Math.sin(u * flutter * 6.283) + 0.03 * Math.sin(u * 37 + det * 9);
+    return f * det;
+  };
+  for (const [det, g] of [[1, 1], [1.016, 0.7], [0.985, 0.7], [1.49, 0.35], [0.5, 0.5]]) S.mix(out, S.saw(S.buffer(len, sr), sr, (t) => contour(t, det)), g);
+  const rasp = S.sine(S.buffer(len, sr), sr, rand(68, 92));
+  for (let i = 0; i < out.length; i++) out[i] *= 0.55 + 0.45 * rasp[i]; // a ring of low growl through it
+  const a = S.biquad(out.slice(), sr, 'bp', (t) => 1100 + 500 * Math.sin(t * 9), 3.5), b = S.biquad(out.slice(), sr, 'bp', (t) => 2500 + 700 * t, 4), c = S.biquad(out.slice(), sr, 'bp', 3700, 5);
+  const x = new Float32Array(out.length);
+  S.mix(x, a, 1); S.mix(x, b, 0.8); S.mix(x, c, 0.5);
+  S.mix(x, S.biquad(S.noise(S.buffer(len, sr)), sr, 'bp', (t) => 1800 + 1800 * t, 0.9), 0.55); // breath
+  for (let i = 0; i < x.length; i++) {
+    const u = i / sr, e = Math.min(1, u / 0.05) * (u > len - 0.55 ? Math.pow(Math.max(0, len - u) / 0.55, 1.5) : 1) * (0.86 + 0.14 * Math.sin(u * 53));
+    x[i] = Math.tanh(x[i] * 2.4 * e);
+  }
+  return S.declick(S.normalise(x, 0.98), sr);
+}
+/** He's seen you: a cluster of strings stabbing in, sliding up against itself, over a thump. */
+function stingSpot(sr) {
+  const x = S.buffer(1.5, sr);
+  for (const f of [233, 247, 349, 370, 466, 494, 698]) {
+    const v = S.saw(S.buffer(1.5, sr), sr, (t) => f * (1 + 0.035 * t * t + 0.004 * Math.sin(t * 90)));
+    S.env(v, sr, 0.012, 0.42);
+    S.mix(x, v, 0.38);
+  }
+  S.biquad(x, sr, 'bp', (t) => 2100 - 1300 * t, 0.7);
+  S.mix(x, S.env(S.sine(S.buffer(0.5, sr), sr, (t) => 62 - 26 * t), sr, 0.004, 0.16), 2.0);
+  return S.declick(S.normalise(x, 0.95), sr);
+}
+/** He heard something: low and close, two notes rubbing together, swelling and gone. */
+function stingHeard(sr) {
+  const n = 1.1, x = S.buffer(n, sr);
+  for (const [f, g] of [[58, 1], [61.5, 0.9], [116, 0.4], [174, 0.18]]) S.mix(x, S.sine(S.buffer(n, sr), sr, f), g);
+  S.mix(x, S.biquad(S.noise(S.buffer(n, sr)), sr, 'lp', 300), 0.5);
+  for (let i = 0; i < x.length; i++) { const t = i / x.length; x[i] *= Math.pow(Math.sin(Math.PI * Math.min(1, t * 1.15)), 1.6); }
+  return S.declick(S.normalise(x, 0.85), sr);
+}
+
 export const SOUNDS = {
+  'vac.shriek': { gen: v((sr) => shriek(sr), 3), gain: 1.15, subtitle: 'a tearing shriek', bus: 'voice' },
+  'sting.spot': { gen: v(stingSpot, 2), gain: 0.95, subtitle: 'a sharp stab of strings', bus: 'voice' },
+  'sting.heard': { gen: v(stingHeard, 2), gain: 0.6, bus: 'voice' },
+  'vac.listen': { gen: (sr) => { const x = S.buffer(0.45, sr); S.grains(x, sr, 5, 0.006, 0.06, 0); S.biquad(x, sr, 'bp', 2100, 2); S.mix(x, S.env(S.saw(S.buffer(0.42, sr), sr, (t) => 150 - 95 * t), sr, 0.005, 0.14), 0.5); return S.declick(S.normalise(x, 0.7), sr); }, gain: 0.55, subtitle: 'the motor drops, listening' },
+  'vac.creep': { gen: (sr) => { const x = S.buffer(1.6, sr); S.grains(x, sr, 30, 0.02, 1.5, 0); S.biquad(x, sr, 'bp', 900, 1.2); S.mix(x, S.biquad(S.noise(S.buffer(1.6, sr)), sr, 'bp', 420, 3), 0.3); return S.normalise(S.loopable(x, sr, 0.25), 0.5); }, loop: true, gain: 0.5, subtitle: 'something sliding, slowly' },
+  'vac.exhale': { gen: (sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(1.8, sr)), sr, 'bp', (t) => 300 + 1500 * (1 - t), 0.7), sr, 0.04, 0.8), 0.95), sr), gain: 1.1, subtitle: 'a great gust of dust' },
   'vac.unplug': { gen: v((sr) => { // a crackling pop as the plug comes out
     const x = S.buffer(0.3, sr);
     S.grains(x, sr, 20, 0.008, 0.14, 0);
