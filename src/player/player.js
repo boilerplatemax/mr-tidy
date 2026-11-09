@@ -29,7 +29,7 @@ export class Player {
     this.viewDip = 0; this.landDip = 0; this.chargeDip = 0;
     this._pv = { viewDip: 0, landDip: 0, chargeDip: 0 };
     // the jump
-    this.charging = false; this.chargeT = 0; this.chargeCarry = 0; this.coyoteT = 0; this.bufferT = 0; this.time = 0;
+    this.charging = false; this.chargeT = 0; this.heldT = 0; this.chargeCarry = 0; this.coyoteT = 0; this.bufferT = 0; this.time = 0;
     this.launched = false; this.launchSpeed = 0; this.launchX = 0; this.launchZ = 0;
     this.aim = { ok: false, kind: 'land', x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, col: null }; // where a jump released now would end (the target marker and shimmer read this)
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
@@ -172,10 +172,7 @@ export class Player {
       else if (!space) this._launch(this.charge);
       else {
         this.chargeT += dt;
-        if (this.chargeT >= J.chargeTime + J.holdAtMax) { // held too long: called off
-          this.charging = false; this.chargeT = 0;
-          audio.play('cat.huff');
-        }
+        if (this._chargeExpired(dt)) { this.charging = false; this.chargeT = 0; audio.play('cat.huff'); }
       }
     }
     const c = this.charge;
@@ -199,6 +196,13 @@ export class Player {
     if (!this.grounded) this.airDashUsed = true;
     this.launched = false;
     audio.play('cat.dash', { rate: 0.95 + Math.random() * 0.15 });
+  }
+
+  /** A full charge held with nothing else going on is called off. Walking or steering keeps it alive indefinitely. */
+  _chargeExpired(dt) {
+    if (this.wlen > 0 || this.chargeT < J.chargeTime) { this.heldT = 0; return false; }
+    this.heldT += dt;
+    return this.heldT >= J.holdAtMax;
   }
 
   /** The way a jump would go right now: x, z and whether it goes anywhere. Writes this._dir. */
@@ -230,7 +234,10 @@ export class Player {
     const a = this.aim, W = this.world, r = P.radius;
     a.ok = false;
     const d = spring ? this._kickDir() : this._jumpDir(c);
-    if (!d.x && !d.z) return;
+    if (!d.x && !d.z) { // straight up: it comes down where it left. Not a target to light up, but the ring doesn't blink off and on
+      a.ok = true; a.kind = 'land'; a.x = this.pos.x; a.y = this.feetY; a.z = this.pos.z; a.nx = 0; a.ny = 1; a.nz = 0; a.col = null;
+      return;
+    }
     const speed = spring ? lerp(C.kickSpeed, C.springSpeed, c) : this._jumpSpeed(c), step = J.predictDt;
     let x = this.pos.x, z = this.pos.z, y = this.feetY, vy = spring ? lerp(C.kickVy, C.springVy, c) : J.minVy + (J.maxVy - J.minVy) * c;
     for (let t = 0; t < J.predictT; t += step) {
@@ -299,7 +306,9 @@ export class Player {
       if (top + this.vy * dt > ceil) { this.feetY = Math.max(this.feetY, ceil - this.height - 1e-3); this.vy = 0; }
     }
 
+    const startX = this.pos.x, startZ = this.pos.z;
     this._moveXZ(dt);
+    if (this.charging && this.grounded) this._keepOnEdge(startX, startZ);
 
     // ---- vertical: step up / down, gravity, landing
     const g = this.world.ground(this.pos.x, this.pos.z, P.radius * P.edgeSupport, this.feetY + P.stepHeight, this._g);
@@ -470,7 +479,7 @@ export class Player {
       if (!I.down('Space') || this.frozen) { this._kick(this.charge); return; }
       this.chargeT += dt;
       this.stamina = Math.max(0, this.stamina - ST.clingDrain * dt);
-      if (this.stamina <= 0 || this.chargeT >= J.chargeTime + J.holdAtMax) { // out of grip, or held too long: called off
+      if (this.stamina <= 0 || this._chargeExpired(dt)) { // out of grip, or held too long: called off
         this.charging = false; this.chargeT = 0; this.aim.ok = false;
         audio.play('cat.huff');
         if (this.stamina <= 0) this.mode = 'slide';
@@ -531,6 +540,16 @@ export class Player {
       if (W.penetration(x, z, r * 1.05, lowY, highY, null, this.feetY) === 0) { this.pos.x = x; this.pos.z = z; this.prev.x = x; this.prev.z = z; this.vel.x = this.vel.z = 0; this.wedgedT = 0; return; }
     }
     this.wedgedT = 0;
+  }
+
+  _supported(x, z) { return this.world.ground(x, z, P.radius * P.edgeSupport, this.feetY + P.stepHeight, this._g).y >= this.feetY - P.stepHeight; }
+
+  /** While charging the cat won't walk off an edge (that used to throw the charge away). It slides along it instead. */
+  _keepOnEdge(x0, z0) {
+    if (this._supported(this.pos.x, this.pos.z)) return;
+    if (this._supported(this.pos.x, z0)) { this.pos.z = z0; this.vel.z = 0; return; }
+    if (this._supported(x0, this.pos.z)) { this.pos.x = x0; this.vel.x = 0; return; }
+    this.pos.x = x0; this.pos.z = z0; this.vel.x = this.vel.z = 0;
   }
 
   /** Horizontal move with collision (substeps so nothing tunnels). */

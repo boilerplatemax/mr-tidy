@@ -132,7 +132,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

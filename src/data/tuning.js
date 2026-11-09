@@ -127,7 +127,7 @@ export const TUNING = {
     buffer: 0.12, // s a press before landing still counts
     airSteerMin: 1.0, // m/s: steering speed in the air on a very short hop
     dip: 0.03, dipPitch: 0.06, // the camera dips (m, rad) at full charge
-    holdAtMax: 0.8, // s a full charge is held before the jump is called off
+    holdAtMax: 0.8, // s a full charge is held, standing still, before the jump is called off. Walking or steering never cancels it
     predictDt: 0.02, predictT: 1.4, // s: landing-spot prediction step and horizon
     marker: { // the jump target: a ring painted onto the world around the landing spot (src/player/landing-marker.js)
       ringInner: 0.085, ringOuter: 0.135, ringFull: 1.3, ringMin: 0.45, // m; closer than ringFull m the ring shrinks, down to this share

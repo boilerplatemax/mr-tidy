@@ -270,6 +270,38 @@ function climbChecks(kit) {
   report('hold Space on a wall charges a spring jump', stuck && aimed && c1 > 0.9 && P.mode === 'move' && P.vy > 4.5, `charge ${c1.toFixed(2)}, vy ${P.vy.toFixed(2)}`);
   for (let i = 0; i < 120 && !P.grounded; i++) kit.tick(dt);
 
+  // walking while holding a charge: it isn't cancelled, and the target keeps up with no blinks or stale spots
+  put(2.4, 0.001, 1.0, Math.PI);
+  I.keys.add('Space'); I.edges.add('Space');
+  let blinks = 0, stale = 0, gaps = 0; const M = kit.marker;
+  const script = [['KeyW', 50], ['KeyA', 40], ['KeyD', 40], ['KeyS', 30], ['KeyW', 40]];
+  for (const [key, n] of script) {
+    I.keys.add(key);
+    for (let i = 0; i < n; i++) { kit.tick(dt); if (!P.aim.ok) blinks++; M.update(P.aim, dt, P); if (Math.hypot(M.goal.x - P.aim.x, M.goal.z - P.aim.z) > 1e-6) stale++; }
+    I.keys.delete(key);
+    kit.tick(dt); if (!P.aim.ok) gaps++;
+  }
+  const alive = P.charging && P.grounded;
+  I.keys.clear(); kit.tick(dt); M.update(P.aim, dt, P);
+  report('walking while charging keeps the charge, target follows', alive && blinks === 0 && gaps === 0 && stale === 0, `${blinks} blinks, ${stale} stale`);
+  for (let i = 0; i < 90 && !P.grounded; i++) kit.tick(dt);
+
+  // standing still at full charge still gives up eventually
+  put(2.4, 0.001, 1.0, Math.PI);
+  I.keys.add('Space'); I.edges.add('Space');
+  for (let i = 0; i < 90; i++) kit.tick(dt);
+  report('standing still at full charge calls it off', !P.charging && P.grounded);
+  I.keys.clear(); kit.tick(dt);
+
+  // walking at an edge while charging: it stops at the lip instead of dropping off
+  put(7.75, 0.901, 0.4, -Math.PI / 2);
+  I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt); I.keys.add('KeyW');
+  for (let i = 0; i < 120; i++) kit.tick(dt);
+  const safe = P.charging && P.grounded && P.groundCollider?.id === 'c1';
+  I.keys.clear(); kit.tick(dt);
+  report('charging at an edge stays on it, then jumps', safe && !P.grounded && P.vy > 0, `x ${P.pos.x.toFixed(2)}`);
+  for (let i = 0; i < 120 && !P.grounded; i++) kit.tick(dt);
+
   // a kick-off, up the panel: looking back into the room, leaves the wall and flies
   put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
   for (let i = 0; i < 60; i++) kit.tick(dt);

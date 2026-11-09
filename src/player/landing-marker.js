@@ -29,7 +29,9 @@ export class LandingMarker {
     else {
       // a spot that moves back toward the cat has to stay back for a moment before it's believed
       const d = player._dir, back = -((aim.x - g.x) * d.x + (aim.z - g.z) * d.z);
-      if (back > M.retractMin) { this.retract += dt; if (this.retract >= M.retractHold) { this._accept(aim); this.retract = 0; } }
+      // (only for a cat holding still: if you're walking or steering, the spot moving is you, and it should follow at once)
+      const moving = player.wlen > 0 || player.speed > 0.05;
+      if (!moving && back > M.retractMin) { this.retract += dt; if (this.retract >= M.retractHold) { this._accept(aim); this.retract = 0; } }
       else { this.retract = 0; this._accept(aim); }
     }
     this._t.set(g.x, g.y, g.z);
