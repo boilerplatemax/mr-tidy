@@ -107,6 +107,17 @@ export class CollisionWorld {
     return out;
   }
 
+  /** The lowest underside of anything over a circle at or above fromY (a shelf over the cat's head), else the house ceiling. */
+  ceiling(x, z, r, fromY) {
+    let y = this.ceilingY;
+    for (const b of this.boxes) {
+      if (!b.enabled || !b.solid || b.minY < fromY || b.minY >= y) continue;
+      if (Math.abs(x - b.cx) > b.reach + r || Math.abs(z - b.cz) > b.reach + r) continue;
+      if (this._boxDist(b, x, z, null) < r) y = b.minY;
+    }
+    return y;
+  }
+
   /**
    * Push a circle out of every collider overlapping the vertical span [lowY, highY].
    * pos {x,z} is modified. Calls onPush(nx, nz) per contact (for velocity clipping).

@@ -59,7 +59,7 @@ export function buildHouse({ scene, world }) {
     door: lambert(C.grandmaDoor), plate: lambert(C.outlet),
     stripes: makePS1(new THREE.MeshLambertMaterial({ map: canvasTexture(32, (g, n) => {
       g.fillStyle = '#6a4e30'; g.fillRect(0, 0, n, n);
-      g.fillStyle = '#c9a26a'; for (let x = 0; x < n; x += 8) g.fillRect(x, 0, 4, n);
+      g.fillStyle = '#c9a26a'; for (let x = 0; x < n; x += 16) g.fillRect(x, 0, 8, n); // wide enough to survive the mip levels at a distance
     }) })),
     strip: makePS1(new THREE.MeshBasicMaterial({ color: C.doorStrip, fog: false })),
     floor: new Map(LEVEL.rooms.map((r) => [r.id, lambert(r.floor)])),

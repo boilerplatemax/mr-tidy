@@ -3,7 +3,7 @@
 // URL flags: ?dev (overlay on) · ?play (no click needed: headless checks; input runs unlocked)
 import * as THREE from 'three';
 import { TUNING } from './data/tuning.js';
-import { settings, setSetting, applyLookPreset } from './data/settings.js';
+import { settings } from './data/settings.js';
 import { PS1Renderer } from './render/ps1-renderer.js';
 import { PS1 } from './render/ps1-material.js';
 import { Environment } from './render/environment.js';
@@ -17,6 +17,7 @@ import { HudLayer } from './ui/pixel-label.js';
 import { Menu } from './ui/menu.js';
 import { DevOverlay } from './ui/dev-overlay.js';
 import { buildHouse } from './world/house.js';
+import { Debug } from './debug/debug.js';
 
 const params = new URLSearchParams(location.search);
 const R = TUNING.render;
@@ -63,35 +64,15 @@ if (params.has('play')) { // headless / tests: no click, no pointer lock
   input.setPaused(false); menu.hide();
 }
 
-// ---------------------------------------------------------------- debug keys
-const LOOKS = ['authored', 'clean'];
-const DEV_HELP = [
-  'Debug keys', 'F1 overlay', 'F9 this list',
-  'With the overlay open:', 'L light preset', '1 / 2 / 3 jitter / warp / dither', '4 look: authored <-> clean',
-  'URL: ?dev ?play',
-].join('\n');
-function devKeys() {
-  const I = input;
-  if (I.pressed('F1') || I.pressed('Backquote')) overlay.toggle();
-  if (I.pressed('F9')) overlay.toggleHelp(DEV_HELP);
-  if (!I.live || !overlay.visible) return;
-  if (I.pressed('KeyL')) { const o = TUNING.lighting.order; const next = o[(o.indexOf(env.preset) + 1) % o.length]; env.apply(next); overlay.note('light: ' + next); }
-  for (const [code, key] of [['Digit1', 'jitter'], ['Digit2', 'warp'], ['Digit3', 'dither']]) if (I.pressed(code)) { setSetting(key, !settings[key]); overlay.note(`${key} ${settings[key] ? 'on' : 'off'}`); }
-  if (I.pressed('Digit4')) { const next = LOOKS[(LOOKS.indexOf(settings.look) + 1) % LOOKS.length]; applyLookPreset(next); overlay.note('look: ' + next); }
-}
-overlay.lines = () => [
-  `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris`,
-  `${ps1.width}x${ps1.height} x${ps1.scale}${ps1.ss > 1 ? ' (2x ss)' : ''} · look ${settings.look} · light ${env.preset}`,
-  `pos ${player.pos.x.toFixed(2)}, ${player.feetY.toFixed(2)}, ${player.pos.z.toFixed(2)} · ${player.gait} on ${player.surface}`,
-  `audio ${audio.ready ? audio.voices.size + ' voices' : 'not started (first click)'}`,
-];
+// ---------------------------------------------------------------- debug
+const debug = new Debug({ input, player, world, scene, camera, overlay, env, ps1, audio });
 
 // ---------------------------------------------------------------- the loop
 const titleCam = TUNING.house.titleCamera;
 let wallTime = 0;
 function tick(dt) {
   player.snapView(); // last tick's view offsets, so the frame can interpolate them (see src/core/loop.js)
-  devKeys();
+  debug.tick();
   if (input.live) {
     player.tick(dt);
     house.tick(dt, player.pos);
@@ -109,6 +90,7 @@ function frame(alpha, dt, frameMs) {
   } else {
     if (input.live) player.look();
     player.render(alpha);
+    debug.frame();
   }
   env.update(camera);
   audio.update(dt, camera);
@@ -124,6 +106,6 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug };
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

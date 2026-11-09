@@ -79,32 +79,42 @@ export const TUNING = {
     maxFrame: 0.1, // s: a frame longer than this counts as this long
   },
 
-  // ---------------------------------------------------------------- the first-person controller (src/player/player.js)
+  // ---------------------------------------------------------------- the cat (src/player/player.js)
   player: {
-    radius: 0.28, // collision circle radius (m)
-    height: 1.78, // standing capsule height
-    crouchHeight: 1.12,
-    eyeHeight: 1.65, // 1 unit = 1 m. Doors are ~2.0–2.1 m
-    crouchEyeHeight: 1.0,
-    crouchTime: 0.18, // s to go down / up (eased)
-    stepHeight: 0.36, // ledges up to this are walked over (stairs, thresholds, porch steps)
-    stepSmooth: 14, // 1/s: the eye catches up to a step-up at this rate, so stairs don't snap
-    gravity: 18,
-    walkSpeed: 2.75, // m/s
-    jogSpeed: 4.7, // m/s, hold Shift
-    crouchSpeed: 1.29,
-    backwardMul: 0.8, // walking backwards is slower
-    accel: 13, // 1/s: velocity reaches 63 % of target in 1/accel s (≈ 0.08 s). Short, no ice
-    decel: 16, // 1/s: stopping is a touch faster than starting
-    airControl: 0.15,
+    radius: 0.12, // collision circle radius (m)
+    edgeSupport: 0.6, // share of the radius that must be over a surface to stand on it: lower = hang further off edges
+    height: 0.30, // standing height of the collision span (m)
+    slinkHeight: 0.2,
+    eyeHeight: 0.25, // camera height at cat scale: everything looms
+    slinkEyeHeight: 0.17, // the camera drops a little while slinking
+    slinkTime: 0.12, // s to go down / up
+    stepHeight: 0.06, // ledges up to this are walked over (door sills). Must stay small or a cat strolls onto chairs
+    stepSmooth: 16, // 1/s: the eye catches up to a step at this rate
+    gravity: 18, // m/s². Affects every jump: re-run the route check after changing it
+    walkSpeed: 1.7, // m/s
+    runSpeed: 3.6, // m/s, hold Shift. A little faster than the vac at its angriest
+    slinkSpeed: 0.65, // m/s, hold C. Silent
+    backwardMul: 0.85, // walking backwards is slower
+    accel: 18, // 1/s: reaches 63 % of target speed in 1/accel s. Snappy
+    decel: 22, // 1/s: stops faster than it starts
+    airAccel: 9, // 1/s: tight air control while steering
+    airDecel: 1.5, // 1/s: with no keys held the leap keeps its momentum
     lookRadPerPx: 0.0021, // mouselook: radians per mouse count at sensitivity 1
     pitchLimit: 1.48, // rad (~85°)
     // Head-bob: amplitude in metres per gait; sway = sideways share; roll = radians of tilt at walk amplitude.
-    bob: { walk: 0.022, jog: 0.04, crouch: 0.012, sway: 0.5, roll: 0.004 },
-    stride: { walk: 0.72, jog: 1.05, crouch: 0.52 }, // metres per footstep
+    bob: { walk: 0.006, run: 0.012, slink: 0.003, sway: 0.5, roll: 0.004 },
+    stride: { walk: 0.26, run: 0.42, slink: 0.2 }, // metres per footstep
+    stepGain: { walk: 0.8, run: 1.2 }, // footstep loudness. Slink has none: it's silent
     bobLock: 3, // 1/s: how fast the bob's phase is pulled back onto the footsteps after a gait change (never jumps)
-    bobGaitEase: 6, // 1/s: how fast the bob's depth eases between walk, jog and crouch
-    landDip: 0.08, // m: camera dip when landing from a drop
+    bobGaitEase: 8, // 1/s: how fast the bob's depth eases between gaits
+    landDip: 0.03, // m: camera dip when landing
+    landSoft: 2.2, // m/s: impacts below this make no sound at all
+    landHeavy: 5.2, // m/s: impacts above this (a drop of about 0.75 m) are the heavy thud the vac can hear
+  },
+
+  debug: {
+    noclipSpeed: 3, // m/s (F3); Shift triples it
+    thirdPersonDist: 1.3, // m behind the cat (F2)
   },
 
   // Surfaces: footstep sound family (foot.<sound> in the sound bank; defaults to the surface's own name),
