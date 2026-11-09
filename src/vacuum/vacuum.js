@@ -48,6 +48,28 @@ export class Vacuum {
 
   get ready() { return this.model.ready; }
 
+  /** Back to the start, for a new run. */
+  reset() {
+    const start = this.nav.nodes.get(LEVEL.vacStart), o = LEVEL.outlets[0];
+    this.slurp?.stop(0.05); this.slurp = null;
+    this._endReach();
+    this.x = this.px = start.x; this.z = this.pz = start.z; this.heading = this.prevHeading = 0;
+    this.state = 'PATROL'; this.off = false; this.caught = false; this.frozen = false; this.pending = null; this.mess = null;
+    this.reachCd = 0; this.seeT = 0; this.seesCat = false; this.loseT = 0; this.direct = false; this.chaseNode = null; this.sweep = false; this.cleanT = 0;
+    this.plugState = 'in'; this.plugT = 0; this.plugLock = 0;
+    this.cord.setOutlet(o); this.cord.setTrim(0);
+    this.root = this.nav.nodes.get(o.node);
+    this.tether = this.nav.path(this.root, start);
+    this.routeI = 0; this.path = [start]; this.pathI = 0;
+    this.spin = 0; this.lastPaid = this._paid();
+    this.hose.placed = false; this.hose.reaching = false;
+    this.model.face.visible = true;
+    this.setAnger(1);
+    this.anger = 1; this.model.setFace(1);
+    if (!this.voice) this.startSound();
+    else { this.voice.fadeTo(this.droneLevel(10), 0.1); this.voice.setRate(D.rate[0], 0.1); }
+  }
+
   /** Anger level 1–3: his face, his speed, the pitch of his motor. */
   setAnger(level) {
     this.anger = Math.max(1, Math.min(3, level));

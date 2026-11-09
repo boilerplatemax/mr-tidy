@@ -1,25 +1,28 @@
-// The end-of-run screen ("Good Kitty"), in the pixel font. Playing again reloads the page for now; a seamless restart
-// that keeps you out of the title screen arrives with the restart work in step 16.
+// The end-of-run screen ("Good Kitty" or "Try again"), in the pixel font. The button starts a new run straight away.
 import { pixText } from './menu.js';
 
 export class EndScreen {
-  constructor() {
+  /** onAgain(): the button was clicked (a user gesture: it can take the mouse back). */
+  constructor(onAgain) {
+    this.onAgain = onAgain;
     const el = this.el = document.createElement('div');
     el.id = 'end';
     el.hidden = true;
     document.body.append(el);
   }
 
+  hide() { this.el.hidden = true; }
+
   /** title: big line. lines: smaller lines under it. */
-  show(title, lines) {
+  show(title, lines, button = 'Play again') {
     const px = Math.max(2, Math.min(4, Math.floor(Math.min(window.innerHeight / 300, window.innerWidth / 470))));
     this.el.style.setProperty('--px', px);
     const big = pixText(title, '#cfc4a6'); big.classList.add('big');
     const box = document.createElement('div'); box.className = 'box';
     box.append(big, ...lines.map((l) => pixText(l, '#8a826e')));
     const again = document.createElement('button'); again.type = 'button';
-    again.append(pixText('Play again'));
-    again.onclick = () => location.reload();
+    again.append(pixText(button));
+    again.onclick = () => this.onAgain?.();
     box.append(again);
     this.el.replaceChildren(box);
     this.el.hidden = false;

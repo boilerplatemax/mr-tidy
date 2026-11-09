@@ -378,6 +378,35 @@ function vacChecks(kit) {
   return rows;
 }
 
+/** A new run from a finished one, without a reload: nothing left over. */
+function restartChecks(kit) {
+  const v = kit.vac, K = kit.knock, D = kit.debris, G = kit.grandma, P = kit.player, Q = kit.catchSeq, dt = 1 / 60, rows = [], S = TUNING.house.spawn;
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} RUN ${name}${note ? ' (' + note + ')' : ''}`);
+  const fresh = () => K.count === 0 && D.messes.length === 0 && D.live.length === 0 && G.wake === 0 && G.stage === 0 && !G.awake
+    && K.list.every((o) => o.state === 'rest' && !o.knocked && o.mesh.visible && o.x === o.start.x && o.y === o.start.y)
+    && v.state === 'PATROL' && !v.off && !v.caught && !v.frozen && v.anger === 1 && v.model.face.visible && v.model.face.material.map === v.model.faces[1]
+    && v.cord.outlet.id === 'grandma' && v.cord.trim === 0 && v.tether[0].id === 'H4' && v.plugState === 'in'
+    && !P.frozen && P.mode === 'move' && P.pos.x === S.x && P.pos.z === S.z && !kit.ended && kit.endScreen.el.hidden && Q.cut.hidden && !Q.active && kit.runTime === 0;
+
+  // a finished, won run
+  report('the win left the run over', kit.ended && G.awake && v.off);
+  kit.resetRun();
+  report('Play again: everything back as it started', fresh());
+  // some mischief, then caught
+  K._knockOver(K.byId.get('standJar')); K._knockOver(K.byId.get('mug2'));
+  report('a new run plays: objects break again and count', K.count === 2 && D.messes.length === 2 && G.wake > 0);
+  for (let i = 0; i < 60; i++) kit.tick(dt);
+  P.render(1); kit.camera.updateMatrixWorld(true);
+  v._catch('hose');
+  for (let i = 0; i < 400 && Q.phase !== 'done'; i++) Q.update(dt);
+  report('a catch ends it in Try again', Q.phase === 'done' && !kit.endScreen.el.hidden && kit.ended);
+  kit.resetRun();
+  report('Restart: everything back as it started', fresh());
+  for (let i = 0; i < 120; i++) kit.tick(dt);
+  report('and he is patrolling, the cat is free', v.state === 'PATROL' && (v.x !== v.nav.nodes.get('L1').x || v.z !== v.nav.nodes.get('L1').z) && !kit.ended);
+  return rows;
+}
+
 /** Wake meter and the win. This runs last: winning ends the run. */
 function grandmaChecks(kit) {
   const G = kit.grandma, K = kit.knock, dt = 1 / 60, rows = [];
@@ -723,6 +752,7 @@ export function runRouteBot(kit) {
   rows.push(...hoseChecks(kit));
   rows.push(...catchChecks(kit));
   rows.push(...grandmaChecks(kit));
+  rows.push(...restartChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
 }

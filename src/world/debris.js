@@ -64,6 +64,16 @@ export class Debris {
     return i;
   }
 
+  /** Clears every cube, decal and mess, for a new run. */
+  reset() {
+    const hide = _m.makeScale(0, 0, 0);
+    for (let i = 0; i < D.maxCubes; i++) this.cubes.setMatrixAt(i, hide);
+    for (let i = 0; i < D.maxDecals; i++) this.decals.setMatrixAt(i, hide);
+    this.cubes.instanceMatrix.needsUpdate = true; this.decals.instanceMatrix.needsUpdate = true;
+    this.live.length = 0; this.all.length = 0; this.decalInfo.length = 0; this.messes.length = 0;
+    this.nextCube = 0; this.nextDecal = 0;
+  }
+
   /** One moment of a mess being sucked up. u: 0..1. The cubes fly to (hx, hy, hz) and shrink; the decal shrinks away. */
   cleanStep(mess, u, hx, hy, hz) {
     const e = u * u;

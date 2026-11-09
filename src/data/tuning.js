@@ -151,7 +151,7 @@ export const TUNING = {
     angerAt: [5, 10], // knock-overs that raise him to anger 2 and 3
     hearNear: 7, // m: at anger 1 he only investigates crashes this close. From anger 2 he hears them anywhere
     hearSteps: 4, // m: at anger 3 he also hears running footsteps and heavy landings this close. Slink and walk are silent to him
-    sightRange: [4, 6.5, 9], // m he can see the cat, by anger level
+    sightRange: [0, 6.5, 9], // m he can see the cat, by anger level. At anger 1 he does not hunt at all: bump into him and he gets you, but he never comes after you
     sightCos: 0.82, // cos of half his view: about 70° in all
     slinkSight: 0.5, // slinking halves how far away he notices you
     noticeTime: [0.7, 0.45, 0.25], // s of being seen before he reacts, by anger level: a fair moment to duck

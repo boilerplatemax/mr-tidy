@@ -82,11 +82,21 @@ const wakeIcon = TUNING.hud.wakeIcon ? new WakeIcon(hudLayer) : null;
 const roomLabel = hudLayer.label('hud-room').place('center', 0, 0.14);
 roomLabel.set([{ text: "Grandma's room" }], 'center');
 let roomShown = false;
-const endScreen = new EndScreen();
+const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
+/** A whole new run, without a reload. */
+function resetRun() {
+  ended = false; runTime = 0;
+  catchSeq.reset(); endScreen.hide();
+  audio.resume();
+  knock.reset(); debris.reset(); grandma.reset(); vac.reset();
+  player.frozen = false; player.noclip = false; player.resetMotion();
+  player.teleport(S.x, S.y, S.z, S.yaw); player.pitch = 0;
+  debug.thirdPerson = false;
+}
 let runTime = 0, ended = false;
 grandma.onWin = () => { ended = true; player.frozen = true; vac.powerDown(); };
 const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
-  endScreen.show('Try again', [`Time  ${Math.floor(runTime / 60)}:${String(Math.floor(runTime % 60)).padStart(2, '0')}`, `Objects broken  ${knock.count}`]);
+  endScreen.show('Try again', [`Time  ${Math.floor(runTime / 60)}:${String(Math.floor(runTime % 60)).padStart(2, '0')}`, `Objects broken  ${knock.count}`], 'Restart');
 } });
 vac.onCatch = (how) => { ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
 grandma.onScreen = () => {
@@ -162,7 +172,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, get runTime() { return runTime; } };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

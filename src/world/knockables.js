@@ -46,6 +46,17 @@ export class Knockables {
     this.frame(1);
   }
 
+  /** Everything back where it started, for a new run. */
+  reset() {
+    this.count = 0;
+    for (const o of this.list) {
+      o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z;
+      o.vx = o.vy = o.vz = 0; o.wx = o.wy = o.wz = 0; o.q.identity(); o.pq.identity();
+      o.state = 'rest'; o.tipT = 0; o.bounces = 0; o.knocked = false; o.dirty = true; o.mesh.visible = true;
+    }
+    this.frame(1);
+  }
+
   /** The bat of a paw: everything in a short cone in front of the eye gets a shove. Returns how many it hit. */
   swipe(player, camera) {
     camera.getWorldDirection(_v);

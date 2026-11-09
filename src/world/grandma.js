@@ -48,6 +48,14 @@ export class Grandma {
     this.voice?.fadeTo(this.level, fade);
   }
 
+  /** Back to sleep, for a new run. */
+  reset() {
+    this.wake = 0; this.stage = 0; this.awake = false; this.t = 0; this.shown = false; this.levelT = 0;
+    this.house.doorStrip.color.setHex(TUNING.house.colors.doorStrip);
+    this.voice?.stop(0.05); this.voice = null;
+    this.startSound();
+  }
+
   /** Once audio exists (the first click). */
   startSound() { if (!this.awake) this._playSnore(1.5); }
 
