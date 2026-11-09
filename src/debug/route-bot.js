@@ -78,6 +78,50 @@ function grabAttempt(kit, from, to, start, charge) {
   return { ok: id === to.id, on: id, caught };
 }
 
+/** Claw climbing with the real controller: to the top, out of stamina, and a kick-off. */
+function climbChecks(kit) {
+  const P = kit.player, I = kit.input, dt = 1 / 60, rows = [];
+  const put = (x, y, z, yaw) => { I.keys.clear(); I.edges.clear(); P.frozen = false; P.resetMotion(); P.teleport(x, y, z, yaw); P.yaw = yaw; for (let i = 0; i < 6 && !P.grounded; i++) kit.tick(dt); };
+  const report = (name, ok, note) => rows.push(`${ok && Number.isFinite(P.pos.x + P.pos.z + P.feetY) ? 'ok  ' : 'FAIL'} CLIMB ${name}${note ? ' (' + note + ')' : ''}`);
+
+  // the scratch panel from the floor: all the way up, over the top
+  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  let climbed = false, t = 0;
+  while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; if (P.mode === 'climb') climbed = true; }
+  I.keys.clear();
+  report('floor -> scratchPanel top', climbed && P.groundCollider?.id === 'scratchPanel', `${t.toFixed(2)} s, stamina ${P.stamina.toFixed(2)}`);
+
+  // out of stamina part-way: slides down cleanly to the floor
+  put(5.55, 0.001, 4.75, Math.PI); P.stamina = 0.15; I.keys.add('KeyW');
+  let slid = false, top = 0; t = 0;
+  while (t < 5 && !(slid && P.grounded)) { kit.tick(dt); t += dt; top = Math.max(top, P.feetY); if (P.mode === 'slide') slid = true; }
+  I.keys.clear();
+  report('stamina runs out: slides to the floor', slid && P.grounded && P.feetY === 0, `reached ${top.toFixed(2)} m`);
+
+  // the couch's striped south end: a short climb onto the arm
+  put(0.8, 0.001, 4.3, 0); I.keys.add('KeyW'); t = 0;
+  while (t < 3 && !(P.grounded && P.feetY > 0.3)) { kit.tick(dt); t += dt; }
+  I.keys.clear();
+  report('floor -> couch arm', P.groundCollider?.id === 'couchArmS');
+
+  // a kick-off, up the panel: looking back into the room, leaves the wall and flies
+  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  for (let i = 0; i < 60; i++) kit.tick(dt);
+  const before = P.pos.z;
+  P.yaw = 0; I.edges.add('Space'); kit.tick(dt); I.keys.clear();
+  const kicked = P.mode === 'move' && !P.grounded && P.vy > 0;
+  for (let i = 0; i < 20; i++) kit.tick(dt);
+  report('kick-off leaves the wall', kicked && P.pos.z < before - 0.3, `moved ${(before - P.pos.z).toFixed(2)} m`);
+
+  // slink is silent: no footstep events
+  let steps = 0; const prevOnStep = P.onStep; P.onStep = () => { steps++; };
+  put(2.0, 0.001, 1.8, -Math.PI / 2); I.keys.add('KeyW'); I.keys.add('KeyC');
+  for (let i = 0; i < 90; i++) kit.tick(dt);
+  I.keys.clear(); P.onStep = prevOnStep;
+  report('slink makes no footsteps', steps === 0, `${steps} steps`);
+  return rows;
+}
+
 export function runRouteBot(kit) {
   const byId = kit.house.byId, rows = [];
   for (const [a, b, start] of LEVEL.grabLinks) {
@@ -101,6 +145,7 @@ export function runRouteBot(kit) {
       rows.push(`${best === null ? 'FAIL' : 'ok  '} ${from.id} -> ${to.id}${best === null ? ` (ended on ${lastOn})` : ` charge ${best.toFixed(2)}`}`);
     }
   }
+  rows.push(...climbChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
 }

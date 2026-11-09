@@ -5,7 +5,7 @@ import { TUNING } from '../data/tuning.js';
 import { settings } from '../data/settings.js';
 import { audio } from '../audio/audio.js';
 
-const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge;
+const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge, C = TUNING.climb, ST = TUNING.stamina;
 const expK = (rate, dt) => 1 - Math.exp(-rate * dt);
 
 export class Player {
@@ -33,7 +33,9 @@ export class Player {
     this.launched = false; this.launchSpeed = 0; this.launchX = 0; this.launchZ = 0;
     this.aim = { ok: false, x: 0, y: 0, z: 0 }; // where a jump released now would land (the landing-spot marker reads this)
     this.groundCollider = null; // what the cat is standing on (null: the floor)
-    // ledge grab: 'move' | 'hang' | 'mantle'
+    this.stamina = 1; this.clawLock = 0;
+    this.climb = { col: null, x: 0, z: 0 };
+    // 'move' | 'hang' | 'mantle' | 'climb' | 'slide'
     this.mode = 'move';
     this.grabLock = 0;
     this.hang = { col: null, nx: 0, nz: 0, top: 0, tx: 0, tz: 0, x: 0, z: 0 };
@@ -49,7 +51,7 @@ export class Player {
   }
 
   /** Back to plain movement, whatever the cat was doing. */
-  resetMotion() { this.mode = 'move'; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
+  resetMotion() { this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
 
   /** Put the feet at (x, y, z) facing yaw (rad, 0 = toward −z), with no interpolation from the old spot. */
   teleport(x, y, z, yaw = this.yaw) {
@@ -79,13 +81,18 @@ export class Player {
     if (this.noclip) { this._fly(dt); return; }
     this._wish();
     if (this.grabLock > 0) this.grabLock -= dt;
+    if (this.clawLock > 0) this.clawLock -= dt;
     if (this.mode === 'hang') this._tickHang(dt);
     else if (this.mode === 'mantle') this._tickMantle(dt);
+    else if (this.mode === 'climb') this._tickClimb(dt);
+    else if (this.mode === 'slide') this._tickSlide(dt);
     else {
       this._slinkUpdate(dt);
       this._jump(dt);
       this._groundAndAir(dt);
-      if (!this.grounded) this._tryGrab();
+      if (this.mode === 'move' && this.wfwd > 0 && this.clawLock <= 0) this._tryClimb();
+      if (this.mode === 'move' && !this.grounded) this._tryGrab();
+      if (this.mode === 'move' && this.grounded) this.stamina = Math.min(1, this.stamina + ST.regen * dt);
     }
     this._eyeAndSteps(dt);
   }
@@ -275,6 +282,8 @@ export class Player {
     this.pos.x += (h.x - this.pos.x) * k; this.pos.z += (h.z - this.pos.z) * k;
     this.feetY += (h.top - L.hangDrop - this.feetY) * k;
     this.viewDip += (L.hangDip - this.viewDip) * expK(14, dt);
+    this.stamina = Math.max(0, this.stamina - ST.hangDrain * dt);
+    if (this.stamina <= 0) { this._letGo(); return; }
     if (I.pressed('Space') && !this.frozen) { this._startMantle(); return; }
     if (I.down('KeyS') || I.down('ArrowDown') || I.down('KeyC')) this._letGo();
   }
@@ -300,6 +309,94 @@ export class Player {
       this.groundCollider = h.col; this.surface = h.col.surface;
       audio.play('foot.land', { gain: 0.5 });
     }
+  }
+
+  // ---- claw climbing: push W into a striped face
+  _stripeFace(b, n) { // which side of the box this normal comes from
+    return Math.abs(n.x) > Math.abs(n.z) ? (n.x > 0 ? 'e' : 'w') : (n.z > 0 ? 's' : 'n');
+  }
+
+  _tryClimb() {
+    if (this.stamina <= 0 || this.frozen) return;
+    const W = this.world, r = P.radius, n = this._n, x = this.pos.x, z = this.pos.z;
+    for (const b of W.boxes) {
+      if (!b.stripes || !b.enabled) continue;
+      if (this.feetY >= b.maxY - C.topOff || this.feetY + this.height <= b.minY) continue;
+      if (Math.abs(x - b.cx) > b.reach + r + C.contact || Math.abs(z - b.cz) > b.reach + r + C.contact) continue;
+      const d = W._boxDist(b, x, z, n);
+      if (d < r - 0.04 || d > r + C.contact) continue;
+      if (!b.stripes.includes(this._stripeFace(b, n))) continue;
+      if (-(this.wx * n.x + this.wz * n.z) < C.facing) continue;
+      this.climb.col = b; this.climb.x = n.x; this.climb.z = n.z;
+      this.mode = 'climb'; this.grounded = false; this.vy = 0; this.vel.x = this.vel.z = 0;
+      this.charging = false; this.chargeDip = 0; this.wiggle = 0; this.aim.ok = false; this.launched = false;
+      audio.play('cat.grab');
+      return;
+    }
+  }
+
+  /** Still on the face? Keeps the cat pressed against it. False: the claws have come off. */
+  _hugFace() {
+    const W = this.world, b = this.climb.col, n = this._n, r = P.radius;
+    const d = W._boxDist(b, this.pos.x, this.pos.z, n);
+    if (d > r + C.contact || this._stripeFace(b, n) !== this._stripeFace(b, this.climb)) return false;
+    this.pos.x -= n.x * (d - r - 0.002); this.pos.z -= n.z * (d - r - 0.002);
+    return true;
+  }
+
+  _offWall() { this.mode = 'move'; this.grounded = false; this.vy = 0; this.launched = false; this.launchSpeed = 0; this.clawLock = C.kickLock; }
+
+  _kick() {
+    const c = this.climb;
+    const toRight = -(this.wx * c.z) + this.wz * c.x; // the keys along the wall
+    let dx, dz;
+    if (Math.abs(this.wside) > 0.1 && Math.abs(toRight) > 0.1) { // sideways: along the wall, a little out
+      const s = Math.sign(toRight);
+      dx = -c.z * s + c.x * C.outKick; dz = c.x * s + c.z * C.outKick;
+    } else if (this.fx * c.x + this.fz * c.z > 0.15) { dx = this.fx; dz = this.fz; } // the way you're looking, if that's away from the wall
+    else { dx = c.x; dz = c.z; } // straight back
+    const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
+    this.vel.x = dx * C.kickSpeed; this.vel.z = dz * C.kickSpeed; this.vy = C.kickVy;
+    this.launched = true; this.launchX = dx; this.launchZ = dz; this.launchSpeed = C.kickSpeed;
+    this.mode = 'move'; this.grounded = false; this.clawLock = C.kickLock; this.grabLock = 0.12;
+    this.stamina = Math.max(0, this.stamina - ST.kickCost);
+    audio.play('cat.grab');
+  }
+
+  _tickClimb(dt) {
+    const I = this.input, c = this.climb, b = c.col;
+    if (I.pressed('Space') && !this.frozen) { this._kick(); return; }
+    this.viewDip += (0 - this.viewDip) * expK(10, dt);
+    this.stamina = Math.max(0, this.stamina - ST.climbDrain * dt);
+    if (this.stamina <= 0 || this.wfwd <= 0) { this.mode = 'slide'; return; }
+    const top = this.feetY + this.height, ceil = this.world.ceiling(this.pos.x, this.pos.z, P.radius * 0.8, top - 0.02);
+    if (top + C.speed * dt < ceil) this.feetY += C.speed * dt;
+    if (this.wside) { // sideways along the wall
+      const toRight = -(this.wx * c.z) + this.wz * c.x;
+      this.pos.x += -c.z * toRight * C.strafe * dt; this.pos.z += c.x * toRight * C.strafe * dt;
+    }
+    if (!this._hugFace()) { this._offWall(); return; }
+    if (this.feetY >= b.maxY - C.topOff) { // over the top
+      if (b.land && this._grabSpot(b, c, this.pos.x - c.x * P.radius, this.pos.z - c.z * P.radius)) this._startMantle();
+      else this._offWall();
+    }
+  }
+
+  _tickSlide(dt) {
+    const I = this.input;
+    this.viewDip += (0 - this.viewDip) * expK(10, dt);
+    if (this.stamina > 0) {
+      if (I.pressed('Space') && !this.frozen) { this._kick(); return; }
+      if (this.wfwd > 0) { this.mode = 'climb'; return; }
+    }
+    this.feetY -= C.slideSpeed * dt;
+    const g = this.world.ground(this.pos.x, this.pos.z, P.radius * P.edgeSupport, this.feetY + P.stepHeight, this._g);
+    if (this.feetY <= g.y) {
+      this.feetY = g.y; this.vy = 0; this.mode = 'move'; this.grounded = true; this.groundCollider = g.collider; this.surface = g.surface;
+      audio.play('foot.land', { gain: 0.5 });
+      return;
+    }
+    if (!this._hugFace()) this._offWall();
   }
 
   /** Horizontal move with collision (substeps so nothing tunnels). */

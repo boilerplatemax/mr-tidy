@@ -8,7 +8,7 @@ const J = TUNING.jump;
 
 export class LandingMarker {
   constructor(scene) {
-    const s = J.markerSize, t = 0.02, h = s / 2;
+    const s = J.markerSize, t = J.markerThick, h = s / 2;
     const mat = makePS1(new THREE.MeshBasicMaterial({ color: J.markerColor, fog: false, transparent: true, opacity: 0.8, depthWrite: false }));
     const edges = [
       new THREE.PlaneGeometry(s, t).rotateX(-Math.PI / 2).translate(0, 0, -h),

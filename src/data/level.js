@@ -73,7 +73,7 @@ export const LEVEL = {
     box('rodWmount', 'living', 3.45, 3.5, 5.19, 5.4 - IN, 2.0, 2.04, { land: false, collide: false }),
     box('rodEmount', 'living', 4.6, 4.65, 5.19, 5.4 - IN, 2.0, 2.04, { land: false, collide: false }),
     // A scratching panel beside the rod: a second, climbed way onto the route (and a kick-off wall).
-    box('scratchPanel', 'living', 5.3, 5.8, 5.2, 5.4 - IN, 0, 1.95, { stripes: ['n'] }),
+    box('scratchPanel', 'living', 5.3, 5.8, 5.0, 5.4 - IN, 0, 1.95, { stripes: ['n'] }),
     box('header', 'living', 5.85, 6.15, 3.9, 4.8, 2.05, 2.12), // the top of the door frame, through the wall
 
     // ------------------------------------------------------------ kitchen: charged jumps along the counters

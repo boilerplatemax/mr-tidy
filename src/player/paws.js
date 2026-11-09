@@ -34,7 +34,7 @@ export class Paws {
 
   /** Per rendered frame. */
   frame(player, dt) {
-    const gripping = player.mode === 'hang' || player.mode === 'mantle';
+    const gripping = player.mode === 'hang' || player.mode === 'mantle'; // (climbing paws join with the swipe, step 7)
     this.grip += ((gripping ? 1 : 0) - this.grip) * (1 - Math.exp(-V.ease * dt));
     const show = this.grip > 0.02;
     this.left.visible = this.right.visible = show;

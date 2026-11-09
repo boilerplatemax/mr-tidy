@@ -20,6 +20,7 @@ import { buildHouse } from './world/house.js';
 import { Debug } from './debug/debug.js';
 import { LandingMarker } from './player/landing-marker.js';
 import { Paws } from './player/paws.js';
+import { StaminaBar } from './ui/stamina-bar.js';
 
 const params = new URLSearchParams(location.search);
 const R = TUNING.render;
@@ -58,6 +59,7 @@ audio.onStart.push(() => house.startSound());
 // ---------------------------------------------------------------- UI
 const hudLayer = new HudLayer(canvas);
 const overlay = new DevOverlay();
+const staminaBar = new StaminaBar(hudLayer);
 const menu = new Menu(() => input.requestLock()); // the click is a user gesture: lock + (first time) start audio
 input.on('firstClick', () => audio.start(THREE.Vector3));
 input.on('pause', () => { menu.show(input.started); audio.suspend(); });
@@ -98,6 +100,7 @@ function frame(alpha, dt, frameMs) {
     debug.frame();
     marker.update(player.aim);
     paws.frame(player, dt);
+    staminaBar.frame(player, dt);
   }
   env.update(camera);
   audio.update(dt, camera);

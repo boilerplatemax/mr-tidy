@@ -71,7 +71,7 @@ export class Debug {
     const P = this.player, ps1 = this.ps1;
     return [
       `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
-      `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'}`,
+      `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'} · stamina ${P.stamina.toFixed(2)}`,
       `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
     ];
   }

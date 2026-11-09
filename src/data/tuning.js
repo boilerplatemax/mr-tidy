@@ -128,7 +128,7 @@ export const TUNING = {
     dip: 0.03, dipPitch: 0.06, // the camera dips (m, rad) at full charge
     wiggle: 0.012, wiggleRate: 30, // rad, rad/s: the pounce wiggle at full charge
     predictDt: 0.02, predictT: 1.4, // s: landing-spot prediction step and horizon
-    markerSize: 0.2, markerColor: 0xfff0c8, // m: the landing-spot outline
+    markerSize: 0.26, markerThick: 0.05, markerColor: 0xfff0c8, // m: the landing-spot outline (thick enough to hold together at 240 lines)
   },
 
   // ---------------------------------------------------------------- ledge grab and mantle (src/player/player.js)
@@ -146,6 +146,26 @@ export const TUNING = {
     settle: 30, // 1/s: how fast the body settles into the hanging pose
     mantleTime: 0.4, // s: the pull-up
     inward: [0.16, 0.12, 0.08, 0.04], // m past the lip to end up, tried in order (narrow perches take the shorter ones)
+  },
+  // ---------------------------------------------------------------- claw climbing and stamina
+  climb: {
+    speed: 0.9, // m/s up a striped face
+    strafe: 0.45, // m/s sideways along it
+    contact: 0.05, // m: how close to the face counts as touching it
+    facing: 0.6, // cos: how squarely the keys must push into the face
+    topOff: 0.2, // m: this far below the top, the cat pulls itself over
+    slideSpeed: 0.9, // m/s down when stamina is out (or W is released). Controlled, no damage
+    kickVy: 3.6, kickSpeed: 2.6, // m/s: the kick-off leap (up, away)
+    kickLock: 0.3, // s after a kick-off before the claws can catch stripes again
+    outKick: 0.5, // when kicking sideways: how much of the leap also goes out from the wall
+  },
+  stamina: {
+    climbDrain: 0.3, // per second climbing (1 = the full bar: about 3.3 s, 3 m)
+    hangDrain: 0.07, // per second hanging on a ledge ("slowly")
+    kickCost: 0.1, // per kick-off
+    regen: 1.6, // per second while standing on any flat surface
+    barWidth: 100, barBottom: 12, // HUD px
+    barHold: 0.5, // s the bar stays after refilling
   },
   paws: {
     color: 0xa89a88,
