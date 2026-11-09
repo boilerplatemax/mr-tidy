@@ -21,6 +21,7 @@ import { Knockables } from './world/knockables.js';
 import { Debris } from './world/debris.js';
 import { Noise } from './world/noise.js';
 import { Grandma } from './world/grandma.js';
+import { Vacuum } from './vacuum/vacuum.js';
 import { WakeIcon } from './ui/wake-icon.js';
 import { EndScreen } from './ui/end-screen.js';
 import { Debug } from './debug/debug.js';
@@ -57,6 +58,7 @@ player.onStep = (gait) => { if (gait === 'run') noise.emit({ kind: 'step', x: pl
 player.onLand = (impact, heavy) => { if (heavy) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z }); };
 player.onSwipe = () => knock.swipe(player, camera);
 const grandma = new Grandma({ noise, house });
+const vac = new Vacuum({ scene, world, camera });
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
@@ -75,10 +77,13 @@ audio.onStart.push(() => { house.startSound(); grandma.startSound(); });
 const hudLayer = new HudLayer(canvas);
 const overlay = new DevOverlay();
 const staminaBar = new StaminaBar(hudLayer);
-const wakeIcon = new WakeIcon(hudLayer);
+const wakeIcon = TUNING.hud.wakeIcon ? new WakeIcon(hudLayer) : null;
+const roomLabel = hudLayer.label('hud-room').place('center', 0, 0.14);
+roomLabel.set([{ text: "Grandma's room" }], 'center');
+let roomShown = false;
 const endScreen = new EndScreen();
 let runTime = 0, ended = false;
-grandma.onWin = () => { ended = true; player.frozen = true; };
+grandma.onWin = () => { ended = true; player.frozen = true; vac.powerDown(); };
 grandma.onScreen = () => {
   const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60);
   endScreen.show('Good Kitty', [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`]);
@@ -95,7 +100,7 @@ if (params.has('play')) { // headless / tests: no click, no pointer lock
 }
 
 // ---------------------------------------------------------------- debug
-const debug = new Debug({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma });
+const debug = new Debug({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma, vac });
 
 // ---------------------------------------------------------------- the loop
 const titleCam = TUNING.house.titleCamera;
@@ -107,7 +112,8 @@ function tick(dt) {
     player.tick(dt);
     knock.tick(dt);
     debris.tick(dt);
-    grandma.tick(dt);
+    grandma.tick(dt, player.pos.x, player.pos.z);
+    vac.tick(dt);
     if (!ended) runTime += dt;
     house.tick(dt, player.pos);
   }
@@ -132,11 +138,13 @@ function frame(alpha, dt, frameMs) {
     debris.frame(input.live ? alpha : 1);
     staminaBar.frame(player, dt);
   }
+  vac.frame(input.live ? alpha : 1);
   env.update(camera);
   audio.update(dt, camera);
   subtitles.update(dt);
   hudLayer.sync();
-  wakeIcon.set(grandma.stage);
+  wakeIcon?.set(grandma.stage);
+  { const near = !onTitle && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.grandma.labelNear; if (near !== roomShown) { roomShown = near; roomLabel.show(near); } }
   ps1.render(scene, camera);
   overlay.frame(frameMs, dt);
   window.__kitReady = true;
@@ -147,7 +155,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, get runTime() { return runTime; } };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, get runTime() { return runTime; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

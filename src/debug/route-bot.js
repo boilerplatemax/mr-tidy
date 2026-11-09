@@ -13,11 +13,12 @@ function nearest(a, bx, bz) {
   return { x: clamp(bx, a.min[0] + INSET, a.max[0] - INSET), z: clamp(bz, a.min[2] + INSET, a.max[2] - INSET) };
 }
 
-function attempt(kit, from, to, charge, trace) {
+function attempt(kit, from, to, charge, trace, shift = 0) {
   const P = kit.player, I = kit.input, dt = 1 / 60, J = TUNING.jump;
   const fc = nearest(from, (to.min[0] + to.max[0]) / 2, (to.min[2] + to.max[2]) / 2);
   const tc = nearest(to, fc.x, fc.z);
   const start = nearest(from, tc.x, tc.z);
+  start.z = clamp(start.z + shift, from.min[2] + INSET, from.max[2] - INSET); // (a low shelf overhead can spoil one start point; the link only has to work from somewhere)
   // aim into the target the way a person does: not at its very lip
   const inX = Math.min(0.15, (to.max[0] - to.min[0]) / 2 - 0.01), inZ = Math.min(0.15, (to.max[2] - to.min[2]) / 2 - 0.01);
   const aim = { x: clamp(start.x, to.min[0] + inX, to.max[0] - inX), z: clamp(start.z, to.min[2] + inZ, to.max[2] - inZ) };
@@ -78,6 +79,47 @@ function grabAttempt(kit, from, to, start, charge) {
   return { ok: id === to.id, on: id, caught };
 }
 
+/** Mr. Tidy: the graph, the patrol, the cord. */
+function vacChecks(kit) {
+  const v = kit.vac, W = kit.world, V = TUNING.vac, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} VAC ${name}${note ? ' (' + note + ')' : ''}`);
+  const bad = v.nav.blockedEdges(W, V.radius, V.height);
+  report('every graph edge fits his body', bad.length === 0, bad.join(' '));
+  const orphan = [...v.nav.nodes.values()].filter((n) => !v.nav.path(v.nav.nodes.get(LEVEL.vacStart), n).length);
+  report('every waypoint can be reached', orphan.length === 0, orphan.map((n) => n.id).join(' '));
+
+  // a whole lap of the patrol: he keeps moving and stays clear of everything
+  const seen = new Set(); let hit = 0, stalled = 0, tx = v.x, tz = v.z, i = 0;
+  const start = v.routeI;
+  for (i = 0; i < 60 * 240; i++) {
+    kit.tick(dt);
+    seen.add(v.path[v.pathI].id);
+    if (W.penetration(v.x, v.z, V.radius - 0.03, 0.03, V.height) > 0) hit++;
+    if (i % 60 === 0) { if (Math.hypot(v.x - tx, v.z - tz) < 0.05) stalled++; tx = v.x; tz = v.z; }
+    if (i > 600 && v.routeI === start) break;
+  }
+  report('a full patrol lap, moving, never inside anything', hit === 0 && stalled <= 1 && seen.size >= 15, `${(i / 60).toFixed(0)} s, ${seen.size} waypoints, ${stalled} stalls, ${hit} overlaps`);
+
+  // the plug: never moves while the outlet can be seen, moves to the nearest outlet when it can't
+  const cam = kit.camera, C = v.cord, near = (x, z) => LEVEL.outlets.reduce((b, o) => ((o.pos[0] - x) ** 2 + (o.pos[2] - z) ** 2 < (b.pos[0] - x) ** 2 + (b.pos[2] - z) ** 2 ? o : b));
+  const look = (x, y, z, tx2, ty, tz2) => { cam.position.set(x, y, z); cam.lookAt(tx2, ty, tz2); cam.updateMatrixWorld(true); };
+  const living = LEVEL.outlets.find((o) => o.id === 'living1'), kitchen = LEVEL.outlets.find((o) => o.id === 'kitchen1');
+  // parked in the kitchen, plugged in far away in the living room, with the player looking straight at that outlet
+  v.frozen = false; v.x = v.px = 9.55; v.z = v.pz = 2.3; C.plugInto(living, v.x, v.z); v.frozen = true;
+  look(4.6, 0.3, 1.2, living.pos[0], living.pos[1], living.pos[2]);
+  for (let t = 0; t < 40; t++) { C.timer = 0; C.tick(dt, v.x, v.z); }
+  report('the plug stays put while its outlet is in view', C.outlet === living);
+  // now looking away, into a wall: nothing of it is visible
+  look(14, 0.3, 2.6, 15.2, 0.3, 2.6);
+  for (let t = 0; t < 40; t++) { C.timer = 0; C.tick(dt, v.x, v.z); }
+  report('and moves to the nearest outlet once nobody can see it', C.outlet === near(v.x, v.z) && C.outlet === kitchen, `now ${C.outlet.id}`);
+  // F8
+  const fx = v.x; v.frozen = true; for (let t = 0; t < 30; t++) kit.tick(dt);
+  report('F8 holds him still', v.x === fx);
+  v.frozen = false;
+  return rows;
+}
+
 /** Wake meter and the win. This runs last: winning ends the run. */
 function grandmaChecks(kit) {
   const G = kit.grandma, K = kit.knock, dt = 1 / 60, rows = [];
@@ -102,6 +144,7 @@ function grandmaChecks(kit) {
   const atWake = G.awake && G.wake === 100 && kit.player.frozen;
   for (let i = 0; i < Math.ceil(TUNING.grandma.winBeat / dt) + 3; i++) kit.tick(dt);
   report('100 wakes her and ends in the Good Kitty screen', atWake && G.stage === 4 && !kit.endScreen.el.hidden);
+  report('the win powers the vac down, face dark', kit.vac.off && !kit.vac.model.face.visible);
   return rows;
 }
 
@@ -291,7 +334,7 @@ function climbChecks(kit) {
   for (let i = 0; i < 40; i++) kit.tick(dt);
   I.keys.clear(); P.yaw = 0; const h0 = P.feetY;
   I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt);
-  for (let i = 0; i < 30; i++) kit.tick(dt);
+  for (let i = 0; i < 44; i++) kit.tick(dt);
   const stuck = P.mode === 'climb' && Math.abs(P.feetY - h0) < 1e-6, aimed = P.aim.ok, c1 = P.charge;
   I.keys.clear(); kit.tick(dt);
   report('hold Space on a wall charges a spring jump', stuck && aimed && c1 > 0.9 && P.mode === 'move' && P.vy > 4.5, `charge ${c1.toFixed(2)}, vy ${P.vy.toFixed(2)}`);
@@ -316,7 +359,7 @@ function climbChecks(kit) {
   // standing still at full charge still gives up eventually
   put(2.4, 0.001, 1.0, Math.PI);
   I.keys.add('Space'); I.edges.add('Space');
-  for (let i = 0; i < 90; i++) kit.tick(dt);
+  for (let i = 0; i < 110; i++) kit.tick(dt);
   report('standing still at full charge calls it off', !P.charging && P.grounded);
   I.keys.clear(); kit.tick(dt);
 
@@ -328,6 +371,48 @@ function climbChecks(kit) {
   I.keys.clear(); kit.tick(dt);
   report('charging at an edge stays on it, then jumps', safe && !P.grounded && P.vy > 0, `x ${P.pos.x.toFixed(2)}`);
   for (let i = 0; i < 120 && !P.grounded; i++) kit.tick(dt);
+
+  // moving along a ledge, and round its corner
+  put(12.8, 0.001, 1.6, Math.PI / 2);
+  I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt);
+  for (let i = 0; i < 36; i++) kit.tick(dt);
+  I.keys.delete('Space'); I.keys.add('KeyW');
+  for (let i = 0; i < 80 && P.mode !== 'hang'; i++) kit.tick(dt);
+  I.keys.clear(); for (let i = 0; i < 12; i++) kit.tick(dt);
+  const zh = P.pos.z, nx0 = P.hang.nx; I.keys.add('KeyD');
+  for (let i = 0; i < 30; i++) kit.tick(dt);
+  const movedAlong = Math.abs(P.pos.z - zh);
+  report('A / D moves along a ledge', P.mode === 'hang' && movedAlong > 0.15, `${movedAlong.toFixed(2)} m`);
+  for (let i = 0; i < 110 && P.hang.nx === nx0 && P.mode === 'hang'; i++) kit.tick(dt);
+  I.keys.clear(); for (let i = 0; i < 8; i++) kit.tick(dt);
+  report('and goes round the corner', P.mode === 'hang' && P.hang.nx !== nx0, `normal ${P.hang.nx.toFixed(0)}, ${P.hang.nz.toFixed(0)}`);
+  I.edges.add('Space'); I.keys.add('Space'); kit.tick(dt); I.keys.clear();
+  for (let i = 0; i < 40 && !P.grounded; i++) kit.tick(dt);
+  report('and can still pull up from there', P.groundCollider?.id === 'w1');
+  for (let i = 0; i < 4; i++) kit.tick(dt);
+
+  // sideways on a climbable face: moves, animates, and stops at the end instead of falling off
+  put(5.7, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  for (let i = 0; i < 40; i++) kit.tick(dt);
+  I.keys.clear(); I.keys.add('KeyD');
+  const xc = P.pos.x, dc = P.climbDist;
+  for (let i = 0; i < 40; i++) kit.tick(dt);
+  const sidestep = Math.abs(P.pos.x - xc), animated = P.climbDist > dc + 0.05;
+  for (let i = 0; i < 90; i++) kit.tick(dt);
+  report('sideways on a wall moves, animates, stops at the end', P.mode === 'climb' && sidestep > 0.15 && animated && P.pos.x >= 5.3 - 1e-3 && P.pos.x <= 5.8 + 1e-3, `moved ${sidestep.toFixed(2)} m, ends x ${P.pos.x.toFixed(2)}`);
+  I.keys.clear(); I.keys.add('KeyC'); kit.tick(dt); I.keys.clear(); for (let i = 0; i < 90; i++) kit.tick(dt);
+
+  // the target sticks to a small perch as the charge builds past it, and the jump lands where the target is
+  put(7.52, 0.001, 3.85, 0);
+  I.keys.add('Space'); I.edges.add('Space');
+  let onChair = 0, extra = 0, sawStuck = false;
+  for (let i = 0; i < 44; i++) {
+    kit.tick(dt);
+    if (P.aim.ok && P.aim.col?.id === 'chair') { onChair++; if (P.aim.stuck) { sawStuck = true; extra++; if (extra >= 4) break; } }
+  }
+  I.keys.clear();
+  for (let i = 0; i < 90 && !(P.grounded && i > 3); i++) kit.tick(dt);
+  report('the target holds on a perch, and the jump lands on it', sawStuck && P.groundCollider?.id === 'chair', `${onChair} ticks on the chair, ${extra} held, ended on ${P.groundCollider?.id || 'floor'}`);
 
   // a kick-off, up the panel: looking back into the room, leaves the wall and flies
   put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
@@ -362,8 +447,8 @@ export function runRouteBot(kit) {
   for (const [a, b] of LEVEL.links) {
     for (const [from, to] of [[byId.get(a), byId.get(b)], [byId.get(b), byId.get(a)]]) {
       let best = null, lastOn = '';
-      for (let c = 0; c <= 1.0001; c += 0.05) {
-        const r = attempt(kit, from, to, Math.min(1, c));
+      for (let c = 0; c <= 1.0001 && best === null; c += 0.05) for (const shift of [0, 0.15, -0.15]) {
+        const r = attempt(kit, from, to, Math.min(1, c), null, shift);
         lastOn = r.on || r.why;
         if (r.landed) { best = Math.min(1, c); break; }
       }
@@ -373,6 +458,7 @@ export function runRouteBot(kit) {
   rows.push(...climbChecks(kit));
   rows.push(...knockChecks(kit));
   rows.push(...pocketScan(kit));
+  rows.push(...vacChecks(kit));
   rows.push(...grandmaChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };

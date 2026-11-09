@@ -24,13 +24,14 @@ Open <http://localhost:8080> and click **Begin**.
 | Space (hold, release) | Charge and jump. Tap for a hop. A ring on the surfaces ahead marks where a charged jump will end |
 | Space while hanging | Pull up |
 | S or C while hanging | Let go |
+| A / D or arrows while hanging | Move along the ledge and round corners |
 | W into a grey-green striped surface, or jump at one | Climb: W up, S down, A / D sideways, stamina drains (holding still drains slowly) |
 | Space while climbing | Kick off, the way you're looking or with A / D to the side |
 | C while climbing | Let go |
 | Left click | Swipe: bats whatever is in front of you |
 | Esc | Pause and settings |
 
-Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F5** wake +20 · **F9** key list.
+Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F5** wake +20 · **F8** freeze the vac · **F9** key list.
 
 ## Tuning
 

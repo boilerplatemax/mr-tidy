@@ -122,6 +122,23 @@ export const LEVEL = {
 
   // The links a player must be able to jump, checked against TUNING (src/world/route-check.js). Every one is two-way
   // unless oneWay. grab: true means a clean jump isn't enough, the link is meant to need a ledge grab.
+  // Mr. Tidy's waypoint graph, on the floor. Nodes: [x, z]. Edges are two-way and are checked against his body in the route check.
+  waypoints: {
+    L1: [5.2, 1.2], L2: [3.05, 1.0], L3: [1.8, 2.0], L4: [2.0, 4.2], L5: [4.4, 3.7], Ld: [5.5, 4.35], // living room
+    Kd: [6.6, 4.35], K1: [6.8, 4.0], K2: [9.5, 4.2], K3: [9.55, 2.3], K4: [8.5, 1.4], K5: [6.7, 1.7], // kitchen
+    Hw: [1.2, -0.45], Hl: [3.05, -0.45], H2: [5.6, -0.45], Hk: [8.5, -0.45], H3: [11.2, -0.45], Hs: [13.75, -0.45], H4: [16.8, -0.45], // hallway
+    Sd: [13.75, 0.5], S1: [13.75, 2.0], S2: [13.0, 2.3], S3: [14.4, 2.3], // storage
+  },
+  waypointEdges: [
+    ['L1', 'L2'], ['L2', 'L3'], ['L3', 'L4'], ['L4', 'L5'], ['L5', 'L1'], ['L5', 'Ld'], ['Ld', 'Kd'], ['L2', 'Hl'],
+    ['Kd', 'K1'], ['K1', 'K2'], ['K2', 'K3'], ['K3', 'K4'], ['K4', 'K5'], ['K5', 'K1'], ['K4', 'Hk'],
+    ['Hw', 'Hl'], ['Hl', 'H2'], ['H2', 'Hk'], ['Hk', 'H3'], ['H3', 'Hs'], ['Hs', 'H4'], ['Hs', 'Sd'],
+    ['Sd', 'S1'], ['S1', 'S2'], ['S1', 'S3'],
+  ],
+  vacStart: 'L1', vacOutlet: 'living1', // where he starts, and what he's plugged into
+  // His fixed loop (he finds his own way between stops). It takes in the whole house, including the far end of the hallway.
+  patrol: ['L2', 'Hl', 'Hk', 'H3', 'Hs', 'S1', 'S2', 'S1', 'Hs', 'H4', 'Hs', 'H3', 'Hk', 'K4', 'K3', 'K2', 'K1', 'K5', 'K1', 'Kd', 'Ld', 'L5', 'L4', 'L3', 'L2', 'L1'],
+
   // Knockables: { id, type (TUNING.knockTypes), on (a solid's id), x, z }. Height comes from the surface, so nothing floats.
   // on: 'floor' stands it on the ground. 20 in all, weighted toward tiers 1–2 and the far end of the hallway.
   // Living room 4, kitchen 6, hallway 4, storage 6. Tier 0: 2 · tier 1: 9 · tier 2: 9.

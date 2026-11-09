@@ -8,7 +8,7 @@ import { makePS1 } from '../render/ps1-material.js';
 const D = TUNING.debug;
 const LOOKS = ['authored', 'clean'];
 const HELP = () => [
-  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F5 wake +20', 'F9 this list',
+  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F5 wake +20', 'F8 freeze the vac', 'F9 this list',
   'With the overlay open:', 'L light preset', '1 / 2 / 3 jitter / warp / dither', '4 look: authored <-> clean',
   'URL: ?dev ?play',
 ].join('\n');
@@ -26,14 +26,39 @@ function buildCatProxy() { // what you see in third person: a grey-box cat
 }
 
 export class Debug {
-  constructor({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma }) {
-    Object.assign(this, { input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma });
+  constructor({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma, vac }) {
+    Object.assign(this, { input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma, vac });
+    this._buildNavDebug();
     this.thirdPerson = false;
     this.cat = buildCatProxy();
     scene.add(this.cat);
     this._o = new THREE.Vector3(); this._d = new THREE.Vector3(); this._look = new THREE.Vector3();
     this._ro = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 };
     overlay.lines = () => this.lines();
+  }
+
+  _buildNavDebug() { // shown while the overlay is open: the graph in grey, the route he's on in yellow
+    const mat = (color) => new THREE.LineBasicMaterial({ color, depthTest: false, fog: false, transparent: true });
+    const nav = this.vac.nav, pts = [], Y = 0.04;
+    for (const n of nav.nodes.values()) for (const l of n.links) if (l.to.id > n.id) pts.push(n.x, Y, n.z, l.to.x, Y, l.to.z);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+    this.navLines = new THREE.LineSegments(g, mat(0x667788)); this.navLines.renderOrder = 9; this.navLines.visible = false;
+    this.scene.add(this.navLines);
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(32 * 3), 3));
+    this.pathLine = new THREE.Line(pg, mat(0xffe060)); this.pathLine.renderOrder = 9; this.pathLine.frustumCulled = false; this.pathLine.visible = false;
+    this.scene.add(this.pathLine);
+  }
+
+  _drawNav() {
+    const on = this.overlay.visible, v = this.vac;
+    this.navLines.visible = this.pathLine.visible = on;
+    if (!on) return;
+    const a = this.pathLine.geometry.attributes.position, Y = 0.05;
+    a.setXYZ(0, v.x, Y, v.z);
+    let n = 1;
+    for (let i = v.pathI; i < v.path.length && n < 32; i++, n++) a.setXYZ(n, v.path[i].x, Y, v.path[i].z);
+    a.needsUpdate = true;
+    this.pathLine.geometry.setDrawRange(0, n);
   }
 
   /** Per fixed tick, also while paused. */
@@ -44,6 +69,7 @@ export class Debug {
     if (!I.live) return;
     if (I.pressed('F2')) { this.thirdPerson = !this.thirdPerson; O.note(`third person ${this.thirdPerson ? 'on' : 'off'}`); }
     if (I.pressed('F3')) { this.player.noclip = !this.player.noclip; O.note(`noclip ${this.player.noclip ? 'on' : 'off'}`); }
+    if (I.pressed('F8')) { this.vac.frozen = !this.vac.frozen; O.note(`vac ${this.vac.frozen ? 'frozen' : 'running'}`); }
     if (I.pressed('F5')) { this.grandma.add(20); O.note(`wake ${this.grandma.wake.toFixed(0)}`); }
     if (!O.visible) return;
     if (I.pressed('KeyL')) { const o = TUNING.lighting.order; const next = o[(o.indexOf(this.env.preset) + 1) % o.length]; this.env.apply(next); O.note('light: ' + next); }
@@ -53,6 +79,7 @@ export class Debug {
 
   /** Per rendered frame, after player.render(): moves the camera for third person. */
   frame() {
+    this._drawNav();
     const P = this.player, cam = this.camera;
     this.cat.visible = this.thirdPerson;
     if (!this.thirdPerson) return;
@@ -74,6 +101,7 @@ export class Debug {
       `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
       `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'} · stamina ${P.stamina.toFixed(2)}`,
       `knocked ${this.knock.count}/${this.knock.list.length} · messes ${this.debris.messes.length} · last noise ${this.noise.last ? this.noise.last.kind + (this.noise.last.objectId ? ' ' + this.noise.last.objectId : '') : 'none'}`,
+      `vac ${this.vac.state}${this.vac.frozen ? ' (frozen)' : ''} · anger ${this.vac.anger} · plug ${this.vac.cord.outlet.id}`,
       `grandmaWake ${this.grandma.wake.toFixed(1)} · stage ${this.grandma.stage}`,
       `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
     ];

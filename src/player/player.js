@@ -31,7 +31,8 @@ export class Player {
     // the jump
     this.charging = false; this.chargeT = 0; this.heldT = 0; this.chargeCarry = 0; this.coyoteT = 0; this.bufferT = 0; this.time = 0;
     this.launched = false; this.launchSpeed = 0; this.launchX = 0; this.launchZ = 0;
-    this.aim = { ok: false, kind: 'land', x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, col: null }; // where a jump released now would end (the target marker and shimmer read this)
+    this.stick = null; this.assist = false;
+    this.aim = { stuck: false, ok: false, kind: 'land', x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, col: null }; // where a jump released now would end (the target marker and shimmer read this)
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
     this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 0; this.airDashUsed = false; this.fovKick = 0; this.prevFovKick = 0;
@@ -44,6 +45,7 @@ export class Player {
     this.mode = 'move';
     this.grabLock = 0;
     this.hang = { col: null, nx: 0, nz: 0, top: 0, tx: 0, tz: 0, x: 0, z: 0 };
+    this.shimmyDist = 0; this.prevShimmyDist = 0; this.climbDist = 0; this.prevClimbDist = 0; this._ts = { x: 0, z: 0 }; this._nh = { x: 0, z: 0 };
     this.mantleT = 0; this._mx = 0; this._mz = 0; this._my = 0;
     this._n = { x: 0, z: 0 };
     this.frozen = false; // look, but don't move (a cutscene)
@@ -90,7 +92,7 @@ export class Player {
 
   tick(dt) {
     this.prev.x = this.pos.x; this.prev.z = this.pos.z; this.prevEyeFeet = this.eyeFeet;
-    this.prevSwipeT = this.swipeT; this.prevFovKick = this.fovKick;
+    this.prevSwipeT = this.swipeT; this.prevFovKick = this.fovKick; this.prevShimmyDist = this.shimmyDist; this.prevClimbDist = this.climbDist;
     this.prevSlink = this.slink; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
     if (this.noclip) { this._fly(dt); return; }
     this._wish();
@@ -164,7 +166,7 @@ export class Player {
     this.bufferT = I.pressed('Space') && !this.frozen ? J.buffer : Math.max(0, this.bufferT - dt);
     if (!this.charging && this.bufferT > 0 && this.coyoteT > 0) {
       this.bufferT = 0;
-      if (this.grounded) { this.charging = true; this.chargeT = 0; this.chargeCarry = Math.min(Math.hypot(this.vel.x, this.vel.z), J.runCarry); }
+      if (this.grounded) { this.charging = true; this.chargeT = 0; this.stick = null; this.chargeCarry = Math.min(Math.hypot(this.vel.x, this.vel.z), J.runCarry); }
       else this._launch(J.coyoteCharge); // a fresh press just after leaving an edge
     }
     if (this.charging) {
@@ -178,7 +180,7 @@ export class Player {
     const c = this.charge;
     this.chargeDip += (c * J.dip - this.chargeDip) * expK(16, dt);
     this.viewDip += (c * J.dipPitch - this.viewDip) * expK(16, dt);
-    if (this.charging) this._predict(c); else this.aim.ok = false;
+    if (this.charging) { this._predict(c); this._stickTarget(c); } else this.aim.ok = false;
   }
 
   // Shift: a burst along the keys (or the view), anywhere. Press to dash, keep holding to run on from it. In the air it's
@@ -221,10 +223,18 @@ export class Player {
   }
 
   _launch(c) {
-    const d = this._jumpDir(c), speed = this._jumpSpeed(c);
+    const d = this._jumpDir(c);
+    let speed = this._jumpSpeed(c);
     this.vy = J.minVy + (J.maxVy - J.minVy) * c;
+    const a = this.aim;
+    this.assist = this.charging && a.ok && a.stuck;
+    if (this.assist) { // land on the target it was showing: aim straight at it, at exactly the speed that gets there
+      const dx = a.x - this.pos.x, dz = a.z - this.pos.z, l = Math.hypot(dx, dz) || 1;
+      const t = (this.vy + Math.sqrt(Math.max(0, this.vy * this.vy + 2 * P.gravity * (this.feetY - a.y)))) / P.gravity;
+      d.x = dx / l; d.z = dz / l; speed = l / t;
+    }
     this.vel.x = d.x * speed; this.vel.z = d.z * speed;
-    this.launched = !this.wlen && !!(d.x || d.z); this.launchSpeed = speed; // launched: a no-keys pounce, which carries on by itself
+    this.launched = (this.assist || !this.wlen) && !!(d.x || d.z); this.launchSpeed = speed; // launched: carries on by itself
     this.launchX = d.x; this.launchZ = d.z;
     this.grounded = false; this.coyoteT = 0; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.aim.ok = false;
   }
@@ -248,6 +258,25 @@ export class Player {
       const g = W.ground(x, z, r * P.edgeSupport, y + P.stepHeight, this._g);
       if (vy <= 0 && y <= g.y) { const f = Math.max(0, Math.min(1, (py - g.y) / Math.max(1e-5, py - y))); a.ok = true; a.kind = 'land'; a.x = px + (x - px) * f; a.y = g.y; a.z = pz + (z - pz) * f; a.nx = 0; a.ny = 1; a.nz = 0; a.col = g.collider; return; }
     }
+  }
+
+  /**
+   * Keeps the target on a perch once it's found one, rather than letting it sweep straight off the far side as the charge
+   * builds. The jump is then steered to land where the target says (see _launch), so the target is always the truth.
+   */
+  _stickTarget(c) {
+    const a = this.aim;
+    a.stuck = false;
+    if (!a.ok) { this.stick = null; return; }
+    const raw = a.kind === 'land' && a.col && a.col !== this.groundCollider ? a.col : null;
+    if (raw && raw !== this.stick) this.stick = raw;
+    const b = this.stick;
+    if (!b || raw === b) return;
+    const ix = Math.min(J.stickInset, b.hx - 0.02), iz = Math.min(J.stickInset, b.hz - 0.02);
+    const cx = Math.max(b.cx - b.hx + ix, Math.min(b.cx + b.hx - ix, a.x)), cz = Math.max(b.cz - b.hz + iz, Math.min(b.cz + b.hz - iz, a.z));
+    const vy = J.minVy + (J.maxVy - J.minVy) * c, reach = this.feetY + (vy * vy) / (2 * P.gravity);
+    if (Math.hypot(a.x - cx, a.z - cz) > J.stickDist || reach < b.maxY + 0.02) { this.stick = null; return; }
+    a.x = cx; a.y = b.maxY; a.z = cz; a.nx = 0; a.ny = 1; a.nz = 0; a.kind = 'land'; a.col = b; a.stuck = true;
   }
 
   /** The arc runs into something upright: put the target on that face. If it's a ledge the cat would catch, say so. */
@@ -287,7 +316,8 @@ export class Player {
     if (!this.grounded) {
       // In the air the keys steer, but the leap's own speed is the limit: distance comes from the charge.
       const cap = Math.max(J.airSteerMin, this.launchSpeed);
-      if (this.wlen > 0) { tx = this.wx * cap; tz = this.wz * cap; rate = P.airAccel; }
+      const onRails = this.assist && this.launched && this.wfwd >= 0 && !this.wside; // holding W doesn't knock a jump off its target
+      if (this.wlen > 0 && !onRails) { tx = this.wx * cap; tz = this.wz * cap; rate = P.airAccel; }
       else if (this.launched) { tx = this.launchX * this.launchSpeed; tz = this.launchZ * this.launchSpeed; rate = P.airAccel; } // a pounce carries on by itself, even after brushing a face
       else rate = P.airDecel;
     }
@@ -322,6 +352,7 @@ export class Player {
       if (this.feetY <= g.y && this.vy <= 0) {
         const impact = -this.vy;
         this.feetY = g.y; this.vy = 0; this.grounded = true; this.launched = false; this.airDashUsed = false;
+        if (this.assist) { this.vel.x = this.vel.z = 0; this.assist = false; } // landed on the target: stays on it
         this._land(impact);
       }
     }
@@ -348,21 +379,58 @@ export class Player {
 
   /** Is there somewhere to pull up to past this edge? If so, start hanging. (ex, ez): the point on the edge. */
   _grabSpot(b, n, ex, ez) {
+    if (!this._topSpot(b, n, ex, ez)) return false;
+    const r = P.radius, h = this.hang;
+    h.col = b; h.nx = n.x; h.nz = n.z; h.top = b.maxY; h.tx = this._ts.x; h.tz = this._ts.z; h.ex = ex; h.ez = ez;
+    h.x = ex + n.x * (r + 0.005); h.z = ez + n.z * (r + 0.005);
+    this.mode = 'hang'; this.vy = 0; this.vel.x = this.vel.z = 0; this.grounded = false; this.launched = false;
+    this.charging = false; this.chargeDip = 0; this.aim.ok = false; this.bufferT = 0;
+    this.swipeT = -1; this.dashT = 0; this.airDashUsed = false;
+    audio.play('cat.grab');
+    return true;
+  }
+
+  /** Is there room on top of this ledge, past this point on its edge? Writes the spot to this._ts. */
+  _topSpot(b, n, ex, ez) {
     const W = this.world, r = P.radius, top = b.maxY;
     for (const inward of L.inward) {
       const tx = ex - n.x * inward, tz = ez - n.z * inward;
       if (W._boxDist(b, tx, tz, null) >= 0) continue; // past the far side of a narrow perch
       if (W.penetration(tx, tz, r * 0.9, top + P.stepHeight, top + P.height, null, top) > 0) continue; // no room up there
-      const h = this.hang;
-      h.col = b; h.nx = n.x; h.nz = n.z; h.top = top; h.tx = tx; h.tz = tz; h.ex = ex; h.ez = ez;
-      h.x = ex + n.x * (r + 0.005); h.z = ez + n.z * (r + 0.005);
-      this.mode = 'hang'; this.vy = 0; this.vel.x = this.vel.z = 0; this.grounded = false; this.launched = false;
-      this.charging = false; this.chargeDip = 0; this.aim.ok = false; this.bufferT = 0;
-      this.swipeT = -1; this.dashT = 0; this.airDashUsed = false;
-      audio.play('cat.grab');
+      this._ts.x = tx; this._ts.z = tz;
       return true;
     }
     return false;
+  }
+
+  /** Would the cat's hanging body fit, at this point on the edge? */
+  _hangClear(b, nx, nz, ex, ez) {
+    const r = P.radius;
+    return this.world.penetration(ex + nx * (r + 0.005), ez + nz * (r + 0.005), r * 0.9, this.feetY + P.stepHeight, this.feetY + P.height, b, this.feetY) === 0;
+  }
+
+  /** A / D along the ledge, relative to facing it. At the end of an edge the cat goes round the corner if it can. */
+  _shimmy(dt) {
+    if (!this.wside || this.frozen) return;
+    const h = this.hang, b = h.col, n = this._nh, r = P.radius;
+    const tx = h.nz, tz = -h.nx, s = Math.sign(this.wside), step = s * L.shimmySpeed * dt; // (tx, tz): to the right, facing the ledge
+    n.x = h.nx; n.z = h.nz;
+    const ex = h.ex + tx * step, ez = h.ez + tz * step, c0 = b.cx * tx + b.cz * tz, half = Math.abs(tx) * b.hx + Math.abs(tz) * b.hz, t = ex * tx + ez * tz;
+    if (Math.abs(t - c0) > half - L.shimmyEnd) { // the end of this edge
+      const toEnd = c0 + s * half - t;
+      n.x = tx * s; n.z = tz * s; // the next face round
+      const cx = ex + tx * toEnd - h.nx * L.shimmyEnd * 1.5, cz = ez + tz * toEnd - h.nz * L.shimmyEnd * 1.5;
+      if (!this._topSpot(b, n, cx, cz) || !this._hangClear(b, n.x, n.z, cx, cz)) return; // a wall or nothing to stand on: stop here
+      h.nx = n.x; h.nz = n.z; h.ex = cx; h.ez = cz; h.tx = this._ts.x; h.tz = this._ts.z;
+      h.x = cx + n.x * (r + 0.005); h.z = cz + n.z * (r + 0.005);
+      audio.play('cat.grab', { gain: 0.5 });
+      return;
+    }
+    if (!this._hangClear(b, n.x, n.z, ex, ez) || !this._topSpot(b, n, ex, ez)) return;
+    h.ex = ex; h.ez = ez; h.tx = this._ts.x; h.tz = this._ts.z;
+    h.x = ex + n.x * (r + 0.005); h.z = ez + n.z * (r + 0.005);
+    this.shimmyDist += Math.abs(step);
+    this.stamina = Math.max(0, this.stamina - ST.shimmyDrain * dt);
   }
 
   _tickHang(dt) {
@@ -378,7 +446,8 @@ export class Player {
     this.stamina = Math.max(0, this.stamina - ST.hangDrain * dt);
     if (this.stamina <= 0) { this._letGo(); return; }
     if (I.pressed('Space') && !this.frozen) { this._startMantle(); return; }
-    if (I.down('KeyS') || I.down('ArrowDown') || I.down('KeyC')) this._letGo();
+    if (I.down('KeyS') || I.down('ArrowDown') || I.down('KeyC')) { this._letGo(); return; }
+    this._shimmy(dt);
   }
 
   _letGo() { this.mode = 'move'; this.grabLock = L.letGoLock; this.vy = 0; this.launched = false; this.launchSpeed = 0; }
@@ -497,15 +566,18 @@ export class Player {
     if (this.stamina <= 0) { this.mode = 'slide'; return; }
     if (this.wfwd > 0) {
       const top = this.feetY + this.height, ceil = W.ceiling(this.pos.x, this.pos.z, P.radius * 0.8, top - 0.02);
-      if (top + C.speed * dt < ceil) this.feetY += C.speed * dt;
+      if (top + C.speed * dt < ceil) { this.feetY += C.speed * dt; this.climbDist += C.speed * dt; }
     } else if (this.wfwd < 0) {
-      this.feetY -= C.speed * dt;
+      this.feetY -= C.speed * dt; this.climbDist += C.speed * dt;
       const g = W.ground(this.pos.x, this.pos.z, P.radius * P.edgeSupport, this.feetY + P.stepHeight, this._g);
       if (this.feetY <= g.y) { this.feetY = g.y; this.mode = 'move'; this.grounded = true; this.groundCollider = g.collider; this.surface = g.surface; return; }
     }
-    if (this.wside) { // sideways along the wall
-      const toRight = -(this.wx * c.z) + this.wz * c.x;
-      this.pos.x += -c.z * toRight * C.strafe * dt; this.pos.z += c.x * toRight * C.strafe * dt;
+    if (this.wside) { // sideways along the wall. A / D stay screen left and right even when looking away from it
+      const facing = -(this.fx * c.x + this.fz * c.z) >= 0 ? 1 : -1, s = this.wside * facing * C.strafe * dt, rx = c.z, rz = -c.x;
+      const x = this.pos.x + rx * s, z = this.pos.z + rz * s, c0 = b.cx * rx + b.cz * rz, half = Math.abs(rx) * b.hx + Math.abs(rz) * b.hz, t = x * rx + z * rz;
+      if (Math.abs(t - c0) <= half && W.penetration(x, z, P.radius * 0.95, this.feetY + P.stepHeight, this.feetY + P.height, b, this.feetY) === 0) { // stops at the end of the face, doesn't fall off it
+        this.pos.x = x; this.pos.z = z; this.climbDist += Math.abs(s);
+      }
     }
     if (!this._hugFace()) { this._offWall(); return; }
     if (this.wfwd > 0 && this.feetY >= b.maxY - C.topOff) { // over the top (a curtain hands over to its rod)

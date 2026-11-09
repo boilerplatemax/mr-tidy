@@ -116,7 +116,8 @@ export const TUNING = {
   // ---------------------------------------------------------------- the charged jump (src/player/player.js)
   // A full charge rises maxVy² / 2g = 0.95 m: floor to counter top. Re-run the route check after changing any of these.
   jump: {
-    chargeTime: 0.55, // s to full charge. Tap = no charge
+    chargeTime: 0.75, // s to full charge. Tap = no charge. Slower = the target sweeps more gently
+    stickDist: 1.1, stickInset: 0.08, // the target stays on a perch until the arc would land this far (m) past it; how far inside its edge the target is held (m)
     minVy: 3.0, maxVy: 5.85, // m/s up at no charge / full charge
     minSpeed: 1.4, maxSpeed: 3.2, // m/s forward at no charge / full charge: the charge sets the distance, not a run-up
     runCarry: 2.2, // m/s: a tap at a run keeps at most this much speed (so a run-and-tap can't clear the counter gaps)
@@ -128,15 +129,38 @@ export const TUNING = {
     airSteerMin: 1.0, // m/s: steering speed in the air on a very short hop
     dip: 0.03, dipPitch: 0.06, // the camera dips (m, rad) at full charge
     holdAtMax: 0.8, // s a full charge is held, standing still, before the jump is called off. Walking or steering never cancels it
-    predictDt: 0.02, predictT: 1.4, // s: landing-spot prediction step and horizon
+    predictDt: 1 / 60, predictT: 1.4, // s: landing-spot prediction step (the same as the physics, so the target and the real landing agree) and horizon
     marker: { // the jump target: a ring painted onto the world around the landing spot (src/player/landing-marker.js)
       ringInner: 0.085, ringOuter: 0.135, ringFull: 1.3, ringMin: 0.45, // m; closer than ringFull m the ring shrinks, down to this share
       retractMin: 0.04, retractHold: 0.14, // m, s: a spot that moves back this far must stay back this long before the target follows
     },
-    markerEase: 22, // 1/s: how fast the dot glides to a new spot
+    markerEase: 14, // 1/s: how fast the target glides to a new spot
     dotBelowLip: 0.04, // m: where the dot sits under an edge you'd catch
     markerColors: { land: 0xfff0c8, grab: 0x9fe6a0, wall: 0x9fb4d8 }, // landing on a surface / would catch this edge / would hit a wall
     shimmer: { color: 0xffc890, base: 0.035, amp: 0.05, freq: 2.2, speed: 1.3, fade: 7, pad: 0.006 }, // the soft glow over the target perch: strength, slow broad wave (size, speed), 1/s fade-in, m past its faces
+  },
+
+  assets: { vacuum: 'game-assets/models/shopvac.glb' }, // the one real model in Phase 1. If it fails to load, a primitive stands in
+
+  // ---------------------------------------------------------------- Mr. Tidy (src/vacuum/)
+  vac: {
+    radius: 0.24, height: 0.45, // m: the body, for navigation and (later) catching the cat
+    speed: [0.8, 1.4, 2.4], // m/s by anger level 1, 2, 3
+    turnRate: 2.4, // rad/s
+    arrive: 0.14, // m from a waypoint at which he moves on
+    model: {
+      scaleY: 0.45, scaleXZ: 0.58, // the model is 1 unit tall and 0.78 wide: this makes it a squat 0.45 m drum, 0.45 m across
+      holeY: 0.115, holeR: 0.09, holeZ: 0.2225, // the black mouth (m): height, radius, how far forward
+      faceY: 0.29, faceW: 0.26, faceH: 0.19, faceZ: 0.236, // the face plate on the dome, above the hole
+      cordY: 0.1, backZ: 0.2, // where the cord leaves the back
+    },
+  },
+  cord: {
+    spacing: 0.25, capacity: 256, // m between trail points; how many before the trail is thinned
+    radius: 0.009, y: 0.012, slack: 0.018, // m: thickness, height off the floor, how much it wanders
+    checkEvery: 0.3, // s between looking for a nearer outlet
+    seenMargin: 1.08, // how far beyond the edge of the screen still counts as visible (a safety margin)
+    color: 0x2a2a2c, plugColor: 0x141414,
   },
 
   // ---------------------------------------------------------------- Grandma and the win (src/world/grandma.js)
@@ -148,7 +172,9 @@ export const TUNING = {
     crossfade: 1.0, // s between snoring stages
     winBeat: 1.4, // s from her waking to the Good Kitty screen
     soundBehind: 0.6, // m behind the door the snoring comes from (the wall muffles it)
-    refDistance: 4, rolloff: 0.8, // how the snoring carries: audible through the house, loudest at her door
+    refDistance: 4, rolloff: 0.8, // how her cues carry through the house
+    snoreNear: 2, snoreFar: 7, // m from the door: full snoring within snoreNear, silent beyond snoreFar
+    labelNear: 2.2, // m from the door at which "Grandma's room" shows on screen
   },
 
   // ---------------------------------------------------------------- the dash (src/player/player.js)
@@ -175,6 +201,8 @@ export const TUNING = {
     lookSettle: 10, // 1/s: how fast the view eases inside those limits when you catch the edge
     settle: 30, // 1/s: how fast the body settles into the hanging pose
     mantleTime: 0.4, // s: the pull-up
+    shimmySpeed: 0.5, // m/s along a ledge with A / D or the arrow keys
+    shimmyEnd: 0.06, // m from the end of an edge where the cat goes round the corner (or stops, if it can't)
     inward: [0.16, 0.12, 0.08, 0.04], // m past the lip to end up, tried in order (narrow perches take the shorter ones)
   },
   // ---------------------------------------------------------------- claw climbing and stamina
@@ -195,6 +223,7 @@ export const TUNING = {
     climbDrain: 0.3, // per second moving on a climbable face (1 = the full bar: about 3.3 s, 3 m)
     hangDrain: 0.22, // per second hanging on a ledge: a full bar is about 4.5 s
     clingDrain: 0.1, // per second clinging still to a climbable face
+    shimmyDrain: 0.12, // extra per second moving along a ledge
     kickCost: 0.1, // per kick-off
     springCost: 0.1, // extra for a fully charged spring
     regen: 1.6, // per second while standing on any flat surface
@@ -255,7 +284,9 @@ export const TUNING = {
     keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)
     climbSpread: 0.06, climbUp: 0.03, climbReach: 0.03, climbStride: 0.2, climbLeg: -0.55, climbIn: 0.008, // on a climbable face: m apart from centre, m above the eye, m each paw reaches up and down, m climbed per pair of steps, rad the forearm comes back from the wall, m off the wall
     hangSpread: 0.055, hangIn: 0.03, hangLift: 0.014, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
-    tremble: 0.0035, trembleRate: 46, // m, rad/s: the paws shake harder as stamina runs out
+    tremble: 0.0035, trembleRate: 46, trembleAt: 0.4, // m, rad/s: the hanging paws shake as stamina gets low, starting at this share of the bar
+    shimmyStep: 0.03, shimmyLift: 0.012, shimmyStride: 0.22, // moving along a ledge: m each paw leads and trails, m it lifts, m travelled per pair of steps
+    climbSideReach: 0.025, climbSideEase: 12, // climbing sideways: m each paw leads and trails, 1/s easing in and out
     drop: 0.08, ease: 18, // m below the lip as it appears, 1/s ease in and out
   },
 
@@ -273,6 +304,7 @@ export const TUNING = {
   },
 
   hud: {
+    wakeIcon: false, // the small sleeping-face icon. Off for now
     lines: 240, // the HUD's own pixel grid (lines), whatever the render resolution: the pixel font stays one size
   },
   subtitles: { seconds: 3.2, maxLines: 3 }, // how long a caption stays; how many stack

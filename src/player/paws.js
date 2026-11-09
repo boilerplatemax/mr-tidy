@@ -37,6 +37,7 @@ export class Paws {
     camera.add(this.left, this.right);
     this.left.visible = this.right.visible = false;
     this.grip = 0; // 0 hidden .. 1 on the surface
+    this.side = 0; // 0 .. 1: how much the climb is going sideways
   }
 
   /** Put a paw at a world position and orientation (from its basis), in the camera's space. */
@@ -52,7 +53,7 @@ export class Paws {
   }
 
   /** Both paws on the lip of the ledge, kept on the ledge itself and leaning with the view. */
-  _plantHang(player) {
+  _plantHang(player, alpha) {
     const h = player.hang, b = h.col;
     _z.set(h.nx, 0, h.nz); // the paw's back runs out from the ledge; its toes point in over the top
     _y.copy(UP);
@@ -61,31 +62,38 @@ export class Paws {
     // along the edge: the point the eye is turned toward, and how far apart the paws sit
     let spread = V.hangSpread * (1 - V.hangNarrow * lean);
     const t0 = h.ex * _x.x + h.ez * _x.z, c0 = b.cx * _x.x + b.cz * _x.z, half = Math.abs(_x.x) * b.hx + Math.abs(_x.z) * b.hz;
-    let t = t0 - Math.max(-V.hangFollow, Math.min(V.hangFollow, Math.tan(Math.max(-1.35, Math.min(1.35, look))) * V.hangDist));
+    // where the cat is along the edge, interpolated like the camera so the paws don't step against it
+    const rx = player.prev.x + (player.pos.x - player.prev.x) * alpha, rz = player.prev.z + (player.pos.z - player.prev.z) * alpha, here = rx * _x.x + rz * _x.z;
+    let t = here - Math.max(-V.hangFollow, Math.min(V.hangFollow, Math.tan(Math.max(-1.35, Math.min(1.35, look))) * V.hangDist));
     // never past the end of the ledge: on a short one the paws close up instead of one hanging off in the air
     if (half < spread + V.hangMargin) { spread = Math.max(0.012, half - V.hangMargin); t = c0; }
     else t = Math.max(c0 - half + spread + V.hangMargin, Math.min(c0 + half - spread - V.hangMargin, t));
-    const shake = (side) => Math.sin(player.time * V.trembleRate + side) * V.tremble * (1 - player.stamina);
+    const low = Math.max(0, (V.trembleAt - player.stamina) / V.trembleAt); // only when the grip is going
+    const dist = player.prevShimmyDist + (player.shimmyDist - player.prevShimmyDist) * alpha, phase = (dist / V.shimmyStride) * Math.PI * 2;
     for (const [paw, side] of [[this.left, -1], [this.right, 1]]) {
-      const along = t + side * spread - t0;
-      this._place(paw, h.ex + _x.x * along - h.nx * V.hangIn, h.top + V.hangLift - (1 - this.grip) * V.drop + shake(side), h.ez + _x.z * along - h.nz * V.hangIn, look * V.hangTurn);
+      const swing = Math.sin(phase + (side > 0 ? 0 : Math.PI)); // one paw leads, the other follows
+      const along = t + side * spread + swing * V.shimmyStep - t0;
+      const y = h.top + V.hangLift + Math.max(0, swing) * V.shimmyLift - (1 - this.grip) * V.drop + Math.sin(player.time * V.trembleRate + side) * V.tremble * low;
+      this._place(paw, h.ex + _x.x * along - h.nx * V.hangIn, y, h.ez + _x.z * along - h.nz * V.hangIn, look * V.hangTurn);
       paw.userData.leg.rotation.x = V.hangLeg; // the forearm drops away below the lip
       paw.userData.leg.scale.z = V.hangLegLen; // ...and reaches down past the bottom of the view
     }
   }
 
   /** Both paws reaching up the face, stepping past each other as the cat climbs. */
-  _plantClimb(player) {
-    const c = player.climb;
+  _plantClimb(player, alpha, dt) {
+    const c = player.climb, cam = this.camera.position;
     _y.set(c.x, 0, c.z); // the back of the paw faces away from the wall
     _z.set(0, -1, 0); // toes point up the wall, the forearm hangs down it
     _x.crossVectors(_y, _z);
-    const camY = this.camera.position.y, phase = (camY / V.climbStride) * Math.PI * 2;
-    const wallX = player.pos.x - c.x * (TUNING.player.radius - V.climbIn), wallZ = player.pos.z - c.z * (TUNING.player.radius - V.climbIn);
+    // Everything hangs off the camera's own interpolated position, so nothing steps against it from tick to tick.
+    this.side += ((player.wside ? 1 : 0) - this.side) * (1 - Math.exp(-V.climbSideEase * dt));
+    const dist = player.prevClimbDist + (player.climbDist - player.prevClimbDist) * alpha, phase = (dist / V.climbStride) * Math.PI * 2;
+    const wallX = cam.x - c.x * (TUNING.player.radius - V.climbIn), wallZ = cam.z - c.z * (TUNING.player.radius - V.climbIn);
     for (const [paw, side] of [[this.left, -1], [this.right, 1]]) {
-      const shake = Math.sin(player.time * V.trembleRate + side) * V.tremble * (1 - player.stamina);
-      const reach = Math.sin(phase + (side > 0 ? 0 : Math.PI)) * V.climbReach;
-      this._place(paw, wallX + _x.x * side * V.climbSpread, camY + V.climbUp + reach - (1 - this.grip) * V.drop + shake, wallZ + _x.z * side * V.climbSpread);
+      const swing = Math.sin(phase + (side > 0 ? 0 : Math.PI)); // the paws climb past each other, up, down or sideways
+      const across = side * V.climbSpread + swing * V.climbSideReach * this.side;
+      this._place(paw, wallX + _x.x * across, cam.y + V.climbUp + swing * V.climbReach - (1 - this.grip) * V.drop, wallZ + _x.z * across);
       paw.userData.leg.rotation.x = V.climbLeg; // the forearm comes back from the wall toward the cat
       paw.userData.leg.scale.z = V.hangLegLen;
     }
@@ -123,8 +131,8 @@ export class Paws {
     this.left.visible = (gripping || climbing) && !hidden;
     this.right.visible = (gripping || climbing || swiping) && !hidden;
     if (hidden) return;
-    if (gripping) { this._plantHang(player); this._keepBoth(); }
-    else if (climbing) { this._plantClimb(player); this._keepBoth(); }
+    if (gripping) { this._plantHang(player, alpha); this._keepBoth(); }
+    else if (climbing) { this._plantClimb(player, alpha, dt); this._keepBoth(); }
     else if (swiping) this._swipePose(player, alpha);
   }
 }

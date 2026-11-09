@@ -16,7 +16,7 @@ export class Grandma {
     this.door = { x: D.x, z: (D.zMin + D.zMax) / 2 };
     this.soundPos = { x: D.x + G.soundBehind, y: 0.5, z: this.door.z }; // behind the door, so the wall muffles it
     this.wake = 0; this.stage = 0; this.awake = false; this.t = 0; this.shown = false;
-    this.voice = null;
+    this.voice = null; this.level = 0; this.levelT = 0;
     this.onWin = null; this.onScreen = null;
     noise.on((ev) => { if (ev.kind === 'crash') this.add(this.valueOf(ev.x, ev.z, ev.loud)); });
   }
@@ -45,6 +45,7 @@ export class Grandma {
   _playSnore(fade) {
     this.voice?.stop(fade);
     this.voice = audio.play('grandma.snore' + this.stage, { pos: this.soundPos, fadeIn: fade, refDistance: G.refDistance, rolloff: G.rolloff });
+    this.voice?.fadeTo(this.level, fade);
   }
 
   /** Once audio exists (the first click). */
@@ -58,8 +59,18 @@ export class Grandma {
     this.onWin?.();
   }
 
-  /** Per fixed tick. */
-  tick(dt) {
+  /** Is the cat near enough to the door? (px, pz: the cat.) */
+  distanceTo(px, pz) { return Math.hypot(px - this.door.x, pz - this.door.z); }
+
+  /** Per fixed tick. (px, pz): where the cat is. */
+  tick(dt, px, pz) {
+    // DESIGN NOTE: the snoring is only heard near her door, so it marks the room rather than droning through the house.
+    this.levelT -= dt;
+    if (this.levelT <= 0 && !this.awake) {
+      this.levelT = 0.2;
+      this.level = 1 - Math.max(0, Math.min(1, (this.distanceTo(px, pz) - G.snoreNear) / (G.snoreFar - G.snoreNear)));
+      this.voice?.fadeTo(this.level, 0.25);
+    }
     if (!this.awake || this.shown) return;
     this.t += dt;
     if (this.t >= G.winBeat) { this.shown = true; this.onScreen?.(); }
