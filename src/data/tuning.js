@@ -177,9 +177,13 @@ export const TUNING = {
     },
   },
   hose: { // the snake out of the hole (src/vacuum/hose.js)
-    length: 2.4, segments: 12, radius: 0.028, tubeSegments: 28, tubeSides: 6, // m, chain links, m, how smooth the tube is
+    length: 2.4, segments: 12, radius: 0.028, tubeSegments: 28, tubeSides: 6, // m it can stretch out to, points along it, m, how smooth the tube is
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
-    restReach: 0.6, restSway: 0.07, follow: 14, floorY: 0.03, ikPasses: 3, // how it lies at rest; how fast it catches up; IK iterations
+    restReach: 0.6, restSway: 0.07, follow: 14, floorY: 0.03, // how it lies at rest; how fast it catches up
+    track: 34, // 1/s: how fast the body of the hose follows its curve as the tip moves
+    wiggle: 0.11, wiggleWaves: 1.6, wiggleRate: 8, // m the snake-like wave swings; how many waves along it; rad/s travelling
+    lungeWiggle: 0.2, // share of that wave left during a lunge: it goes straight for you
+    arch: 0.3, // how far under the tip the hose comes up from: higher makes it rear up more
     reachH: 1.6, reachTop: 1.8, // m: how far out from the hole, and how high a perch it can get to. Tier-2 spots above this are safe
     minPerch: 0.3, // m: a cat higher than this counts as perched (lower, his body gets it instead)
     standoff: 1.1, // m: how close to a perched cat he tries to park

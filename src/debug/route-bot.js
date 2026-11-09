@@ -205,7 +205,8 @@ function hoseChecks(kit) {
   // the tube
   const ok = v.hose.pts.every((p) => Number.isFinite(p.x + p.y + p.z)) && v.hose.mesh.geometry.attributes.position?.count > 0;
   v.frame(1);
-  report('the hose stays a finite tube, nozzle at the tip', ok && v.hose.mesh.geometry.attributes.position.count > 0);
+  { const g = v.hose.mesh.geometry; g.computeBoundingBox(); const b = g.boundingBox, span = Math.hypot(b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z), want = v.hose.pts[0].distanceTo(v.hose.tip);
+    report('the hose stays a finite tube, as long as its points', ok && span > want * 0.8, `tube ${span.toFixed(2)} m, base to tip ${want.toFixed(2)} m`); }
   report('the hose has its length, radius and segments in the tuning file', H.length > 0 && H.radius > 0 && H.segments >= 10 && H.segments <= 14);
 
   v.onCatch = onCatch0; freshVac(kit, 'L1', 1); P.noclip = true;
