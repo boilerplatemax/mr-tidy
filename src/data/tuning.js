@@ -139,6 +139,18 @@ export const TUNING = {
     shimmer: { color: 0xffc890, base: 0.035, amp: 0.05, freq: 2.2, speed: 1.3, fade: 7, pad: 0.006 }, // the soft glow over the target perch: strength, slow broad wave (size, speed), 1/s fade-in, m past its faces
   },
 
+  // ---------------------------------------------------------------- Grandma and the win (src/world/grandma.js)
+  grandma: {
+    gain: 0.85, // scales every crash. The main "how long is a run" number: aim for 10–14 knock-overs on average
+    farScale: 0.6, nearScale: 1.5, // what a crash is worth far from her door / right at it
+    range: 17, // m from the door at which a crash counts as far
+    thresholds: [25, 50, 75], // wake values where the snoring lightens and a cue plays
+    crossfade: 1.0, // s between snoring stages
+    winBeat: 1.4, // s from her waking to the Good Kitty screen
+    soundBehind: 0.6, // m behind the door the snoring comes from (the wall muffles it)
+    refDistance: 4, rolloff: 0.8, // how the snoring carries: audible through the house, loudest at her door
+  },
+
   // ---------------------------------------------------------------- the dash (src/player/player.js)
   dash: {
     time: 0.15, speed: 6.2, // s, m/s: about 0.9 m. Gravity is off for its duration
@@ -291,9 +303,8 @@ export const TUNING = {
       wallTop: 0x3a3a3e, outside: 0x202024,
       knockable: 0xece6d8, // anything you can knock over
       climb: '#8b9a90', climbDark: '#737f77', // every climbable surface, whatever it is, is this: quiet grey-green lines
-      grandmaDoor: 0x7a1414, doorStrip: 0xffd28a, outlet: 0xb8b4a8,
+      grandmaDoor: 0x7a1414, doorStrip: 0xc89a5a, doorStripWake: 0xfff4d8, outlet: 0xb8b4a8,
     },
-    doorLight: { color: 0xffc27a, intensity: 2.2, distance: 4.5, decay: 1.6 }, // the glow from under Grandma's door
     preset: 'greybox', // starting light preset
     spawn: { x: 2.2, y: 0, z: 1.6, yaw: 0.78 }, // feet position (m), facing (rad, 0 = toward -z): at the cat tree
     titleCamera: { x: 3.0, y: 0.25, z: 4.2, yaw: 0.5, pitch: 0.12, sway: 0.01 }, // the title screen's slow view

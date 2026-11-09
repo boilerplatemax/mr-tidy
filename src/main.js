@@ -20,6 +20,9 @@ import { buildHouse } from './world/house.js';
 import { Knockables } from './world/knockables.js';
 import { Debris } from './world/debris.js';
 import { Noise } from './world/noise.js';
+import { Grandma } from './world/grandma.js';
+import { WakeIcon } from './ui/wake-icon.js';
+import { EndScreen } from './ui/end-screen.js';
 import { Debug } from './debug/debug.js';
 import { LandingMarker } from './player/landing-marker.js';
 import { Paws } from './player/paws.js';
@@ -53,6 +56,7 @@ const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
 player.onStep = (gait) => { if (gait === 'run') noise.emit({ kind: 'step', x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // slink and walk are quiet
 player.onLand = (impact, heavy) => { if (heavy) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z }); };
 player.onSwipe = () => knock.swipe(player, camera);
+const grandma = new Grandma({ noise, house });
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
@@ -65,15 +69,23 @@ audio.world = world;
 audio.indoorBoxes = house.indoor;
 subtitles.isIndoor = (p) => audio.isIndoor(p);
 audio.onCaption = (label, pos) => subtitles.sound(label, pos, audio.listenerPos, player.yaw);
-audio.onStart.push(() => house.startSound());
+audio.onStart.push(() => { house.startSound(); grandma.startSound(); });
 
 // ---------------------------------------------------------------- UI
 const hudLayer = new HudLayer(canvas);
 const overlay = new DevOverlay();
 const staminaBar = new StaminaBar(hudLayer);
+const wakeIcon = new WakeIcon(hudLayer);
+const endScreen = new EndScreen();
+let runTime = 0, ended = false;
+grandma.onWin = () => { ended = true; player.frozen = true; };
+grandma.onScreen = () => {
+  const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60);
+  endScreen.show('Good Kitty', [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`]);
+};
 const menu = new Menu(() => input.requestLock()); // the click is a user gesture: lock + (first time) start audio
 input.on('firstClick', () => audio.start(THREE.Vector3));
-input.on('pause', () => { menu.show(input.started); audio.suspend(); });
+input.on('pause', () => { if (ended) return; menu.show(input.started); audio.suspend(); }); // (the end screen takes the mouse back itself)
 input.on('resume', () => { menu.hide(); audio.resume(); });
 menu.show(false);
 
@@ -83,7 +95,7 @@ if (params.has('play')) { // headless / tests: no click, no pointer lock
 }
 
 // ---------------------------------------------------------------- debug
-const debug = new Debug({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise });
+const debug = new Debug({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma });
 
 // ---------------------------------------------------------------- the loop
 const titleCam = TUNING.house.titleCamera;
@@ -95,6 +107,8 @@ function tick(dt) {
     player.tick(dt);
     knock.tick(dt);
     debris.tick(dt);
+    grandma.tick(dt);
+    if (!ended) runTime += dt;
     house.tick(dt, player.pos);
   }
   input.consumeEdges();
@@ -122,6 +136,7 @@ function frame(alpha, dt, frameMs) {
   audio.update(dt, camera);
   subtitles.update(dt);
   hudLayer.sync();
+  wakeIcon.set(grandma.stage);
   ps1.render(scene, camera);
   overlay.frame(frameMs, dt);
   window.__kitReady = true;
@@ -132,7 +147,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, get runTime() { return runTime; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

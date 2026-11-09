@@ -8,7 +8,7 @@ import { makePS1 } from '../render/ps1-material.js';
 const D = TUNING.debug;
 const LOOKS = ['authored', 'clean'];
 const HELP = () => [
-  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F9 this list',
+  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F5 wake +20', 'F9 this list',
   'With the overlay open:', 'L light preset', '1 / 2 / 3 jitter / warp / dither', '4 look: authored <-> clean',
   'URL: ?dev ?play',
 ].join('\n');
@@ -26,8 +26,8 @@ function buildCatProxy() { // what you see in third person: a grey-box cat
 }
 
 export class Debug {
-  constructor({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise }) {
-    Object.assign(this, { input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise });
+  constructor({ input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma }) {
+    Object.assign(this, { input, player, world, scene, camera, overlay, env, ps1, audio, knock, debris, noise, grandma });
     this.thirdPerson = false;
     this.cat = buildCatProxy();
     scene.add(this.cat);
@@ -44,6 +44,7 @@ export class Debug {
     if (!I.live) return;
     if (I.pressed('F2')) { this.thirdPerson = !this.thirdPerson; O.note(`third person ${this.thirdPerson ? 'on' : 'off'}`); }
     if (I.pressed('F3')) { this.player.noclip = !this.player.noclip; O.note(`noclip ${this.player.noclip ? 'on' : 'off'}`); }
+    if (I.pressed('F5')) { this.grandma.add(20); O.note(`wake ${this.grandma.wake.toFixed(0)}`); }
     if (!O.visible) return;
     if (I.pressed('KeyL')) { const o = TUNING.lighting.order; const next = o[(o.indexOf(this.env.preset) + 1) % o.length]; this.env.apply(next); O.note('light: ' + next); }
     for (const [code, key] of [['Digit1', 'jitter'], ['Digit2', 'warp'], ['Digit3', 'dither']]) if (I.pressed(code)) { setSetting(key, !settings[key]); O.note(`${key} ${settings[key] ? 'on' : 'off'}`); }
@@ -73,6 +74,7 @@ export class Debug {
       `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
       `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'} · stamina ${P.stamina.toFixed(2)}`,
       `knocked ${this.knock.count}/${this.knock.list.length} · messes ${this.debris.messes.length} · last noise ${this.noise.last ? this.noise.last.kind + (this.noise.last.objectId ? ' ' + this.noise.last.objectId : '') : 'none'}`,
+      `grandmaWake ${this.grandma.wake.toFixed(1)} · stage ${this.grandma.stage}`,
       `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
     ];
   }

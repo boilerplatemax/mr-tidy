@@ -38,7 +38,43 @@ const thud = (sr, f = 80, len = 0.25, rattle = 0) => {
   return S.declick(S.normalise(x, 0.9), sr);
 };
 
+// ---------------------------------------------------------------- Grandma (placeholders)
+// One slow breath: a raspy inhale and an airy exhale, silent at both ends so it loops cleanly.
+const snore = (o) => (sr) => {
+  const n = Math.round(o.len * sr), x = new Float32Array(n);
+  const rasp = S.biquad(S.saw(S.buffer(o.len, sr), sr, (t) => o.f * (0.85 + 0.3 * Math.sin(t * Math.PI))), sr, 'bp', o.f * 3, 1.6);
+  const air = S.biquad(S.noise(S.buffer(o.len, sr)), sr, 'lp', 700);
+  for (let i = 0; i < n; i++) {
+    const t = i / n;
+    const inhale = t < o.in ? Math.pow(Math.sin((Math.PI * t) / o.in), 1.5) : 0;
+    const exhale = t >= o.in && t < o.in + o.out ? Math.sin((Math.PI * (t - o.in)) / o.out) : 0;
+    x[i] = rasp[i] * inhale * o.rasp + air[i] * (exhale + inhale * 0.3) * o.air;
+  }
+  return S.normalise(x, o.peak);
+};
+const snort = (sr) => {
+  const x = S.buffer(0.5, sr);
+  S.mix(x, S.env(S.biquad(S.saw(S.buffer(0.32, sr), sr, (t) => 95 + 60 * t), sr, 'bp', 320, 1.2), sr, 0.01, 0.1), 1);
+  S.mix(x, S.env(S.biquad(S.noise(S.buffer(0.3, sr)), sr, 'lp', 900), sr, 0.005, 0.08), 0.6);
+  return S.declick(S.normalise(x, 0.9), sr);
+};
+const cough = (sr) => {
+  const x = S.buffer(0.7, sr);
+  for (const at of [0, 0.26]) S.mix(x, S.env(S.biquad(S.noise(S.buffer(0.2, sr)), sr, 'bp', rand(480, 620), 1.5), sr, 0.003, 0.05), 1, Math.round(at * sr));
+  return S.declick(S.normalise(x, 0.85), sr);
+};
+const creak = (sr) => S.declick(S.normalise(S.env(S.biquad(S.saw(S.buffer(0.7, sr), sr, (t) => 70 + 45 * Math.sin(t * 11)), sr, 'bp', 780, 5), sr, 0.03, 0.25), 0.7), sr);
+
 export const SOUNDS = {
+  // Grandma: the snoring lightens through four stages; a cue marks each step toward waking
+  'grandma.snore0': { gen: snore({ len: 3.4, f: 62, rasp: 1, air: 0.4, in: 0.5, out: 0.4, peak: 0.85 }), loop: true, gain: 0.9 },
+  'grandma.snore1': { gen: snore({ len: 2.8, f: 72, rasp: 0.6, air: 0.5, in: 0.45, out: 0.4, peak: 0.6 }), loop: true, gain: 0.9 },
+  'grandma.snore2': { gen: snore({ len: 3.2, f: 85, rasp: 0.25, air: 0.6, in: 0.3, out: 0.35, peak: 0.42 }), loop: true, gain: 0.9 },
+  'grandma.snore3': { gen: snore({ len: 2.6, f: 100, rasp: 0.08, air: 0.7, in: 0.25, out: 0.3, peak: 0.26 }), loop: true, gain: 0.9 },
+  'grandma.snort': { gen: v(snort, 2), gain: 1, subtitle: 'a loud snort' },
+  'grandma.cough': { gen: v(cough, 2), gain: 1, subtitle: 'a cough' },
+  'grandma.creak': { gen: v(creak, 2), gain: 1, subtitle: 'the bed creaks' },
+  'grandma.wake': { gen: v(snort, 1), gain: 1.4, subtitle: 'a huge snort, then silence' },
   // the cat: never captioned
   'foot.carpet': { gen: v(pawCarpet, 4), gain: 0.3 },
   'foot.lino': { gen: v(pawLino, 4), gain: 0.26 },

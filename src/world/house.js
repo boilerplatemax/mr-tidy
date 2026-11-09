@@ -140,14 +140,8 @@ export function buildHouse({ scene, world }) {
 
   B.addTo(scene);
 
-  // ---- a little warm light spilling from under Grandma's door
-  const L = H.doorLight;
-  const light = new THREE.PointLight(L.color, L.intensity, L.distance, L.decay);
-  light.position.set(D.x - 0.2, 0.15, (D.zMin + D.zMax) / 2);
-  scene.add(light);
-
   const zones = LEVEL.rooms.map((r) => new THREE.Box3(new THREE.Vector3(r.min[0], -0.1, r.min[1]), new THREE.Vector3(r.max[0], LEVEL.ceiling + 0.1, r.max[1])));
   const shell = new THREE.Box3(new THREE.Vector3(-1, -1, -3), new THREE.Vector3(19, LEVEL.ceiling + 0.2, 6.5));
 
-  return { zones, indoor: [shell], spawn: H.spawn, byId, doorLight: light, tick() {}, startSound() {} };
+  return { zones, indoor: [shell], spawn: H.spawn, byId, doorStrip: mats.strip, tick() {}, startSound() {} };
 }

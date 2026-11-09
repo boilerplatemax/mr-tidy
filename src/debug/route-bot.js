@@ -78,6 +78,33 @@ function grabAttempt(kit, from, to, start, charge) {
   return { ok: id === to.id, on: id, caught };
 }
 
+/** Wake meter and the win. This runs last: winning ends the run. */
+function grandmaChecks(kit) {
+  const G = kit.grandma, K = kit.knock, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} WAKE ${name}${note ? ' (' + note + ')' : ''}`);
+  // how many knock-overs a run takes, from the real numbers
+  const values = K.list.map((o) => G.valueOf(o.start.x, o.start.z, o.t.noise)).sort((a, b) => b - a);
+  const total = values.reduce((a, b) => a + b, 0), avg = total / values.length;
+  let best = 0, sum = 0; while (sum < 100 && best < values.length) sum += values[best++];
+  let worst = 0; sum = 0; for (let i = values.length - 1; i >= 0 && sum < 100; i--) { sum += values[i]; worst++; }
+  report('a run takes about 10–14 knock-overs', 100 / avg >= 10 && 100 / avg <= 14 && total >= 100, `average ${(100 / avg).toFixed(1)}, loudest-first ${best}, quietest-first ${worst}, all 20 give ${total.toFixed(0)}`);
+  const near = G.valueOf(17, -0.7, 10), far = G.valueOf(1, 5, 10);
+  report('a crash near her door counts for more', near > far * 1.8, `${near.toFixed(1)} vs ${far.toFixed(1)}`);
+  const w0 = G.wake; G.add(-30); G.add(0);
+  report('the meter never goes down', G.wake === w0);
+  const before = G.wake; kit.noise.emit({ kind: 'step', x: 17, y: 0, z: -0.7 }); kit.noise.emit({ kind: 'thud', x: 17, y: 0, z: -0.7 });
+  report('footsteps and thuds do not wake her', G.wake === before);
+  const seen = []; for (const w of [0, 24.9, 25, 49.9, 50, 74.9, 75, 99.9, 100]) seen.push(G.stageOf(w));
+  report('stages line up with the thresholds', seen.join('') === '001122334', seen.join(''));
+  // the win
+  kit.player.resetMotion();
+  G.add(200);
+  const atWake = G.awake && G.wake === 100 && kit.player.frozen;
+  for (let i = 0; i < Math.ceil(TUNING.grandma.winBeat / dt) + 3; i++) kit.tick(dt);
+  report('100 wakes her and ends in the Good Kitty screen', atWake && G.stage === 4 && !kit.endScreen.el.hidden);
+  return rows;
+}
+
 /** Searches the whole house for slots the cat can fall into but not fit in: pushed from both sides, nowhere to go. */
 function pocketScan(kit) {
   const W = kit.world, P = TUNING.player, r = P.radius, found = new Map(), p = { x: 0, z: 0 }, g = { y: 0, surface: '', collider: null };
@@ -346,6 +373,7 @@ export function runRouteBot(kit) {
   rows.push(...climbChecks(kit));
   rows.push(...knockChecks(kit));
   rows.push(...pocketScan(kit));
+  rows.push(...grandmaChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
 }

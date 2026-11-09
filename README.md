@@ -30,7 +30,7 @@ Open <http://localhost:8080> and click **Begin**.
 | Left click | Swipe: bats whatever is in front of you |
 | Esc | Pause and settings |
 
-Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F9** key list.
+Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F5** wake +20 · **F9** key list.
 
 ## Tuning
 
