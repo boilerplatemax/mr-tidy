@@ -64,8 +64,19 @@ export class Vacuum {
     this.voice = audio.play('vac.drone', { follow: this.model.hoseSocket, rolloff: 0, fadeIn: 0.5, gain: D.gain, wet: 0.5 });
   }
 
+  /** The motor at the end of a catch: flat out and rising. */
+  scream() {
+    if (!this.voice) return;
+    const K = TUNING.catch;
+    this.voice.setRate(K.screamRate, K.screamRamp);
+    this.voice.fadeTo(K.screamGain, K.screamRamp * 0.5);
+  }
+
+  /** Cut the sound dead (the hard cut to black). */
+  silence() { this.voice?.stop(0.01); this.voice = null; }
+
   _updateDrone(dt) {
-    if (!this.voice || this.off || this.plugState !== 'in') return;
+    if (!this.voice || this.off || this.caught || this.plugState !== 'in') return;
     this.droneT -= dt;
     if (this.droneT > 0) return;
     this.droneT = D.update;
@@ -352,6 +363,7 @@ export class Vacuum {
   }
 
   _updateHose(dt) {
+    if (this.caught) return; // the catch rides the hose exactly as it was
     const h = this._hole(), g = this._goal;
     let goal = null, speed = 0;
     if (this.reachPhase === 'rise') { // up out of the hole, hovering short of the cat and sniffing at it
@@ -411,6 +423,7 @@ export class Vacuum {
   }
 
   _catch(how) {
+    this._endReach();
     this.caught = true; this.state = 'CATCH';
     this.slurp?.stop(0.05); this.slurp = null;
     this.onCatch?.(how);

@@ -22,6 +22,7 @@ import { Debris } from './world/debris.js';
 import { Noise } from './world/noise.js';
 import { Grandma } from './world/grandma.js';
 import { Vacuum } from './vacuum/vacuum.js';
+import { CatchSequence } from './vacuum/catch.js';
 import { WakeIcon } from './ui/wake-icon.js';
 import { EndScreen } from './ui/end-screen.js';
 import { Debug } from './debug/debug.js';
@@ -84,10 +85,10 @@ let roomShown = false;
 const endScreen = new EndScreen();
 let runTime = 0, ended = false;
 grandma.onWin = () => { ended = true; player.frozen = true; vac.powerDown(); };
-vac.onCatch = () => { // for now, straight to the restart screen; the real catch arrives with step 15
-  ended = true; player.frozen = true;
-  endScreen.show('Try again', [`Time  ${Math.floor(runTime / 60)}:${String(Math.floor(runTime % 60)).padStart(2, '0')}`]);
-};
+const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
+  endScreen.show('Try again', [`Time  ${Math.floor(runTime / 60)}:${String(Math.floor(runTime % 60)).padStart(2, '0')}`, `Objects broken  ${knock.count}`]);
+} });
+vac.onCatch = (how) => { ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
 grandma.onScreen = () => {
   const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60);
   endScreen.show('Good Kitty', [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`]);
@@ -113,7 +114,7 @@ function tick(dt) {
   player.snapView(); // last tick's view offsets, so the frame can interpolate them (see src/core/loop.js)
   debug.tick();
   if (input.live) {
-    player.tick(dt);
+    if (!catchSeq.active) player.tick(dt);
     knock.tick(dt);
     debris.tick(dt);
     grandma.tick(dt, player.pos.x, player.pos.z);
@@ -127,7 +128,9 @@ function tick(dt) {
 function frame(alpha, dt, frameMs) {
   wallTime += dt;
   const onTitle = !menu.el.hidden && !menu.started;
-  if (onTitle) { // the title: a slow, still view of the scene
+  if (catchSeq.active) catchSeq.update(dt);
+  else if (catchSeq.phase === 'done') { /* black, the restart screen is up: hold the view */ }
+  else if (onTitle) { // the title: a slow, still view of the scene
     camera.position.set(titleCam.x + Math.sin(wallTime * 0.31) * titleCam.sway, titleCam.y + Math.sin(wallTime * 0.23) * titleCam.sway * 0.5, titleCam.z);
     camera.rotation.set(titleCam.pitch, titleCam.yaw + Math.sin(wallTime * 0.17) * titleCam.sway * 0.3, 0, 'YXZ');
     camera.updateMatrixWorld();
@@ -159,7 +162,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, get runTime() { return runTime; } };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, get runTime() { return runTime; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

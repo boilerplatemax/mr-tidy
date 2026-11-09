@@ -171,6 +171,7 @@ export const TUNING = {
       scaleY: 0.45, scaleXZ: 0.58, // the model is 1 unit tall and 0.78 wide: this makes it a squat 0.45 m drum, 0.45 m across
       holeY: 0.115, holeR: 0.09, holeZ: 0.2225, // the black mouth (m): height, radius, how far forward
       faceY: 0.29, faceW: 0.26, faceH: 0.19, faceZ: 0.236, // the face plate on the dome, above the hole
+      catchDist: 0.2, // m in front of the hole where the camera ends up: close enough that he fills the screen
       reelY: 0.2, reelZ: 0.275, // the cord reel on his back (m): height, how far behind him
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
     },
@@ -191,6 +192,16 @@ export const TUNING = {
     slapRadius: 0.5, slapSpeed: 2.2, // m around the tip that a missed lunge knocks things; m/s
     stall: 1.0, // s he stands there after a miss
     cleanSpeed: 3, // m/s the nozzle goes out to a mess
+  },
+  catch: { // the catch: the most important moment in the game (src/vacuum/catch.js)
+    drag: 0.7, // s along the hose, speeding up
+    spin: 11, // rad/s the camera rolls on the way
+    shake: 0.03, // m of screen shake at the start of the drag
+    turn: 0.16, // s to turn and face him at the end of it
+    hold: 1.2, // s held on his face
+    faceJitter: 0.0035, // m his face trembles
+    beat: 0.8, // s of black silence before the restart screen
+    screamRate: 2.3, screamGain: 1.4, screamRamp: 0.9, // the motor at the end: pitch, loudness, s to get there
   },
   drone: { // the motor. The player must be able to find him by ear (src/vacuum/vacuum.js)
     closeness: 2.2, // m: at this distance the drone is at half volume. Smaller: it rises more steeply as he nears

@@ -89,6 +89,12 @@ export const SOUNDS = {
   'vac.surge': { gen: (sr) => S.declick(S.normalise(S.env(S.biquad(S.saw(S.buffer(0.5, sr), sr, (t) => 70 + 130 * t), sr, 'lp', 1200), sr, 0.03, 0.18), 0.85), sr), gain: 0.7, subtitle: 'the motor surges' },
   'vac.rattle': { gen: (sr) => { const x = S.buffer(1.2, sr); S.grains(x, sr, 64, 0.012, 1.15, 0); S.biquad(x, sr, 'bp', 1500, 1.4); return S.normalise(S.loopable(x, sr, 0.2), 0.8); }, loop: true, gain: 0.85, subtitle: 'the hose rattles' },
   'vac.slap': { gen: v((sr) => thud(sr, 150, 0.16, 0.5), 2), gain: 0.85, subtitle: 'the hose slaps down' },
+  'vac.fwoomp': { gen: (sr) => { // a huge suction burst
+    const x = S.buffer(0.75, sr);
+    S.mix(x, S.env(S.biquad(S.noise(S.buffer(0.7, sr)), sr, 'bp', (t) => 300 + 2400 * t * t, 0.8), sr, 0.02, 0.28), 1);
+    S.mix(x, S.env(S.sine(S.buffer(0.5, sr), sr, (t) => 50 + 180 * t), sr, 0.005, 0.2), 0.9);
+    return S.declick(S.normalise(x, 0.98), sr);
+  }, gain: 1.5 },
   'vac.drone': { gen: drone, loop: true, gain: 0.75 },
   // Grandma: the snoring lightens through four stages; a cue marks each step toward waking
   'grandma.snore0': { gen: snore({ len: 3.4, f: 62, rasp: 1, air: 0.4, in: 0.5, out: 0.4, peak: 0.85 }), loop: true, gain: 0.9 },

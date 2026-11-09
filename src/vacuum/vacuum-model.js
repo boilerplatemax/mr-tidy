@@ -91,7 +91,7 @@ export function buildVacuum() {
     out.cordSocket.position.y = M.reelY - r;
   };
   out.setReel(0, 0);
-  out.catchCamTarget = socket(0, M.holeY + 0.04, M.holeZ + 0.28);
+  out.catchCamTarget = socket(0, (M.faceY + M.holeY) / 2, M.holeZ + M.catchDist);
 
   loadGLB(TUNING.assets.vacuum).then((gltf) => { body.add(gltf.scene); }).catch((e) => {
     console.warn('vacuum model failed, using the stand-in:', e?.message || e);

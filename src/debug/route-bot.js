@@ -212,6 +212,48 @@ function hoseChecks(kit) {
   return rows;
 }
 
+/** The catch sequence, run by hand with the real hose path. */
+function catchChecks(kit) {
+  const v = kit.vac, P = kit.player, Q = kit.catchSeq, cam = kit.camera, K = TUNING.catch, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} CATCH ${name}${note ? ' (' + note + ')' : ''}`);
+  const end0 = kit.endScreen.el.hidden;
+  freshVac(kit, 'K4', 2); v.heading = v.prevHeading = 0; P.noclip = false; P.resetMotion(); P.teleport(8.5, 0.751, 2.9, 0); P.tick(dt);
+  v._updateHose(dt); P.render(1); cam.updateMatrixWorld(true);
+  v.frame(1);
+  // the hose reaches out to the cat first, so the path is the real thing
+  for (let i = 0; i < 40; i++) v.hose.tick(dt, v._hole(), v.heading, { x: 8.5, y: 0.87, z: 2.9, clone() { return this; } } && new (cam.position.constructor)(8.5, 0.87, 2.9), 8);
+  P.render(1);
+  const startPos = cam.position.clone(), hosePts = v.hose.pts.map((p) => p.clone());
+  v._catch('hose');
+  report('control locks and the camera starts moving', Q.active && Q.phase === 'drag' && P.frozen && v.caught);
+  const froze = v.hose.pts.every((p, i) => p.distanceTo(hosePts[i]) < 1e-6);
+  kit.tick(dt);
+  report('the hose holds still for the ride', froze && v.hose.pts.every((p, i) => p.distanceTo(hosePts[i]) < 1e-6));
+  let dragT = 0, away = 0, last = cam.position.distanceTo(Q.end), nearHose = 1e9, rolled = false;
+  while (Q.phase === 'drag' && dragT < 3) {
+    Q.update(dt); dragT += dt;
+    const d = cam.position.distanceTo(Q.end); if (d > last + 0.2) away++; last = d;
+    for (const p of hosePts) nearHose = Math.min(nearHose, cam.position.distanceTo(p));
+    if (Math.abs(cam.rotation.z) > 0.3) rolled = true;
+  }
+  report('dragged along the real hose path in about 0.7 s', Math.abs(dragT - K.drag) < 0.05 && nearHose < 0.1 && away <= 1, `${dragT.toFixed(2)} s, passes ${nearHose.toFixed(3)} m from the hose`);
+  report('the camera rolls on the way', rolled);
+  let holdT = 0; while (Q.phase === 'hold' && holdT < 4) { Q.update(dt); holdT += dt; }
+  report('holds on his face for 1.2 s', Math.abs(holdT - K.hold) < 0.05, `${holdT.toFixed(2)} s`);
+  const dir = new (cam.position.constructor)(); cam.getWorldDirection(dir);
+  v.model.root.updateMatrixWorld(true);
+  const toVac = new (cam.position.constructor)().setFromMatrixPosition(v.model.root.matrixWorld).setY((TUNING.vac.model.faceY + TUNING.vac.model.holeY) / 2).sub(cam.position).normalize();
+  report('and it is looking straight at him', dir.dot(toVac) > 0.98, dir.dot(toVac).toFixed(3));
+  report('face furious, in front of the hole', v.model.face.material.map === v.model.faces[3] && cam.position.distanceTo(Q.end) < 0.001);
+  report('hard cut to black', !Q.cut.hidden && Q.phase === 'black');
+  let beat = 0; while (Q.phase === 'black' && beat < 3) { Q.update(dt); beat += dt; }
+  report('a beat, then Try again', Math.abs(beat - K.beat) < 0.05 && !kit.endScreen.el.hidden && Q.phase === 'done');
+  void startPos; void end0;
+  // tidy up for the win check that follows
+  Q.reset(); kit.endScreen.el.hidden = true; kit.audio.resume(); P.frozen = false; v.caught = false; freshVac(kit, 'L1', 1); P.noclip = true;
+  return rows;
+}
+
 /** Hearing, investigating and cleaning. */
 function hearingChecks(kit) {
   const v = kit.vac, K = kit.knock, N = kit.noise, dt = 1 / 60, rows = [];
@@ -679,6 +721,7 @@ export function runRouteBot(kit) {
   rows.push(...hearingChecks(kit));
   rows.push(...huntChecks(kit));
   rows.push(...hoseChecks(kit));
+  rows.push(...catchChecks(kit));
   rows.push(...grandmaChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };

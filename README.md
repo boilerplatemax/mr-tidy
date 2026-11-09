@@ -31,7 +31,7 @@ Open <http://localhost:8080> and click **Begin**.
 | Left click | Swipe: bats whatever is in front of you. Hit the outlet Mr. Tidy is plugged into to knock him out for a few seconds |
 | Esc | Pause and settings |
 
-Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F4** anger +1 · **F5** wake +20 · **F8** freeze the vac · **F9** key list.
+Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F4** anger +1 · **F5** wake +20 · **F6** trigger the catch · **F8** freeze the vac · **F9** key list.
 
 ## Tuning
 
