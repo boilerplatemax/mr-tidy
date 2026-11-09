@@ -230,7 +230,7 @@ export class Knockables {
     const a = Math.hypot(o.vx, o.vz) > 0.05 ? Math.atan2(o.vz, o.vx) : Math.random() * 6.28, n = X.paperPoints;
     const g = new THREE.BufferGeometry(), pos = new Float32Array(n * 6), nor = new Float32Array(n * 6), idx = [];
     for (let i = 1; i < nor.length; i += 3) nor[i] = 1;
-    for (let i = 0; i < n - 1; i++) { const q = i * 2; idx.push(q, q + 1, q + 2, q + 1, q + 3, q + 2); }
+    for (let i = 0; i < n - 1; i++) { const q = i * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); } // (wound to face up, so the paper is lit)
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setIndex(idx); g.setDrawRange(0, 0);
     const m = new THREE.Mesh(g, makePS1(new THREE.MeshLambertMaterial({ color: o.t.tint, side: THREE.DoubleSide }))); m.frustumCulled = false;
     const strip = this.debris.bit(m, 0, 0, 0, 'lie'); strip.ribbon = true; bits.push(strip);

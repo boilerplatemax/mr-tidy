@@ -296,7 +296,7 @@ export const LEVEL = {
     { id: 'globe', type: 'snow_globe', on: 'book4', x: 1.82, z: 5.18 },
     { id: 'clock', type: 'mantel_clock', on: 'book3', x: 1.42, z: 5.18 },
     { id: 'figurine', type: 'cat_figurine', on: 'book2', x: 0.98, z: 5.18 },
-    { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.7, z: 2.5 },
+    { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.7, z: 2.5, yaw: -1.57 },
     { id: 'treeYarn', type: 'yarn_ball', on: 'tree4', x: 1.2, z: 0.55 },
     { id: 'yarn', type: 'yarn_ball', on: 'couchSeat', x: 0.8, z: 3.0 },
     { id: 'floorVaseL', type: 'vase', on: 'floor', topple: true, x: 5.65, z: 3.4 },
@@ -318,7 +318,7 @@ export const LEVEL = {
     // storage: crockery put away, and the odd thing nobody could throw out
     { id: 'w1Mug', type: 'mug', on: 'w1', x: 12.3, z: 1.6 },
     { id: 's1Pot', type: 'teapot', on: 's1', x: 13.4, z: 3.5 },
-    { id: 'e1Frame', type: 'picture_frame', on: 'e1', x: 15.1, z: 1.2 },
+    { id: 'e1Frame', type: 'picture_frame', on: 'e1', x: 15.1, z: 1.2, yaw: -1.57 },
     { id: 'w2Vase', type: 'vase', on: 'w2', x: 12.3, z: 2.7 },
     { id: 'e2Plate', type: 'dinner_plate', on: 'e2', x: 15.1, z: 2.5 },
     { id: 's2Candle', type: 'candlestick', on: 's2', x: 14.2, z: 3.5 },
