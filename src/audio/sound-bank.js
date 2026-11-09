@@ -77,6 +77,14 @@ function drone(sr) { // a 2 s seamless loop: built 0.25 s long, then the tail is
 }
 
 export const SOUNDS = {
+  'vac.unplug': { gen: v((sr) => { // a crackling pop as the plug comes out
+    const x = S.buffer(0.3, sr);
+    S.grains(x, sr, 20, 0.008, 0.14, 0);
+    S.biquad(x, sr, 'hp', 1800);
+    S.mix(x, S.env(S.sine(S.buffer(0.14, sr), sr, (t) => 240 - 180 * t), sr, 0.001, 0.05), 0.9);
+    return S.declick(S.normalise(x, 0.9), sr);
+  }, 2), gain: 0.9, subtitle: 'a spark' },
+  'vac.power': { gen: (sr) => S.declick(S.normalise(S.env(S.saw(S.buffer(0.7, sr), sr, (t) => 40 + 90 * t), sr, 0.2, 0.3), 0.7), sr), gain: 0.55, subtitle: 'a motor starting' },
   'vac.drone': { gen: drone, loop: true, gain: 0.75 },
   // Grandma: the snoring lightens through four stages; a cue marks each step toward waking
   'grandma.snore0': { gen: snore({ len: 3.4, f: 62, rasp: 1, air: 0.4, in: 0.5, out: 0.4, peak: 0.85 }), loop: true, gain: 0.9 },

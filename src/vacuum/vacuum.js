@@ -32,8 +32,9 @@ export class Vacuum {
     this.pathI = 0;
     this.cord = new Cord(scene);
     // The tether: the waypoints the cord is lying along, from the outlet end to the last one he reached.
-    this.root = this.nav.nodes.get(LEVEL.cordRoot);
+    this.root = this.nav.nodes.get(this.cord.outlet.node);
     this.tether = this.nav.path(this.root, start);
+    this.plugState = 'in'; this.plugT = 0; this.plugLock = 0; // 'in' | 'retract' | 'dead' | 'extend'
     this.spin = 0; this.lastPaid = this._paid();
     this.model.root.position.set(this.x, 0, this.z);
     this.model.root.updateMatrixWorld(true);
@@ -58,7 +59,7 @@ export class Vacuum {
   }
 
   _updateDrone(dt) {
-    if (!this.voice || this.off) return;
+    if (!this.voice || this.off || this.plugState !== 'in') return;
     this.droneT -= dt;
     if (this.droneT > 0) return;
     this.droneT = D.update;
@@ -71,6 +72,56 @@ export class Vacuum {
   powerDown() {
     this.off = true; this.state = 'OFF'; this.model.face.visible = false;
     if (this.voice) { this.voice.setRate(0.2, D.windDown); this.voice.stop(D.windDown); this.voice = null; }
+  }
+
+  /**
+   * The paw hit an outlet? Only the one he's plugged into does anything, from the side the plate faces. The cord whips
+   * back, he dies for a moment, then plugs into the nearest outlet. Returns true if it unplugged him.
+   */
+  swipeOutlet(camera) {
+    if (this.off || this.plugState !== 'in') return false;
+    const S = TUNING.swipe, p = this.cord.plugPos, eye = camera.position, o = this.cord.outlet;
+    const dx = p.x - eye.x, dy = p.y - eye.y, dz = p.z - eye.z, d = Math.hypot(dx, dy, dz);
+    if (d > S.reach || d < 1e-3 || (eye.x - p.x) * o.n[0] + (eye.z - p.z) * o.n[2] <= 0) return false; // too far, or the other side of the wall
+    camera.getWorldDirection(_s);
+    if ((dx * _s.x + dy * _s.y + dz * _s.z) / d < S.cone) return false;
+    if (this.plugLock > 0) { audio.play('knock.clink', { pos: p }); return false; } // jammed in for now
+    this.plugState = 'retract'; this.plugT = 0; this.state = 'UNPLUGGED';
+    this.model.face.visible = false;
+    audio.play('vac.unplug', { pos: p });
+    if (this.voice) { this.voice.setRate(0.2, D.windDown); this.voice.fadeTo(0, D.windDown); }
+    return true;
+  }
+
+  /** The cord reeling back, the dead time, then the cord going out to whichever outlet is nearest him. */
+  _tickPlug(dt) {
+    this.plugT += dt;
+    if (this.plugState === 'retract') {
+      this.cord.setTrim(this.plugT / C.retract);
+      if (this.plugT >= C.retract) { this.plugState = 'dead'; this.plugT = 0; }
+    } else if (this.plugState === 'dead') {
+      if (this.plugT >= C.off) { this._chooseOutlet(); this.plugState = 'extend'; this.plugT = 0; }
+    } else {
+      this.cord.setTrim(1 - this.plugT / C.extend);
+      if (this.plugT >= C.extend) {
+        this.plugState = 'in'; this.plugT = 0; this.plugLock = C.lock; this.state = 'PATROL'; this.cord.setTrim(0);
+        this.model.face.visible = true;
+        audio.play('vac.power', { pos: this.cord.plugPos });
+        this.droneT = 0;
+      }
+    }
+  }
+
+  /** Plug into the outlet closest along the floor, and lay the cord from it to him. */
+  _chooseOutlet() {
+    const here = this.nav.nearest(this.x, this.z);
+    let best = this.cord.outlet, bd = Infinity;
+    for (const o of LEVEL.outlets) { const d = this.nav.lengthOf(this.nav.path(this.nav.nodes.get(o.node), here)); if (d < bd) { bd = d; best = o; } }
+    this.cord.setOutlet(best);
+    this.root = this.nav.nodes.get(best.node);
+    this.tether = this.nav.path(this.root, here);
+    this.path = [here]; this.pathI = 0;
+    this.lastPaid = this._paid();
   }
 
   /** Metres of cord down right now, including the stretch to where he is between waypoints. */
@@ -121,6 +172,8 @@ export class Vacuum {
   tick(dt) {
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading;
     this._updateDrone(dt);
+    if (this.plugLock > 0) this.plugLock -= dt;
+    if (this.plugState !== 'in' && !this.off) { this._tickPlug(dt); return; }
     if (this.frozen || this.off) return;
     let target = this.path[this.pathI];
     if (Math.hypot(target.x - this.x, target.z - this.z) < V.arrive) {
@@ -145,7 +198,7 @@ export class Vacuum {
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;
     const paid = this._paid();
     this.spin += (paid - this.lastPaid) / 0.07; this.lastPaid = paid; // the reel turns as cord goes out or comes in
-    this.model.setReel(Math.min(1, paid / C.length), this.spin);
+    this.model.setReel(Math.min(1, (paid / C.length) * (1 - this.cord.trim)), this.spin + this.cord.trim * 40);
     r.updateMatrixWorld(true);
     this.model.cordSocket.getWorldPosition(_s);
     const T = this.tether;

@@ -102,14 +102,47 @@ function vacChecks(kit) {
   report('a full patrol lap, moving, never inside anything', hit === 0 && stalled <= 3 && seen.size >= 15, `${(i / 60).toFixed(0)} s, ${seen.size} waypoints, ${stalled} stalls, ${hit} overlaps`);
 
   // the cord: every waypoint is in reach, and he never runs past its end
-  const root = v.nav.nodes.get(LEVEL.cordRoot), Lc = TUNING.cord.length, far = Math.max(...[...v.nav.nodes.values()].map((n) => v.nav.lengthOf(v.nav.path(root, n))));
-  report('the cord reaches every room, with some to spare', far < Lc && far > Lc * 0.6, `farthest ${far.toFixed(1)} m of ${Lc}`);
-  report('it is plugged in beside her door', LEVEL.outlets.length === 1 && Math.hypot(LEVEL.outlets[0].pos[0] - 18, LEVEL.outlets[0].pos[2] + 0.7) < 1.5);
+  const Lc = TUNING.cord.length, nodes = [...v.nav.nodes.values()];
+  const farFrom = (o) => Math.max(...nodes.map((n) => v.nav.lengthOf(v.nav.path(v.nav.nodes.get(o.node), n))));
+  const worst = Math.max(...LEVEL.outlets.map(farFrom));
+  report('from any outlet the cord reaches every room', worst < Lc && farFrom(LEVEL.outlets[0]) > Lc * 0.6, `farthest ${worst.toFixed(1)} m of ${Lc}`);
+  report('he starts plugged in beside her door', v.cord.outlet.id === 'grandma' && Math.hypot(LEVEL.outlets[0].pos[0] - 18, LEVEL.outlets[0].pos[2] + 0.7) < 1.5);
   report('the patrol lap never ran past the end of the cord', maxPaid <= Lc + 0.05, `most paid out ${maxPaid.toFixed(1)} m`);
   report('he has to go back the way he came', retraces > 3, `${retraces} waypoints retraced in a lap`);
   const full = v.model.reelSpin.scale.x; v.model.setReel(1, 0); const empty = v.model.reelSpin.scale.x; v.model.setReel(0, 0); const packed = v.model.reelSpin.scale.x;
   report('the reel shrinks as cord pays out', empty < packed, `${packed.toFixed(3)} full, ${empty.toFixed(3)} paid out`);
   void full;
+
+  // unplugging him: the right outlet, from the right side, knocks him out, and he comes back on the nearest one
+  {
+    const cam = kit.camera, look = (x, y, z, tx2, ty, tz2) => { cam.position.set(x, y, z); cam.lookAt(tx2, ty, tz2); cam.updateMatrixWorld(true); };
+    const K3 = v.nav.nodes.get('K3'); v.x = v.px = K3.x; v.z = v.pz = K3.z;
+    v.tether = v.nav.path(v.nav.nodes.get('H4'), K3); v.path = [K3]; v.pathI = 0; v.frozen = false;
+    const home = v.cord.outlet.pos, p = v.cord.plugPos;
+    look(p.x - 3, 0.25, p.z - 1, p.x, p.y, p.z);
+    report('an outlet out of reach does nothing', v.swipeOutlet(cam) === false && v.plugState === 'in');
+    look(p.x, 0.25, p.z + 0.35, p.x, p.y, p.z);
+    report('nor from the far side of the wall', v.swipeOutlet(cam) === false && v.plugState === 'in');
+    const other = LEVEL.outlets.find((o) => o.id === 'hall1');
+    look(other.pos[0], 0.25, other.pos[2] - 0.35, other.pos[0], other.pos[1], other.pos[2]);
+    report('nor an outlet he is not plugged into', v.swipeOutlet(cam) === false && v.plugState === 'in');
+    look(p.x, 0.25, p.z - 0.35, p.x, p.y, p.z);
+    const hit = v.swipeOutlet(cam);
+    report('swiping his outlet unplugs him', hit && v.state === 'UNPLUGGED' && !v.model.face.visible);
+    const ux = v.x, C = TUNING.cord;
+    for (let t = 0; t < Math.ceil(C.retract * 60) + 2; t++) kit.tick(dt);
+    report('the cord goes back to him', v.cord.trim === 1 && v.plugState === 'dead');
+    for (let t = 0; t < Math.ceil(C.off * 60) - 4; t++) kit.tick(dt);
+    report('he stays dead for a while', v.x === ux && v.plugState === 'dead');
+    for (let t = 0; t < 8; t++) kit.tick(dt);
+    report('then reaches out to the nearest outlet', v.plugState === 'extend' && v.cord.outlet.id === 'kitchen1', `${v.cord.outlet.id}`);
+    for (let t = 0; t < Math.ceil(C.extend * 60) + 2; t++) kit.tick(dt);
+    report('and moves again, face back on', v.plugState === 'in' && v.state === 'PATROL' && v.model.face.visible && v.cord.trim === 0 && v.tether[0].id === 'K3', `tether from ${v.tether[0].id}`);
+    const q = v.cord.plugPos;
+    look(q.x - 0.35, 0.25, q.z, q.x, q.y, q.z);
+    report('the new plug cannot be hit straight away', v.swipeOutlet(cam) === false && v.plugState === 'in');
+    void home;
+  }
 
   // the drone's shape: louder as he nears, steepest close up, never silent
   const lv = [0.5, 1, 2, 4, 8, 16].map((d) => v.droneLevel(d));

@@ -170,6 +170,9 @@ export const TUNING = {
     spacing: 0.25, capacity: 180, // m between points on the tube; the most points it can have
     radius: 0.009, y: 0.012, slack: 0.018, // m: thickness, height off the floor, how much it wanders
     color: 0x2a2a2c, plugColor: 0x141414,
+    // Swipe the outlet he's plugged into: the cord whips back, he's dead for a moment, then he plugs into the nearest outlet.
+    retract: 1.0, off: 5.0, extend: 1.2, // s: the cord reeling back, powered off, the cord going out to the new outlet
+    lock: 18, // s after plugging back in before that outlet can be hit again (so nobody can stand there and keep him off forever)
   },
 
   // ---------------------------------------------------------------- Grandma and the win (src/world/grandma.js)

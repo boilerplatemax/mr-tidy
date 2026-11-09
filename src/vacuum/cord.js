@@ -1,7 +1,7 @@
 // The power cord: a thin tube along the floor from the outlet by Grandma's door to the reel on the back of the vac. It's a
 // fixed length, and it lies along the route he actually took, so it's the Vacuum that decides where it runs (see its
-// tether). When he retraces his steps it reels back in. It doesn't block the cat. It's here for the Phase 2 ending too,
-// when Grandma unplugs it.
+// tether). When he retraces his steps it reels back in. It doesn't block the cat. If the cat swipes the outlet, the cord
+// whips back to him and then goes out to another one; setTrim draws that. It's here for the Phase 2 ending too.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { LEVEL } from '../data/level.js';
@@ -28,13 +28,26 @@ export class Cord {
     this.mesh = new THREE.Mesh(this.geo, makePS1(new THREE.MeshLambertMaterial({ color: C.color, side: THREE.DoubleSide })));
     this.mesh.frustumCulled = false;
     scene.add(this.mesh);
-    const [x, y, z] = this.outlet.pos, [nx, , nz] = this.outlet.n;
     this.plug = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.03), makePS1(new THREE.MeshLambertMaterial({ color: C.plugColor })));
-    this.plug.position.set(x + nx * 0.02, y, z + nz * 0.02);
-    this.plug.rotation.y = Math.atan2(nx, nz);
     scene.add(this.plug);
+    this.trim = 0; // 0 = all the way to the outlet .. 1 = fully back at the vac
+    this.setOutlet(this.outlet);
     this.pts = Array.from({ length: max }, () => ({ x: 0, y: 0, z: 0 }));
   }
+
+  setOutlet(o) {
+    this.outlet = o;
+    const [x, y, z] = o.pos, [nx, , nz] = o.n;
+    this.plug.position.set(x + nx * 0.02, y, z + nz * 0.02);
+    this.plug.rotation.y = Math.atan2(nx, nz);
+    this.plugHome = this.plug.position.clone();
+  }
+
+  /** Where the plug is when it's in the wall: what the cat has to reach. */
+  get plugPos() { return this.plugHome; }
+
+  /** How much of the cord is drawn, from the far end: 0 = all of it, 1 = none (reeled back to the vac). */
+  setTrim(t) { this.trim = Math.max(0, Math.min(1, t)); }
 
   /**
    * Per rendered frame. nodes[0..count): the waypoints the cord lies along, from the outlet end.
@@ -59,17 +72,23 @@ export class Cord {
     for (let i = 0; i < count; i++) run(nodes[i].x, nodes[i].z);
     run(sx, sz); // straight to the reel, not under his body
     add(sx, sy, sz);
-    const r = C.radius, pos = this.pos;
-    for (let i = 0; i < n; i++) {
-      const a = P[Math.max(0, i - 1)], b = P[Math.min(n - 1, i + 1)];
+    // trimming drops points from the outlet end: the free end whips along the floor toward the reel
+    const start = Math.min(n - 1, Math.round(this.trim * (n - 1)));
+    this.plug.visible = this.trim < 0.999;
+    if (this.trim > 0.001) this.plug.position.set(P[start].x, Math.max(P[start].y, 0.03), P[start].z);
+    else this.plug.position.copy(this.plugHome);
+    const r = C.radius, pos = this.pos, m = n - start;
+    for (let i = start; i < n; i++) {
+      const a = P[Math.max(start, i - 1)], b = P[Math.min(n - 1, i + 1)];
       let tx = b.x - a.x, tz = b.z - a.z; const l = Math.hypot(tx, tz) || 1; tx /= l; tz /= l;
-      const px = P[i].x, py = P[i].y, pz = P[i].z, k = i * SIDES * 3;
+      const px = P[i].x, py = P[i].y, pz = P[i].z, k = (i - start) * SIDES * 3;
       pos[k] = px - tz * r; pos[k + 1] = py; pos[k + 2] = pz + tx * r;
       pos[k + 3] = px; pos[k + 4] = py + r; pos[k + 5] = pz;
       pos[k + 6] = px + tz * r; pos[k + 7] = py; pos[k + 8] = pz - tx * r;
       pos[k + 9] = px; pos[k + 10] = py - r; pos[k + 11] = pz;
     }
-    this.geo.setDrawRange(0, (n - 1) * SIDES * 6);
+    this.mesh.visible = m >= 2;
+    this.geo.setDrawRange(0, Math.max(0, m - 1) * SIDES * 6);
     this.geo.attributes.position.needsUpdate = true;
   }
 }
