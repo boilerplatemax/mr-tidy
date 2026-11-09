@@ -55,8 +55,8 @@ PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
 const debris = new Debris(scene, world);
 const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
-player.onStep = (gait) => { if (gait === 'run' && !player.groundCollider) noise.emit({ kind: 'step', x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only a cat running on the floor can be heard: walking, slinking and furniture are quiet
-player.onLand = (impact, heavy) => { if (heavy) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z }); };
+player.onStep = (gait) => { if (!player.groundCollider) noise.emit({ kind: 'step', gait, x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only on the floor: furniture is quiet, and slinking makes no steps at all
+player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
 const grandma = new Grandma({ noise, house });
 const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });
 player.onSwipe = () => { knock.swipe(player, camera); vac.swipeOutlet(camera); }; // the paw bats objects, and the outlet he's plugged into

@@ -48,7 +48,7 @@ export const TABS = {
 };
 // Controls: two columns of [group title, [[key, action], ...]]. Edit for your game.
 export const CONTROL_COLUMNS = [
-  [['Moving', [['W A S D', 'Move'], ['Mouse', 'Look'], ['Shift', 'Dash, hold: run'], ['C (hold)', 'Slink (silent)'], ['Space (hold)', 'Charge, release: jump'], ['Left click', 'Swipe'], ['Esc', 'Pause']]]],
+  [['Moving', [['W A S D', 'Move'], ['Mouse', 'Look'], ['Shift', 'Run. In the air: dash'], ['C (hold)', 'Slink (silent)'], ['Space (hold)', 'Charge, release: jump'], ['Left click', 'Swipe'], ['Esc', 'Pause']]]],
   [['Parkour', [['Space', 'Hanging: pull up'], ['S or C', 'Hanging: let go'], ['W into stripes', 'Climb'], ['Space', 'Climbing: kick off'], ['C', 'Climbing: let go']]], ['Debug', [['F1', 'Overlay'], ['F2 / F3', 'Third person / noclip'], ['F4', 'Anger +1'], ['F5', 'Wake +20'], ['F6', 'Trigger the catch'], ['F8', 'Freeze the vac'], ['F9', 'Key list']]]],
 ];
 

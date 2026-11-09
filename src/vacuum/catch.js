@@ -21,15 +21,15 @@ export class CatchSequence {
     this.faceBase = new THREE.Vector3();
   }
 
-  /** how: 'hose' (the camera rides the hose back) or 'body' (it's a short pull straight in). */
-  start(how) {
+  /** The camera rides the hose back, from the nozzle that has the cat to the hole. */
+  start() {
     const v = this.vac, cam = this.camera, m = v.model;
     this.active = true; this.phase = 'drag'; this.t = 0;
     m.root.updateMatrixWorld(true);
     m.catchCamTarget.getWorldPosition(_end);
     const pts = [cam.position.clone()];
     // the hose as it was at the moment of capture, from the nozzle back to the hole
-    if (how === 'hose') for (let i = v.hose.n; i >= 1; i -= 2) pts.push(v.hose.pts[i].clone());
+    for (let i = v.hose.n; i >= 1; i -= 2) pts.push(v.hose.pts[i].clone());
     pts.push(_end.clone());
     this.curve = new THREE.CatmullRomCurve3(pts);
     this.end = _end.clone();

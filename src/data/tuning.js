@@ -151,10 +151,12 @@ export const TUNING = {
     arrive: 0.14, // m from a waypoint at which he moves on
     angerAt: [1, 5, 10], // knock-overs that raise him to stages 2, 3 and 4. The first break sets him off
     hearNear: 7, // m: annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
-    hearSteps: 4, // m: furious, he also hears running footsteps (on the floor only) and heavy landings this close
+    hearSteps: 4, hearWalk: 1.8, // m: angry or worse, he hears a cat running or walking on the floor this close. Slinking is silent
+    hearLand: [3.5, 8], quietLand: 0.25, // m he hears a landing from (soft, heavy), from the annoyed stage up; share of that if you land holding C
     sightRange: [0, 0, 6.5, 9], // m he can see the cat. Neutral and annoyed he doesn't hunt: bump into him and he gets you, but he won't come after you
     sightCos: 0.82, // cos of half his view: about 70° in all
     slinkSight: 0.5, // slinking halves how far away he notices you
+    slinkNotice: 2.5, // ...and he takes this many times longer to react
     sneakAnger: 3, // at this stage or below, a crouching cat he can't see can brush right past him
     perchSight: 0.7, // he's a floor machine: a cat up on something is harder to notice
     cleanSight: 0.6, // busy with a mess, he only notices you closer: a clean is still your window
@@ -182,26 +184,29 @@ export const TUNING = {
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
     },
   },
-  hose: { // the snake out of the hole (src/vacuum/hose.js)
-    length: 2.4, segments: 12, radius: 0.028, tubeSegments: 28, tubeSides: 6, // m it can stretch out to, points along it, m, how smooth the tube is
+  hose: { // the snake out of the hole (src/vacuum/hose.js, src/vacuum/voxels.js)
+    minLength: 1.6, // m: the hose is never shorter than this. When the tip is close, the excess hangs and bows aside like a chain
+    slackPull: 0.02, damping: 0.92, sag: 6, aside: 14, chainPasses: 6, // the chain: how much a slack hose keeps to its route, how fast swinging dies down, m/s² of droop, of bowing sideways; how stiffly the links hold
+    length: 3.8, segments: 14, radius: 0.028, tubeSegments: 34, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
-    restReach: 0.6, restSway: 0.07, follow: 14, floorY: 0.03, // how it lies at rest; how fast it catches up
-    track: 34, // 1/s: how fast the body of the hose follows its curve as the tip moves
-    wiggle: 0.11, wiggleWaves: 1.6, wiggleRate: 8, // m the snake-like wave swings; how many waves along it; rad/s travelling
-    lungeWiggle: 0.2, // share of that wave left during a lunge: it goes straight for you
-    arch: 0.3, // how far under the tip the hose comes up from: higher makes it rear up more
-    reachH: 1.6, reachTop: 1.8, // m: how far out from the hole, and how high a perch it can get to. Tier-2 spots above this are safe
-    minPerch: 0.3, // m: a cat higher than this counts as perched (lower, his body gets it instead)
+    restReach: 0.7, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up
+    track: 34, trailStep: 0.06, // 1/s: how fast the body settles onto its trail; m between trail points
+    cell: 0.12, clearance: 0.03, searchLimit: 6000, // the 3D grid: m per cell, m kept clear of surfaces, the most cells one search may look at
+    replan: 0.2, arch: 0.3, arcPoints: 8, // s between re-thinking its route; how far under the tip it comes up from; points on that curve
+    retractSpeed: 7, // m/s reeling back in
+    reachH: 2.2, reachTop: 1.8, // m: how far out from the hole, and how high a cat it will go for. Above reachTop is safe
+    minPerch: 0.3, // m: a cat higher than this counts as perched: harder to spot, and he parks near it
     standoff: 1.1, // m: how close to a perched cat he tries to park
     minAnger: 3, // he only uses the hose once he's angry
-    cooldown: [0, 0, 5, 2.5], // s between reaches
-    windup: 1.0, // s of telegraph: the hose rises, sways and sniffs, with the rattle playing. The player's chance
-    hover: 0.42, sway: 0.09, swayRate: 7, riseSpeed: 3, // m short of the cat that it hovers; m it sways; rad/s; m/s rising
-    lungeSpeed: 10, hit: 0.2, // m/s; m from the cat's chest that counts as caught
-    giveUp: 0.3, // m past its range that the cat can be when the lunge starts before he doesn't bother
-    slapRadius: 0.5, slapSpeed: 2.2, // m around the tip that a missed lunge knocks things; m/s
+    cooldown: [0, 0, 5, 2.5], // s between attacks
+    windup: 1.0, // s of prep: the hose rises and hovers, sniffing, with the rattle playing
+    hover: 0.9, sway: 0.05, swayRate: 7, riseSpeed: 3, // m short of the cat that it waits; m it sways; rad/s; m/s rising
+    homeSpeed: 5.5, homeTurn: 1.8, homeTime: 0.5, homeReplan: 0.08, // the charge: m/s; rad/s it can turn (lower = easier to dodge); s before it runs out; s between re-aiming around obstacles
+    hit: 0.2, // m from the cat's chest that counts as caught
+    giveUp: 0.3, // m past its range that the cat can be when the prep ends before he doesn't bother
+    slapRadius: 0.5, slapSpeed: 2.2, // m around the tip that a missed charge knocks things; m/s
     stall: 1.0, // s he stands there after a miss
-    cleanSpeed: 3, // m/s the nozzle goes out to a mess
+    cleanSpeed: 3, cleanTimeout: 2.0, // m/s the nozzle goes out to a mess; s he'll wait for it to get there before he just starts
   },
   catch: { // the catch: the most important moment in the game (src/vacuum/catch.js)
     drag: 0.7, // s along the hose, speeding up
@@ -250,7 +255,7 @@ export const TUNING = {
   dash: {
     time: 0.15, speed: 6.2, // s, m/s: about 0.9 m. Gravity is off for its duration
     exitSpeed: 2.6, // m/s carried out of an air dash
-    cooldown: 0.55, // s between dashes. In the air, also once only until you touch something
+    cooldown: 0.55, // s between dashes. Air only, once until you touch something
     fovKick: 7, fovEase: 14, // degrees wider during a dash, 1/s
   },
 

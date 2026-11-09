@@ -183,19 +183,19 @@ export class Player {
     if (this.charging) { this._predict(c); this._stickTarget(c); } else this.aim.ok = false;
   }
 
-  // Shift: a burst along the keys (or the view), anywhere. Press to dash, keep holding to run on from it. In the air it's
-  // once only, until the cat touches something. Horizontal, with gravity off for its short length.
+  // Shift in the air: a burst along the keys (or the view), once only until the cat touches something. Horizontal, with
+  // gravity off for its short length. On the ground Shift is just run.
   _dash(dt) {
     const I = this.input;
     if (this.dashCd > 0) this.dashCd -= dt;
-    if (this.grounded) this.airDashUsed = false;
+    if (this.grounded) { this.airDashUsed = false; return; }
     const wanted = (I.pressed('ShiftLeft') || I.pressed('ShiftRight')) && !this.frozen && !this.charging && this.slink < 0.5;
-    if (!wanted || this.dashCd > 0 || (!this.grounded && this.airDashUsed)) return;
+    if (!wanted || this.dashCd > 0 || this.airDashUsed) return;
     let dx = this.wx, dz = this.wz;
     if (this.wlen <= 0) { dx = this.fx; dz = this.fz; }
     const l = Math.hypot(dx, dz) || 1;
     this.dashX = dx / l; this.dashZ = dz / l; this.dashT = D.time; this.dashCd = D.cooldown;
-    if (!this.grounded) this.airDashUsed = true;
+    this.airDashUsed = true;
     this.launched = false;
     audio.play('cat.dash', { rate: 0.95 + Math.random() * 0.15 });
   }
@@ -682,10 +682,10 @@ export class Player {
 
   _land(impact) {
     if (impact < P.landSoft) return;
-    const heavy = impact >= P.landHeavy;
+    const heavy = impact >= P.landHeavy, quiet = this.input.down('KeyC'); // landing with C held is much softer
     this.landDip = Math.min(P.landDip * 2, P.landDip * impact / 4);
-    audio.play(heavy ? 'foot.thud' : 'foot.land', { gain: Math.min(1.2, impact / 6) });
-    this.onLand?.(impact, heavy);
+    audio.play(heavy ? 'foot.thud' : 'foot.land', { gain: Math.min(1.2, impact / 6) * (quiet ? 0.35 : 1) });
+    this.onLand?.(impact, heavy, quiet);
   }
 
   _fly(dt) { // debug noclip: WASD along the view, Space up, C down, Shift fast

@@ -7,6 +7,7 @@ import { buildVacuum } from './vacuum-model.js';
 import { Nav } from './nav.js';
 import { Cord } from './cord.js';
 import { Hose } from './hose.js';
+import { Voxels } from './voxels.js';
 import { audio } from '../audio/audio.js';
 
 const V = TUNING.vac, D = TUNING.drone, C = TUNING.cord, H = TUNING.hose;
@@ -16,7 +17,7 @@ const _s = new THREE.Vector3();
 export class Vacuum {
   constructor({ scene, world, camera, noise, knock, debris, player }) {
     this.world = world; this.knock = knock; this.debris = debris; this.camera = camera; this.player = player;
-    this.hose = new Hose(scene); this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
+    this.vox = new Voxels(world); this.hose = new Hose(scene, this.vox); this.cleanWait = 0; this._cmd = { mode: 'approach', goal: new THREE.Vector3(), speed: 0, turn: 0, hover: false }; this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
     this._dirv = { x: 0, y: 0, z: 0 }; this._under = null; this._notUnder = (c) => c.solid && c !== this._under; this.campT = 0; this.ignoreT = 0;
     this.seeT = 0; this.seesCat = false; this.lastX = 0; this.lastZ = 0; this.loseT = 0; this.replanT = 0; this.direct = false; this.directOK = false; this.chaseNode = null; this.sweep = false; this.sweepT = 0;
@@ -64,7 +65,7 @@ export class Vacuum {
     this.tether = this.nav.path(this.root, start);
     this.routeI = 0; this.path = [start]; this.pathI = 0;
     this.spin = 0; this.lastPaid = this._paid();
-    this.hose.placed = false; this.hose.reaching = false;
+    this.hose.reset();
     this.model.face.visible = true;
     this.setAnger(1);
     this.anger = 1; this.model.setFace(1);
@@ -189,6 +190,7 @@ export class Vacuum {
     const top = T.length - 1;
     let best = null, bestCost = Infinity;
     for (let k = top; k >= 0; k--) {
+      if (T[k].virtual) continue; // (a point he strayed through, off the graph)
       const onward = nav.path(T[k], target);
       if (!onward.length) continue;
       const len = nav.lengthOf(onward);
@@ -222,7 +224,9 @@ export class Vacuum {
       if (want > this.anger) this.setAnger(want);
     }
     const d = Math.hypot(ev.x - this.x, ev.z - this.z);
-    const heard = ev.kind === 'crash' ? this.anger >= 3 || (this.anger === 2 && d <= V.hearNear) : this.anger >= 4 && d <= V.hearSteps;
+    const heard = ev.kind === 'crash' ? this.anger >= 3 || (this.anger === 2 && d <= V.hearNear)
+      : ev.kind === 'thud' ? this.anger >= 2 && d <= (ev.radius ?? V.hearLand[0]) // a landing gives away where you are
+        : this.anger >= 3 && d <= (ev.gait === 'walk' ? V.hearWalk : V.hearSteps);
     if (!heard) return;
     if (ev.kind === 'crash') { const m = this.debris.messes.find((x) => x.id === ev.objectId); if (m) m.known = true; } // on his to-do list now
     this._investigate(ev.x, ev.z);
@@ -272,11 +276,17 @@ export class Vacuum {
 
   _startClean(m) {
     m.known = true;
+    this.cleanWait = 0; this.cleanFacing = false;
     this.state = 'CLEAN'; this.mess = m; this.cleanT = 0;
     this.slurp = audio.play('vac.slurp', { follow: this.model.hoseSocket, rolloff: 0, gain: 1 });
   }
 
   _tickClean(dt) {
+    // turn to face it and get the nozzle on it first: the mess goes up the tip of the hose
+    const want = Math.atan2(this.mess.x - this.x, this.mess.z - this.z), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
+    this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
+    this.cleanFacing = Math.abs(diff) < 0.3; // the nozzle only comes out once he's facing it: straight out of the front
+    if (!this.cleanFacing || (!this.hose.arrived && this.cleanWait < H.cleanTimeout)) { this.cleanWait += dt; return; }
     this.cleanT += dt / V.cleanTime;
     const u = Math.min(1, this.cleanT), h = this.hose.tip; // the debris flies into the nozzle
     this.debris.cleanStep(this.mess, u, h.x, h.y, h.z);
@@ -323,7 +333,7 @@ export class Vacuum {
     if (this.state === 'CHASE' || this.state === 'HOSE_REACH') return;
     if (this.ignoreT > 0) { this.ignoreT -= dt; this.seeT = 0; return; } // recently gave up on this cat
     this.seeT = this.seesCat ? this.seeT + dt : Math.max(0, this.seeT - dt);
-    if (this.seeT >= V.noticeTime[this.anger - 1]) this._startChase();
+    if (this.seeT >= V.noticeTime[this.anger - 1] * (this.player.slink > 0.5 ? V.slinkNotice : 1)) this._startChase();
   }
 
   _startChase() {
@@ -348,6 +358,7 @@ export class Vacuum {
     const T = this.tether;
     let best = T[T.length - 1], bd = Infinity;
     for (const n of this.nav.nodes.values()) { const d = (n.x - this.x) ** 2 + (n.z - this.z) ** 2; if (d < bd && this._clear(n.x, n.z)) { bd = d; best = n; } }
+    if (Math.hypot(this.x - T[T.length - 1].x, this.z - T[T.length - 1].z) > 0.1) T.push({ x: this.x, z: this.z, virtual: true }); // the cord comes this way
     this._arrived(best);
     this.path = [best]; this.pathI = 0;
   }
@@ -357,7 +368,7 @@ export class Vacuum {
 
   _inReach(margin) {
     const P = this.player, h = this._hole();
-    return P.feetY >= H.minPerch && P.feetY <= H.reachTop + margin && Math.hypot(P.pos.x - h.x, P.pos.z - h.z) <= H.reachH + margin;
+    return P.feetY <= H.reachTop + margin && Math.hypot(P.pos.x - h.x, P.pos.z - h.z) <= H.reachH + margin;
   }
 
   _canReach() { return this.anger >= H.minAnger && this.reachCd <= 0 && this.seesCat && this._inReach(0); }
@@ -381,17 +392,16 @@ export class Vacuum {
 
   _tickReach(dt) {
     this.reachT += dt;
-    if (this.reachPhase === 'rise') {
+    if (this.reachPhase === 'rise') { // the prep: it rises, hovers, sniffs at you
       const want = Math.atan2(this.player.pos.x - this.x, this.player.pos.z - this.z), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
       this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
       if (this.reachT >= H.windup) {
-        if (!this._inReach(H.giveUp)) { this.reachPhase = 'stall'; this.reachT = H.stall * 0.6; this.rattle?.stop(0.1); this.rattle = null; return; } // gone: it doesn't bother
-        this._catChest(this._snap);
-        this.reachPhase = 'lunge'; this.reachT = 0;
+        if (!this._inReach(H.giveUp) || !this.seesCat) { this.reachPhase = 'stall'; this.reachT = H.stall * 0.6; this.rattle?.stop(0.1); this.rattle = null; return; } // gone: it doesn't bother
+        this.reachPhase = 'charge'; this.reachT = 0; this.hose.aimAt(this._catChest(this._goal));
       }
-    } else if (this.reachPhase === 'lunge') {
+    } else if (this.reachPhase === 'charge') { // the homing charge
       if (this.hose.tip.distanceTo(this._catChest(this._goal)) <= H.hit) { this._endReach(); this._catch('hose'); return; }
-      if (this.hose.tip.distanceTo(this._snap) < 0.03) this._slap();
+      if (this.reachT >= H.homeTime || this.hose.maxed || this.hose.stuck) this._slap();
     } else if (this.reachT >= H.stall) this._reachDone();
   }
 
@@ -409,17 +419,35 @@ export class Vacuum {
 
   _updateHose(dt) {
     if (this.caught) return; // the catch rides the hose exactly as it was
-    const h = this._hole(), g = this._goal;
-    let goal = null, speed = 0;
-    if (this.reachPhase === 'rise') { // up out of the hole, hovering short of the cat and sniffing at it
+    const cmd = this._hoseCommand();
+    this.hose.tick(dt, this._hole(), this.heading, cmd);
+  }
+
+  _hoseCommand() {
+    const c = this._cmd, P = this.player;
+    c.hover = false;
+    if (this.reachPhase === 'rise') { // up out of the hole, stopping a little short of the cat
+      const h = this._hole(), g = c.goal;
       this._catChest(g);
-      const dx = g.x - h.x, dy = g.y - h.y, dz = g.z - h.z, l = Math.hypot(dx, dy, dz) || 1, t = this.hose.t;
-      g.x -= (dx / l) * H.hover; g.y -= (dy / l) * H.hover; g.z -= (dz / l) * H.hover;
-      g.x += Math.sin(t * H.swayRate) * H.sway * (dz / l); g.z -= Math.sin(t * H.swayRate) * H.sway * (dx / l); g.y += Math.sin(t * H.swayRate * 1.4) * H.sway * 0.6;
-      goal = g; speed = H.riseSpeed;
-    } else if (this.reachPhase === 'lunge') { goal = this._snap; speed = H.lungeSpeed; }
-    else if (this.state === 'CLEAN' && this.mess) { g.set(this.mess.x, 0.06, this.mess.z); goal = g; speed = H.cleanSpeed; } // the nozzle comes down on the mess
-    this.hose.tick(dt, h, this.heading, goal, speed);
+      const dx = g.x - h.x, dy = g.y - h.y, dz = g.z - h.z, l = Math.hypot(dx, dy, dz) || 1;
+      const back = Math.min(H.hover, l * 0.6); // (and never behind him, if the cat is very close)
+      g.x -= (dx / l) * back; g.z -= (dz / l) * back; // (level with the cat: over the edge of whatever it's on, not into it)
+      c.mode = 'approach'; c.speed = H.riseSpeed; c.hover = true;
+      return c;
+    }
+    if (this.reachPhase === 'charge') { c.mode = 'home'; this._catChest(c.goal); c.speed = H.homeSpeed; c.turn = H.homeTurn; return c; }
+    if (this.state === 'CLEAN' && this.mess && this.cleanFacing) { c.mode = 'approach'; c.goal.set(this.mess.x, 0.09, this.mess.z); c.speed = H.cleanSpeed; return c; } // the nozzle goes to the mess
+    void P;
+    return null;
+  }
+
+  /** Off the graph, the cord bends round whatever he has gone past rather than cutting through it. */
+  _guardCord() {
+    const T = this.tether, top = T[T.length - 1], len = Math.hypot(this.x - top.x, this.z - top.z), steps = Math.ceil(len / 0.08);
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      if (this.world.penetration(top.x + (this.x - top.x) * t, top.z + (this.z - top.z) * t, 0.02, 0.005, 0.03) > 0) { T.push({ x: this.px, z: this.pz, virtual: true }); return; }
+    }
   }
 
   _tickChase(dt) {
@@ -436,7 +464,7 @@ export class Vacuum {
       this.directX = perched ? this.lastX + (dx / d) * H.standoff : this.lastX;
       this.directZ = perched ? this.lastZ + (dz / d) * H.standoff : this.lastZ;
       this.directOK = this.seesCat && this._clear(this.directX, this.directZ);
-      if (this.directOK) this.direct = true;
+      if (this.directOK) { this.direct = true; this._guardCord(); }
       else {
         if (this.direct) this._rejoin();
         const n = this.nav.nearest(this.lastX, this.lastZ);
@@ -478,6 +506,7 @@ export class Vacuum {
 
   _catch(how) {
     this._endReach();
+    if (how === 'snap') this.hose.snap(this._hole(), this.heading, this._catChest(this._goal)); // it's always the nozzle that gets you
     this.caught = true; this.state = 'CATCH';
     this.slurp?.stop(0.05); this.slurp = null;
     this.onCatch?.(how);
@@ -534,7 +563,7 @@ export class Vacuum {
     if (this.plugState !== 'in' && !this.off) { this._tickPlug(dt); return; }
     if (this.frozen || this.off || this.caught) return;
     this._perceive(dt);
-    if (this._touching()) { this._catch('body'); return; }
+    if (this._touching()) { this._catch('snap'); return; }
     if (this.state === 'HOSE_REACH') { this._tickReach(dt); return; }
     if (this.state === 'CHASE') { this._tickChase(dt); return; }
     if (this.state === 'CLEAN') { this._tickClean(dt); return; }

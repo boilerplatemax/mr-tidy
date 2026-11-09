@@ -19,7 +19,7 @@ Open <http://localhost:8080> and click **Begin**.
 | Key | Action |
 |---|---|
 | W A S D, mouse | Move, look |
-| Shift | Dash (once per jump in the air). Keep holding to run |
+| Shift | Run. In the air: dash (once, until you touch something) |
 | C (hold) | Slink: slow, low, silent |
 | Space (hold, release) | Charge and jump. Tap for a hop. A ring on the surfaces ahead marks where a charged jump will end |
 | Space while hanging | Pull up |
