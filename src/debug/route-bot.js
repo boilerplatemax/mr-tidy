@@ -23,7 +23,7 @@ function attempt(kit, from, to, charge, trace) {
   const aim = { x: clamp(start.x, to.min[0] + inX, to.max[0] - inX), z: clamp(start.z, to.min[2] + inZ, to.max[2] - inZ) };
   const yaw = Math.atan2(-(aim.x - start.x), -(aim.z - start.z));
   I.keys.clear(); I.edges.clear(); I.releases.clear();
-  P.frozen = false; P.charging = false; P.chargeT = 0; P.bufferT = 0;
+  P.frozen = false; P.resetMotion();
   P.teleport(start.x, from.max[1] + 0.001, start.z, yaw);
   P.yaw = yaw;
   for (let i = 0; i < 6 && !P.grounded; i++) kit.tick(dt);
@@ -47,8 +47,49 @@ function attempt(kit, from, to, charge, trace) {
   return { landed: id === to.id, on: id };
 }
 
+/** A link that needs a ledge grab: leap short, catch the edge, pull up. Returns whether it ended on top. */
+function grabAttempt(kit, from, to, start, charge) {
+  const P = kit.player, I = kit.input, dt = 1 / 60, J = TUNING.jump;
+  const startY = from ? from.max[1] : 0;
+  const s = start || nearest(from, (to.min[0] + to.max[0]) / 2, (to.min[2] + to.max[2]) / 2);
+  const inX = Math.min(0.15, (to.max[0] - to.min[0]) / 2 - 0.01), inZ = Math.min(0.15, (to.max[2] - to.min[2]) / 2 - 0.01);
+  const aim = { x: clamp(s.x, to.min[0] + inX, to.max[0] - inX), z: clamp(s.z, to.min[2] + inZ, to.max[2] - inZ) };
+  const yaw = Math.atan2(-(aim.x - s.x), -(aim.z - s.z));
+  I.keys.clear(); I.edges.clear(); I.releases.clear();
+  P.frozen = false; P.resetMotion();
+  P.teleport(s.x, startY + 0.001, s.z, yaw);
+  P.yaw = yaw;
+  for (let i = 0; i < 6 && !P.grounded; i++) kit.tick(dt);
+  I.keys.add('Space'); I.edges.add('Space');
+  kit.tick(dt);
+  for (let i = 0; i < Math.round((charge * J.chargeTime) / dt) && P.charging; i++) kit.tick(dt);
+  I.keys.delete('Space'); I.keys.add('KeyW');
+  let t = 0, caught = false;
+  do {
+    kit.tick(dt); t += dt;
+    if (P.mode === 'hang' && P.hang.col.id === to.id) { caught = true; break; }
+  } while (!P.grounded && t < 2.5);
+  I.keys.clear();
+  if (!caught) return { ok: false, on: P.groundCollider?.id || 'floor' };
+  for (let i = 0; i < 12; i++) kit.tick(dt);
+  I.edges.add('Space'); I.keys.add('Space'); kit.tick(dt); I.keys.clear();
+  for (let i = 0; i < 40 && !P.grounded; i++) kit.tick(dt);
+  const id = P.groundCollider?.id || 'floor';
+  return { ok: id === to.id, on: id, caught };
+}
+
 export function runRouteBot(kit) {
   const byId = kit.house.byId, rows = [];
+  for (const [a, b, start] of LEVEL.grabLinks) {
+    const from = a === 'floor' ? null : byId.get(a), to = byId.get(b);
+    let best = null, lastOn = '';
+    for (let c = 0.3; c <= 1.0001; c += 0.05) {
+      const r = grabAttempt(kit, from, to, start, Math.min(1, c));
+      lastOn = r.on;
+      if (r.ok) { best = Math.min(1, c); break; }
+    }
+    rows.push(`${best === null ? 'FAIL' : 'ok  '} GRAB ${a} -> ${b}${best === null ? ` (ended on ${lastOn})` : ` charge ${best.toFixed(2)}`}`);
+  }
   for (const [a, b] of LEVEL.links) {
     for (const [from, to] of [[byId.get(a), byId.get(b)], [byId.get(b), byId.get(a)]]) {
       let best = null, lastOn = '';

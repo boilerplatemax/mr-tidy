@@ -117,6 +117,16 @@ export const LEVEL = {
 
   // The links a player must be able to jump, checked against TUNING (src/world/route-check.js). Every one is two-way
   // unless oneWay. grab: true means a clean jump isn't enough, the link is meant to need a ledge grab.
+  // Links that need a ledge grab (a clean jump can't reach). from: a solid id, or 'floor' with a start point.
+  grabLinks: [
+    ['floor', 'plantStand', { x: 15.0, z: -0.62 }],
+    ['floor', 'w1', { x: 12.8, z: 1.6 }],
+    ['w1', 'w2'],
+    ['floor', 'e1', { x: 14.6, z: 1.2 }],
+    ['e1', 'e2'],
+    ['floor', 's1', { x: 13.2, z: 3.0 }],
+    ['s1', 's2'],
+  ],
   links: [
     // the high route, living room ↔ kitchen, without touching the floor
     ['book4', 'rodW'], ['rodW', 'bracketA'], ['bracketA', 'rodE'], ['rodE', 'header'], ['header', 'k1'], ['k1', 'k2'], ['k2', 'fridge'],

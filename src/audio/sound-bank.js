@@ -44,5 +44,6 @@ export const SOUNDS = {
   'foot.lino': { gen: v(pawLino, 4), gain: 0.26 },
   'foot.wood': { gen: v(pawWood, 4), gain: 0.3 },
   'foot.land': { gen: v((sr) => thud(sr, 120, 0.14), 2), gain: 0.4 }, // a soft landing
+  'cat.grab': { gen: v((sr) => thud(sr, 240, 0.08), 2), gain: 0.3 }, // claws catch the edge
   'foot.thud': { gen: v((sr) => thud(sr, 62, 0.28), 2), gain: 0.75 }, // a big drop: the vac can hear this one
 };

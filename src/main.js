@@ -19,6 +19,7 @@ import { DevOverlay } from './ui/dev-overlay.js';
 import { buildHouse } from './world/house.js';
 import { Debug } from './debug/debug.js';
 import { LandingMarker } from './player/landing-marker.js';
+import { Paws } from './player/paws.js';
 
 const params = new URLSearchParams(location.search);
 const R = TUNING.render;
@@ -45,6 +46,7 @@ const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
 const marker = new LandingMarker(scene);
+const paws = new Paws(camera);
 
 // ---------------------------------------------------------------- audio + captions
 audio.world = world;
@@ -95,6 +97,7 @@ function frame(alpha, dt, frameMs) {
     player.render(alpha);
     debug.frame();
     marker.update(player.aim);
+    paws.frame(player, dt);
   }
   env.update(camera);
   audio.update(dt, camera);

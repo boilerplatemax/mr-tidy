@@ -5,7 +5,7 @@ import { TUNING } from '../data/tuning.js';
 import { settings } from '../data/settings.js';
 import { audio } from '../audio/audio.js';
 
-const P = TUNING.player, J = TUNING.jump;
+const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge;
 const expK = (rate, dt) => 1 - Math.exp(-rate * dt);
 
 export class Player {
@@ -33,6 +33,12 @@ export class Player {
     this.launched = false; this.launchSpeed = 0; this.launchX = 0; this.launchZ = 0;
     this.aim = { ok: false, x: 0, y: 0, z: 0 }; // where a jump released now would land (the landing-spot marker reads this)
     this.groundCollider = null; // what the cat is standing on (null: the floor)
+    // ledge grab: 'move' | 'hang' | 'mantle'
+    this.mode = 'move';
+    this.grabLock = 0;
+    this.hang = { col: null, nx: 0, nz: 0, top: 0, tx: 0, tz: 0, x: 0, z: 0 };
+    this.mantleT = 0; this._mx = 0; this._mz = 0; this._my = 0;
+    this._n = { x: 0, z: 0 };
     this.frozen = false; // look, but don't move (a cutscene)
     this.noclip = false; // debug fly (F3)
     this.onStep = null; // (gait, surface) after every audible footstep: the vac's ears hook in here
@@ -41,6 +47,9 @@ export class Player {
     // velocity clipping against contact normals (made once: no per-tick closures)
     this._clip = (nx, nz) => { const vn = this.vel.x * nx + this.vel.z * nz; if (vn < 0) { this.vel.x -= nx * vn; this.vel.z -= nz * vn; } };
   }
+
+  /** Back to plain movement, whatever the cat was doing. */
+  resetMotion() { this.mode = 'move'; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
 
   /** Put the feet at (x, y, z) facing yaw (rad, 0 = toward −z), with no interpolation from the old spot. */
   teleport(x, y, z, yaw = this.yaw) {
@@ -69,9 +78,15 @@ export class Player {
     this.prevSlink = this.slink; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
     if (this.noclip) { this._fly(dt); return; }
     this._wish();
-    this._slinkUpdate(dt);
-    this._jump(dt);
-    this._groundAndAir(dt);
+    if (this.grabLock > 0) this.grabLock -= dt;
+    if (this.mode === 'hang') this._tickHang(dt);
+    else if (this.mode === 'mantle') this._tickMantle(dt);
+    else {
+      this._slinkUpdate(dt);
+      this._jump(dt);
+      this._groundAndAir(dt);
+      if (!this.grounded) this._tryGrab();
+    }
     this._eyeAndSteps(dt);
   }
 
@@ -206,7 +221,7 @@ export class Player {
     if (this.grounded && g.y >= this.feetY - P.stepHeight && g.y <= this.feetY + P.stepHeight) {
       this.feetY = g.y; this.vy = 0;
     } else {
-      if (this.grounded) { this.launched = false; this.launchSpeed = Math.hypot(this.vel.x, this.vel.z); } // walked off an edge
+      if (this.grounded) { this.launched = false; this.launchSpeed = Math.hypot(this.vel.x, this.vel.z); this.grabLock = L.dropLock; } // walked off an edge
       this.grounded = false;
       this.vy -= P.gravity * dt;
       this.feetY += this.vy * dt;
@@ -218,6 +233,73 @@ export class Player {
     }
     this.surface = g.surface;
     this.groundCollider = this.grounded ? g.collider : null;
+  }
+
+  // ---- ledge grab: a jump that comes up short catches the edge by itself
+  _tryGrab() {
+    if (this.vy > L.maxVy || this.grabLock > 0 || this.frozen) return;
+    const W = this.world, r = P.radius, n = this._n, x = this.pos.x, z = this.pos.z, feet = this.feetY;
+    for (const b of W.boxes) {
+      if (!b.land || !b.enabled) continue;
+      const rel = b.maxY - feet;
+      if (rel < L.minAbove || rel > L.paw + L.reach) continue;
+      if (Math.abs(x - b.cx) > b.reach + r + L.gap || Math.abs(z - b.cz) > b.reach + r + L.gap) continue;
+      const d = W._boxDist(b, x, z, n);
+      if (d < r - 0.03 || d > r + L.gap) continue; // (closer than r means it's overhead, not in front)
+      const view = -(this.fx * n.x + this.fz * n.z), keys = this.wlen > 0 ? -(this.wx * n.x + this.wz * n.z) : -1;
+      if (view < L.facing && keys < 0.5) continue;
+      if (this._grabSpot(b, n, x - n.x * d, z - n.z * d)) return;
+    }
+  }
+
+  /** Is there somewhere to pull up to past this edge? If so, start hanging. (ex, ez): the point on the edge. */
+  _grabSpot(b, n, ex, ez) {
+    const W = this.world, r = P.radius, top = b.maxY;
+    for (const inward of L.inward) {
+      const tx = ex - n.x * inward, tz = ez - n.z * inward;
+      if (W._boxDist(b, tx, tz, null) >= 0) continue; // past the far side of a narrow perch
+      if (W.penetration(tx, tz, r * 0.9, top + P.stepHeight, top + P.height, null, top) > 0) continue; // no room up there
+      const h = this.hang;
+      h.col = b; h.nx = n.x; h.nz = n.z; h.top = top; h.tx = tx; h.tz = tz;
+      h.x = ex + n.x * (r + 0.005); h.z = ez + n.z * (r + 0.005);
+      this.mode = 'hang'; this.vy = 0; this.vel.x = this.vel.z = 0; this.grounded = false; this.launched = false;
+      this.charging = false; this.chargeDip = 0; this.wiggle = 0; this.aim.ok = false; this.bufferT = 0;
+      audio.play('cat.grab');
+      return true;
+    }
+    return false;
+  }
+
+  _tickHang(dt) {
+    const I = this.input, h = this.hang, k = expK(L.settle, dt);
+    this.pos.x += (h.x - this.pos.x) * k; this.pos.z += (h.z - this.pos.z) * k;
+    this.feetY += (h.top - L.hangDrop - this.feetY) * k;
+    this.viewDip += (L.hangDip - this.viewDip) * expK(14, dt);
+    if (I.pressed('Space') && !this.frozen) { this._startMantle(); return; }
+    if (I.down('KeyS') || I.down('ArrowDown') || I.down('KeyC')) this._letGo();
+  }
+
+  _letGo() { this.mode = 'move'; this.grabLock = L.letGoLock; this.vy = 0; this.launched = false; this.launchSpeed = 0; }
+
+  _startMantle() {
+    this.mode = 'mantle'; this.mantleT = 0;
+    this._mx = this.pos.x; this._mz = this.pos.z; this._my = this.feetY;
+  }
+
+  _tickMantle(dt) {
+    const h = this.hang;
+    this.mantleT = Math.min(1, this.mantleT + dt / L.mantleTime);
+    const t = this.mantleT;
+    // up first, then forward over the lip
+    const up = easeInOut(Math.min(1, t / 0.62)), fwd = easeInOut(Math.max(0, (t - 0.32) / 0.68));
+    this.feetY = lerp(this._my, h.top, up);
+    this.pos.x = lerp(this._mx, h.tx, fwd); this.pos.z = lerp(this._mz, h.tz, fwd);
+    this.viewDip += (0 - this.viewDip) * expK(10, dt);
+    if (t >= 1) {
+      this.mode = 'move'; this.feetY = h.top; this.vy = 0; this.grounded = true; this.grabLock = L.letGoLock;
+      this.groundCollider = h.col; this.surface = h.col.surface;
+      audio.play('foot.land', { gain: 0.5 });
+    }
   }
 
   /** Horizontal move with collision (substeps so nothing tunnels). */

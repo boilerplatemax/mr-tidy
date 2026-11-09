@@ -131,6 +131,28 @@ export const TUNING = {
     markerSize: 0.2, markerColor: 0xfff0c8, // m: the landing-spot outline
   },
 
+  // ---------------------------------------------------------------- ledge grab and mantle (src/player/player.js)
+  ledge: {
+    paw: 0.25, // m: how far above the feet the cat's front is
+    reach: 0.25, // m: the edge is caught if it's within this above the cat's front (build prompt 0.4)
+    minAbove: 0.1, // m: an edge closer to the feet than this you simply land on
+    gap: 0.07, // m: how far from the face the cat's body can be and still catch it
+    maxVy: 1.4, // m/s: rising faster than this, the cat is going to clear the edge anyway: don't catch it
+    facing: 0.3, // cos: how squarely the view (or the keys) must face the edge
+    dropLock: 0.22, // s after walking off an edge before it can grab (so a drop doesn't snag the ledge you just left)
+    letGoLock: 0.35, // s after letting go before it can grab again
+    hangDrop: 0.22, // m: feet below the edge while hanging (puts the eye just over the lip)
+    hangDip: 0.24, // rad: the camera dips to look at the edge
+    settle: 30, // 1/s: how fast the body settles into the hanging pose
+    mantleTime: 0.4, // s: the pull-up
+    inward: [0.16, 0.12, 0.08, 0.04], // m past the lip to end up, tried in order (narrow perches take the shorter ones)
+  },
+  paws: {
+    color: 0xa89a88,
+    gripX: 0.055, gripY: -0.012, gripZ: -0.17, gripTilt: 0.2, // the hanging pose (camera space, m and rad)
+    drop: 0.08, pullDown: 0.1, ease: 18, // m hidden below the view, m lowered during the pull-up, 1/s ease in and out
+  },
+
   debug: {
     noclipSpeed: 3, // m/s (F3); Shift triples it
     thirdPersonDist: 1.3, // m behind the cat (F2)
