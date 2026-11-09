@@ -85,7 +85,7 @@ function freshVac(kit, id, anger = 1) {
   for (const m of kit.debris.messes) m.cleaned = true;
   if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
   v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
-  v._endReach(); v._endBlast(); v._endSuck(); v._endCreep(); v._endFog(); v.cloud.reset(); v.creepCd = 99; v.fogCd = 99; v.stingCd = 99; v.alertCd = 0; v.freezeT = 0; v.thinkT = 999; v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
+  v._endReach(); v._endBlast(); v._endSuck(); v._endCreep(); v._endFog(); v.cloud.reset(); v.foundT = 0; v.stunT = 0; v.stunCd = 99; v.creepCd = 99; v.fogCd = 99; v.stingCd = 99; v.alertCd = 0; v.freezeT = 0; v.thinkT = 999; v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
   v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
   v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
   return v;
@@ -465,6 +465,19 @@ function attackChecks(kit) {
     report('he is nearly blind in it', !v._canSee() && Math.hypot(P.pos.x - v.x, P.pos.z - v.z) > Fg.sight);
     v.state = 'CHASE'; report('and he cannot spit dust through it', !v._canBlast()); v.state = 'PATROL';
     P.resetMotion(); P.noclip = true; c.reset(); P.noclip = false; }
+  // ---- something dropped on him
+  { put('K1', 3, 1.57, 8.2, 0, 4.0); hunt(8.2, 4.0); hold(0.2, () => v.state === 'HOSE_REACH'); const was = v.state; const o = K.byId.get('mug5'); v.stunCd = 0;
+    o.state = 'fall'; o.x = o.px = v.x + 0.05; o.z = o.pz = v.z; o.y = o.py = 0.42; o.vy = -2; o.vx = o.vz = 0; o.knocked = false; o.hitVac = false; const x0 = v.x;
+    kit.tick(dt); kit.tick(dt); const stunned = v.stunT > 0, ended = !v.reachPhase; let t = 0; while (v.stunT > 0 && t < 3) { kit.tick(dt); t += dt; if (v.x !== x0) t = 9; }
+    report('dropping something on him stops him for a moment', was === 'HOSE_REACH' && stunned && ended && t > 0.3 && t < 1.3 && o.hitVac, `${t.toFixed(2)} s`);
+    o.state = 'rest'; o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z; o.vx = o.vz = o.vy = 0; o.knocked = false; o.hitVac = false; o.dirty = true; }
+  // ---- hiding in the tub and behind curtains
+  { put('B1', 3, 0.5, 7.1, 0, -4.5); const hid = !v._canSee() && v._catHidden();
+    const H0 = TUNING.hide, c0 = H0.chance[2]; H0.chance[2] = 1; const onCatch = v.onCatch; v.onCatch = (h) => { caughtBy = h; };
+    v.lastX = 7.1; v.lastZ = -4.5; v.state = 'SEARCH'; v.path = [v.nav.nodes.get('B1')]; v.pathI = 0; v.x = v.px = 7.0; v.z = v.pz = -3.4; v._routeEnd(); const found = v.foundT > 0 && v.state === 'CHASE'; hold(4, () => caughtBy);
+    H0.chance[2] = c0; v.onCatch = onCatch;
+    report('hidden in the tub he cannot see you, but he can go looking and find you', hid && found && caughtBy === 'hose', `${v.state}`);
+    put('L1', 3, 0, 5.05, 0, 0.22); report('behind the closed curtains too', !v._canSee() && v._catHidden()); }
   // ---- his body
   { for (const anger of [1, 3]) { put('H2', anger, 0, 5.3, 0, -0.45); v.frozen = false; P.frozen = false; P.yaw = -Math.PI / 2; I.keys.add('KeyW'); I.keys.add('ShiftLeft'); caughtBy = null; const eg = () => v.onCatch; void eg; let min = 9; hold(1, () => { min = Math.min(min, Math.hypot(P.pos.x - v.x, P.pos.z - v.z)); return caughtBy; }); I.keys.clear();
       report(`the cat cannot run through him (stage ${anger})`, anger === 3 ? !!caughtBy : min >= TUNING.vac.radius + 0.05, `closest ${min.toFixed(2)} m`); } }
@@ -567,9 +580,9 @@ function hearingChecks(kit) {
     report('hearing something he stops dead and the motor falls away, then he goes', stopped && !moved && maxDip > 0.5 && v.state === 'INVESTIGATE' && Math.abs(t - TUNING.alert.time[2]) < 0.1, `${t.toFixed(2)} s, dip ${maxDip.toFixed(2)}`); }
   // a real break, found and cleaned: progress stays
   freshVac(kit, 'K1', 2);
-  const o = K.byId.get('k2Vase'), before = K.count;
+  const o = K.byId.get('k2Plate'), before = K.count;
   K._knockOver(o);
-  const mess = kit.debris.messes.find((m) => m.id === 'k2Vase'), wake = kit.grandma.wake;
+  const mess = kit.debris.messes.find((m) => m.id === 'k2Plate'), wake = kit.grandma.wake;
   let sawClean = false, t = 0;
   while (t < 45 && !mess.cleaned) { kit.tick(dt); t += dt; if (v.state === 'CLEAN') sawClean = true; }
   const moved = v.state;
@@ -799,17 +812,17 @@ function knockChecks(kit) {
   const book = K.byId.get('phone');
   let swipes = 0;
   while (swipes < 20 && book.y > 0.5) {
-    stand(book.x - 0.3, 0.9, book.z, -Math.PI / 2, -0.3);
+    stand(book.x - 0.3, book.y, book.z, -Math.PI / 2, -0.3);
     K.swipe(P, kit.camera); swipes++;
     settle(book);
   }
   report('a heavy phone takes several swipes', swipes === K.byId.get('phone').t.swipes && book.y === 0, `${swipes} swipes`);
 
   // falling onto a lower surface: it lands there, it doesn't clip through
-  const plate = K.byId.get('plate1');
+  const plate = K.byId.get('globe');
   K.shove(plate, -1, 0, 1.2);
   settle(plate);
-  report('plate lands on the lower shelf', Math.abs(plate.y - 1.4) < 0.01, `ended at height ${plate.y.toFixed(2)}`);
+  report('a snow globe lands on the lower shelf', Math.abs(plate.y - 1.4) < 0.01, `ended at height ${plate.y.toFixed(2)}`);
 
   // nothing is left in a broken state
   // a heavy book doesn't break: it's on the floor, counted once, with a mess
@@ -1029,22 +1042,24 @@ function climbChecks(kit) {
 function propChecks(kit) {
   const K = kit.knock, D = kit.debris, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} PROPS ${name}${note ? ' (' + note + ')' : ''}`);
-  const count = K.count, types = new Set(); let bad = 0, missing = 0, bitsMade = 0, chars = 0;
+  const count = K.count, types = new Set(); let paper = 0, rolled = 0, rollRest = '', bad = 0, missing = 0, bitsMade = 0, chars = 0;
   const warn0 = console.warn; console.warn = (...a) => { if (String(a[0]).includes('no node')) missing++; else warn0(...a); };
   report('the pack has loaded', !!K.lib);
   for (const o of K.list) {
     if (types.has(o.type)) continue;
     types.add(o.type);
-    o.y = 0.4; o.vy = -3; o.px = o.x; o.py = o.y; o.state = 'fall'; o.knocked = false; o.dirty = true;
-    for (let i = 0; i < 90; i++) { kit.tick(dt); K.frame(1); D.frame(1); }
+    o.x = 3.4; o.z = 1.4; o.y = 0.4; o.vy = -3; o.px = o.x; o.pz = o.z; o.py = o.y; o.state = 'fall'; o.knocked = false; o.dirty = true;
+    for (let i = 0; i < 150; i++) { kit.tick(dt); K.frame(1); D.frame(1); }
     const m = D.messes.find((q) => q.id === o.id);
     if (!m) bad++; else { bitsMade += m.bits.length; if (o.t.landing === 'shatter' || o.t.landing === 'break') { if (o.state !== 'gone' || !m.cubes.length) bad++; } else if (o.state === 'gone') bad++; }
     if (!Number.isFinite(o.x + o.y + o.z)) bad++;
     if (o.t.nodes.variants && !o.swapped) chars++;
+    if (o.type === 'toilet_roll') { const m2 = D.messes.find((q) => q.id === o.id), strip = m2?.bits.find((b) => b.ribbon); paper = strip ? strip.mesh.geometry.drawRange.count : 0; rolled = Math.hypot(o.x - 3.4, o.z - 1.4); rollRest = o.state; }
   }
   console.warn = warn0;
   for (let i = 0; i < 300; i++) kit.tick(dt);
-  report('all 25 kinds do what they should when they land', types.size === 25 && bad === 0 && missing === 0 && chars === 0, `${types.size} kinds, ${bitsMade} pieces thrown clear, ${bad} wrong, ${missing} missing meshes`);
+  report(`all ${new Set(LEVEL.knockables.map((d) => d.type)).size} kinds do what they should when they land`, types.size === new Set(LEVEL.knockables.map((d) => d.type)).size && bad === 0 && missing === 0 && chars === 0, `${types.size} kinds, ${bitsMade} pieces thrown clear, ${bad} wrong, ${missing} missing meshes`);
+  report('the toilet roll rolls away and leaves a strip of paper', paper > 60 && rolled > 0.5 && rollRest === 'rest', `${rolled.toFixed(2)} m, ${paper / 6} pieces of strip`);
   report('every piece comes to rest', D.bits.every((b) => b.settled || b.mode === 'puff') && D.live.length === 0, `${D.bits.filter((b) => !b.settled).length} still moving`);
   K.count = count; kit.resetRun(); kit.vac.frozen = true; kit.player.noclip = false;
   report('and they all go back for a new run', K.list.every((o) => o.state === 'rest' && !o.knocked && o.node) && D.bits.length === 0);

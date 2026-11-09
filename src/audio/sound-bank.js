@@ -156,6 +156,7 @@ export const SOUNDS = {
   'sting.spot': { gen: (sr) => [stingSpot(sr), stingSpot(sr), stingScrape(sr), stingScrape(sr), stingBrass(sr), stingBrass(sr), stingPiano(sr), stingPiano(sr), stingMetal(sr), stingMetal(sr)], gain: 0.9, subtitle: 'a sudden stab of music', bus: 'voice' },
   'sting.heard': { gen: v(stingHeard, 3), gain: 0.5, bus: 'voice' },
   'vac.listen': { gen: (sr) => { const x = S.buffer(0.45, sr); S.grains(x, sr, 5, 0.006, 0.06, 0); S.biquad(x, sr, 'bp', 2100, 2); S.mix(x, S.env(S.saw(S.buffer(0.42, sr), sr, (t) => 150 - 95 * t), sr, 0.005, 0.14), 0.5); return S.declick(S.normalise(x, 0.7), sr); }, gain: 0.55, subtitle: 'the motor drops, listening' },
+  'vac.stun': { gen: v((sr) => { const x = thud(sr, 110, 0.3, 0.6); S.mix(x, S.env(S.saw(S.buffer(0.3, sr), sr, (t) => 220 - 170 * t), sr, 0.005, 0.12), 0.35); return S.normalise(x, 0.9); }, 2), gain: 0.9, subtitle: 'a clang, and the motor stutters' },
   'vac.creep': { gen: (sr) => { const x = S.buffer(1.6, sr); S.grains(x, sr, 30, 0.02, 1.5, 0); S.biquad(x, sr, 'bp', 900, 1.2); S.mix(x, S.biquad(S.noise(S.buffer(1.6, sr)), sr, 'bp', 420, 3), 0.3); return S.normalise(S.loopable(x, sr, 0.25), 0.5); }, loop: true, gain: 0.5, subtitle: 'something sliding, slowly' },
   'vac.exhale': { gen: (sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(1.8, sr)), sr, 'bp', (t) => 300 + 1500 * (1 - t), 0.7), sr, 0.04, 0.8), 0.95), sr), gain: 1.1, subtitle: 'a great gust of dust' },
   'vac.unplug': { gen: v((sr) => { // a crackling pop as the plug comes out

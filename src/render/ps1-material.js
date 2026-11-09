@@ -14,7 +14,7 @@
 import * as THREE from 'three';
 
 const MAX_BOXES = 4;
-const MAX_ZONES = 8;
+const MAX_ZONES = 10;
 
 export const PS1 = {
   uniforms: {

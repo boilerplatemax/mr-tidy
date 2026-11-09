@@ -125,6 +125,7 @@ export class Debris {
     }
     this.cubes.instanceMatrix.needsUpdate = true;
     for (const b of mess.bits || []) {
+      if (b.ribbon) { const g = b.mesh.geometry; if (!b.total) b.total = g.drawRange.count; g.setDrawRange(0, Math.floor(b.total * (1 - u) / 6) * 6); continue; } // the paper goes up from the far end
       if (!b.from) { b.from = new THREE.Vector3(b.x, b.y, b.z); b.settled = true; b.link = null; }
       b.mesh.position.copy(b.from).lerp(_p.set(hx, hy, hz), e);
       b.mesh.scale.setScalar(b.scale * Math.max(0, 1 - e));

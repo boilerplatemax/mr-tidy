@@ -50,7 +50,8 @@ const world = new CollisionWorld();
 const input = new Input(canvas);
 const player = new Player(camera, world, input);
 const house = buildHouse({ scene, world });
-import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); });
+let updateScreens = null;
+import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); updateScreens = m.updateScreens; });
 PS1.setLightZones(house.zones);
 PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
@@ -61,6 +62,7 @@ player.onSneeze = () => noise.emit({ kind: 'thud', x: player.pos.x, y: player.fe
 player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
 const grandma = new Grandma({ noise, house });
 const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });
+knock.vac = vac; // (something dropped on him stuns him)
 player.onSwipe = () => { knock.swipe(player, camera); vac.swipeOutlet(camera); }; // the paw bats objects, and the outlet he's plugged into
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
@@ -139,6 +141,7 @@ function tick(dt) {
 
 function frame(alpha, dt, frameMs) {
   wallTime += dt;
+  updateScreens?.(wallTime);
   const onTitle = !menu.el.hidden && !menu.started;
   if (catchSeq.active) catchSeq.update(dt);
   else if (catchSeq.phase === 'done') { /* black, the restart screen is up: hold the view */ }

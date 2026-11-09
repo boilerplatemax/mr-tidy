@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { LEVEL } from '../data/level.js';
 import { loadGLB } from '../render/geometry.js';
+import { makePS1 } from '../render/ps1-material.js';
 
 const cache = new Map();
 const file = (name) => `game-assets/models/house/${name}.glb`;
@@ -17,11 +18,25 @@ function boundsOf(ids, byId) {
   return b;
 }
 
+const screens = [];
+/** Per rendered frame: the televisions flicker through their four frames of static. */
+export function updateScreens(time) { const f = Math.floor(time * 12) % 4; for (const t of screens) t.offset.x = f * 0.25; }
+
 export function dressHouse(scene, byId) {
   const jobs = LEVEL.dress.map(async (e) => {
     let gltf;
     try { gltf = await load(e.model); } catch (err) { console.warn(`dress: ${e.model} failed`, err?.message || err); return; }
     const m = gltf.scene.clone(true);
+    if (e.squash) m.traverse((o) => { // pull everything above this height down (a tap that would poke through the mirror)
+      if (!o.isMesh) return;
+      const [from, k] = e.squash, g = o.geometry.clone(), p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) if (p.getY(i) > from) p.setY(i, from + (p.getY(i) - from) * k);
+      p.needsUpdate = true; o.geometry = g;
+    });
+    if (e.tv) { // the static: the screen's picture is a strip of four frames
+      const scr = m.getObjectByName('screen');
+      if (scr) { scr.material = scr.material.clone(); scr.material.userData = {}; makePS1(scr.material); const t = scr.material.map || scr.material.emissiveMap; if (t) { const c = t.clone(); c.needsUpdate = true; c.wrapS = THREE.RepeatWrapping; if (scr.material.map) scr.material.map = c; if (scr.material.emissiveMap) scr.material.emissiveMap = c; screens.push(c); } }
+    }
     if (e.hide) e.hide.forEach((n) => { const o = m.getObjectByName(n); if (o) o.visible = false; });
     const holder = new THREE.Group();
     holder.rotation.y = ((e.rot || 0) * Math.PI) / 180;

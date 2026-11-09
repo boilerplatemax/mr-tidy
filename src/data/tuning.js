@@ -215,6 +215,8 @@ export const TUNING = {
     noiseLasts: 40, // s a crash keeps pulling him toward its room
     lookSpeed: 1.3, // rad/s looking around
   },
+  stun: { time: 0.65, perKg: 0.3, max: 1.2, cooldown: 5 }, // something dropped on him: s he reels, plus this much per kg, at most; s before it can work again
+  hide: { range: 2.6, chance: [0, 0, 0.35, 0.55], time: 4 }, // the tub and behind the closed curtains: he goes looking when he reaches where he lost you. m he checks from; odds he finds you, by stage; s he then knows
   sting: { // eye contact and being spotted
     eyeCos: 0.94, cooldown: 28, freeze: 0.32, // how squarely you must be looking at him; s between stingers; s he freezes, staring back
     shriekEvery: 16, shriekFace: 1.3, // s between shrieks; s his mouth stays open
@@ -406,6 +408,8 @@ export const TUNING = {
     chunkSize: [0.05, 0.09], decalSize: 0.34, // m: the big pieces that a "break" leaves; a stain
     chatter: 3, roll: 1.3, // s dentures chatter across the floor; s a lid or head keeps rolling
     paperPieces: 5, woolPieces: 4, buttons: 20, feathers: 8, puffLife: 0.7, // how far the trails run (0.6 m a piece) and how much spills
+    paperLen: 2.4, paperSpeed: 2.0, paperStep: 0.07, paperPoints: 48, paperWidth: 0.095, rollR: 0.056, rollThin: 0.034, // the toilet roll: m of paper; m/s; m between points on the strip; points; m wide; radius full and bare
+    vacBounce: 1.6, vacThrow: 1.0, // m/s an object comes off him at, up and outward
     bounceMul: 1.6, rollSpeed: 1.5, // how much livelier a bouncy thing is; m/s a ball carries on at
   },
   debris: {
@@ -466,7 +470,7 @@ export const TUNING = {
 
   // ---------------------------------------------------------------- the house (src/world/house.js)
   house: {
-    tile: { carpet_rose: 0.35, fabric_carpet: 0.35, wood_walnut: 0.5, wood_oak: 0.5, cardboard: 0.5, formica_retro: 0.5, paint_cream: 0.5, tile_bath_floor: 0.5 }, // metres per repeat of a texture (default 0.5)
+    tile: { fabric_velvet_curtain: 0.4, carpet_rose: 0.35, fabric_carpet: 0.35, wood_walnut: 0.5, wood_oak: 0.5, cardboard: 0.5, formica_retro: 0.5, paint_cream: 0.5, tile_bath_floor: 0.5 }, // metres per repeat of a texture (default 0.5)
     colors: {
       landTop: 0xc98a4a, // the top of anything you can land on
       furniture: 0x8a857c, // sides of furniture
