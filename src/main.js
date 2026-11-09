@@ -57,7 +57,7 @@ const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
 player.onStep = (gait) => { if (gait === 'run') noise.emit({ kind: 'step', x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // slink and walk are quiet
 player.onLand = (impact, heavy) => { if (heavy) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z }); };
 const grandma = new Grandma({ noise, house });
-const vac = new Vacuum({ scene, world, camera, noise, knock, debris });
+const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });
 player.onSwipe = () => { knock.swipe(player, camera); vac.swipeOutlet(camera); }; // the paw bats objects, and the outlet he's plugged into
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
@@ -84,6 +84,10 @@ let roomShown = false;
 const endScreen = new EndScreen();
 let runTime = 0, ended = false;
 grandma.onWin = () => { ended = true; player.frozen = true; vac.powerDown(); };
+vac.onCatch = () => { // for now, straight to the restart screen; the real catch arrives with step 15
+  ended = true; player.frozen = true;
+  endScreen.show('Try again', [`Time  ${Math.floor(runTime / 60)}:${String(Math.floor(runTime % 60)).padStart(2, '0')}`]);
+};
 grandma.onScreen = () => {
   const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60);
   endScreen.show('Good Kitty', [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`]);

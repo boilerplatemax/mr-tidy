@@ -90,6 +90,67 @@ function freshVac(kit, id, anger = 1) {
   return v;
 }
 
+/** Sight, the chase, the search, being caught by his body. */
+function huntChecks(kit) {
+  const v = kit.vac, P = kit.player, I = kit.input, W = kit.world, V = TUNING.vac, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} HUNT ${name}${note ? ' (' + note + ')' : ''}`);
+  P.noclip = false;
+  let caughtBy = null;
+  const onCatch0 = v.onCatch; v.onCatch = (how) => { caughtBy = how; };
+  const reset = (id, anger) => { freshVac(kit, id, anger); v.caught = false; caughtBy = null; v.seeT = 0; v.direct = false; v.chaseNode = null; v.sweep = false; v.loseT = 0; I.keys.clear(); P.frozen = false; P.resetMotion(); };
+  const cat = (x, z, y = 0.001, yaw = 0) => { P.teleport(x, y, z, yaw); for (let i = 0; i < 4 && !P.grounded; i++) P.tick(dt); };
+  const run = (s) => { for (let i = 0; i < Math.round(s * 60); i++) kit.tick(dt); };
+
+  // L2 faces +z from heading 0: the open floor of the living room at z 1.0
+  reset('L2', 2); v.heading = -0.3; cat(3.05, 3.9); v.path = [v.nav.nodes.get('L4')]; v.pathI = 0; // walking toward the cat
+  run(0.05);
+  report('he notices after a moment, not instantly', v.state !== 'CHASE');
+  run(V.noticeTime[1] + 0.2);
+  report('sees the cat in front of him and gives chase', v.state === 'CHASE', v.state);
+
+  reset('L2', 3); v.heading = Math.PI; cat(3.05, 3.9); // facing away
+  run(0.6);
+  report('does not see behind him', v.state !== 'CHASE', v.state);
+
+  reset('Hl', 3); v.heading = 1.57; cat(8.5, 1.4); // facing along the hall, the cat is round the corner in the kitchen
+  run(0.6);
+  report('does not see through walls', v.state !== 'CHASE', v.state);
+
+  reset('L2', 2); v.heading = 0; cat(3.05, 4.7); I.keys.add('KeyC'); // about 3.7 m: inside his sight walking, outside it slinking
+  for (let i = 0; i < 10; i++) P.tick(dt);
+  run(0.8); I.keys.clear();
+  report('slinking halves how far he can see you', v.state !== 'CHASE', v.state);
+
+  // the chase, and the cat outrunning him at his angriest
+  reset('Hk', 3); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57);
+  for (let i = 0; i < 30 && v.state !== 'CHASE'; i++) kit.tick(dt);
+  const chasing = v.state === 'CHASE'; I.keys.add('KeyW'); I.keys.add('ShiftLeft');
+  const d0 = Math.abs(v.x - P.pos.x);
+  for (let i = 0; i < 40; i++) kit.tick(dt);
+  const d1 = Math.abs(v.x - P.pos.x); I.keys.clear();
+  report('a running cat outpaces him at anger 3', chasing && d1 > d0 && !caughtBy, `gap ${d0.toFixed(2)} to ${d1.toFixed(2)} m`);
+
+  // the chase ends: out of sight, he searches, then goes back to patrol
+  reset('Hk', 3); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57);
+  for (let i = 0; i < 30 && v.state !== 'CHASE'; i++) kit.tick(dt);
+  P.noclip = true; let t = 0, sawSearch = false, sawSweep = false;
+  while (t < 40 && v.state !== 'PATROL') { kit.tick(dt); t += dt; if (v.state === 'SEARCH') sawSearch = true; if (v.sweep) sawSweep = true; }
+  P.noclip = false;
+  report('loses you, searches, returns to patrol', sawSearch && sawSweep && v.state === 'PATROL', `${t.toFixed(1)} s`);
+
+  // caught by his body, on the floor only
+  reset('H2', 1); v.heading = 0; cat(v.x + 0.2, v.z);
+  kit.tick(dt);
+  report('his body catches a cat on the floor', caughtBy === 'body' && v.caught);
+  reset('K2', 1); cat(v.x, v.z, 1.0); P.vy = 0; P.feetY = 1.0; P.eyeFeet = 1; P.prevEyeFeet = 1; P.frozen = true;
+  { const f = P.tick; P.tick = () => {}; kit.tick(dt); P.tick = f; }
+  report('but not one above him', !caughtBy);
+  P.frozen = false;
+
+  v.onCatch = onCatch0; v.caught = false; freshVac(kit, 'L1', 1); P.noclip = true;
+  return rows;
+}
+
 /** Hearing, investigating and cleaning. */
 function hearingChecks(kit) {
   const v = kit.vac, K = kit.knock, N = kit.noise, dt = 1 / 60, rows = [];
@@ -134,6 +195,7 @@ function hearingChecks(kit) {
 
 /** Mr. Tidy: the graph, the patrol, the cord. */
 function vacChecks(kit) {
+  kit.vac.frozen = false; kit.player.noclip = true; // the cat is out of the picture for these
   const v = kit.vac, W = kit.world, V = TUNING.vac, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} VAC ${name}${note ? ' (' + note + ')' : ''}`);
   const bad = v.nav.blockedEdges(W, V.radius, V.height);
@@ -526,6 +588,7 @@ function climbChecks(kit) {
 }
 
 export function runRouteBot(kit) {
+  kit.vac.frozen = true; // keep him out of the jump tests
   const byId = kit.house.byId, rows = [];
   for (const [a, b, start] of LEVEL.grabLinks) {
     const from = a === 'floor' ? null : byId.get(a), to = byId.get(b);
@@ -553,6 +616,7 @@ export function runRouteBot(kit) {
   rows.push(...pocketScan(kit));
   rows.push(...vacChecks(kit));
   rows.push(...hearingChecks(kit));
+  rows.push(...huntChecks(kit));
   rows.push(...grandmaChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };

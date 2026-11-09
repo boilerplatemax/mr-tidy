@@ -5,7 +5,7 @@ import { TUNING } from '../data/tuning.js';
 import { settings, setSetting, applyLookPreset } from '../data/settings.js';
 import { makePS1 } from '../render/ps1-material.js';
 
-const D = TUNING.debug;
+const D = TUNING.debug, V_SIGHT_COS = TUNING.vac.sightCos;
 const LOOKS = ['authored', 'clean'];
 const HELP = () => [
   'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F4 anger +1', 'F5 wake +20', 'F8 freeze the vac', 'F9 this list',
@@ -49,6 +49,12 @@ export class Debug {
     this.scene.add(this.pathLine);
     const ring = []; for (let i = 0; i <= 40; i++) { const a = (i / 40) * Math.PI * 2; ring.push(Math.cos(a), 0, Math.sin(a)); }
     const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(ring, 3));
+    const cone = [0, 0, 0], half = Math.acos(V_SIGHT_COS);
+    for (let i = 0; i <= 12; i++) { const a = -half + (i / 12) * 2 * half; cone.push(Math.sin(a), 0, Math.cos(a)); }
+    cone.push(0, 0, 0);
+    const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(cone, 3));
+    this.visionCone = new THREE.Line(cg, mat(0xff6060)); this.visionCone.renderOrder = 9; this.visionCone.visible = false; this.visionCone.frustumCulled = false;
+    this.scene.add(this.visionCone);
     this.hearRing = new THREE.Line(rg, mat(0x70c0ff)); this.hearRing.renderOrder = 9; this.hearRing.visible = false; this.hearRing.frustumCulled = false;
     this.scene.add(this.hearRing);
   }
@@ -58,8 +64,11 @@ export class Debug {
     this.navLines.visible = this.pathLine.visible = on;
     const V = TUNING.vac, r = v.anger === 1 ? V.hearNear : v.anger === 3 ? V.hearSteps : 0; // (at anger 2 he hears crashes anywhere: no ring)
     this.hearRing.visible = on && r > 0;
+    this.visionCone.visible = on;
     if (!on) return;
     this.hearRing.position.set(v.x, 0.06, v.z); this.hearRing.scale.set(r, 1, r);
+    const range = V.sightRange[v.anger - 1];
+    this.visionCone.visible = true; this.visionCone.position.set(v.x, 0.07, v.z); this.visionCone.rotation.y = v.heading; this.visionCone.scale.set(range, 1, range);
     const a = this.pathLine.geometry.attributes.position, Y = 0.05;
     a.setXYZ(0, v.x, Y, v.z);
     let n = 1;

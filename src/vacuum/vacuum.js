@@ -13,8 +13,10 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const _s = new THREE.Vector3();
 
 export class Vacuum {
-  constructor({ scene, world, camera, noise, knock, debris }) {
-    this.world = world; this.knock = knock; this.debris = debris; this.camera = camera;
+  constructor({ scene, world, camera, noise, knock, debris, player }) {
+    this.world = world; this.knock = knock; this.debris = debris; this.camera = camera; this.player = player;
+    this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
+    this.seeT = 0; this.seesCat = false; this.lastX = 0; this.lastZ = 0; this.loseT = 0; this.replanT = 0; this.direct = false; this.directOK = false; this.chaseNode = null; this.sweep = false; this.sweepT = 0;
     noise.on((ev) => this._hear(ev));
     this.pending = null; this.mess = null; this.cleanT = 0; this.spotT = 0; this.slurp = null; this._h = { x: 0, y: 0, z: 0 }; this._a = { x: 0, y: 0, z: 0 }; this._b = { x: 0, y: 0, z: 0 };
     this.model = buildVacuum();
@@ -184,12 +186,17 @@ export class Vacuum {
   }
 
   _investigate(x, z) {
+    if (this.state === 'CHASE') { if (!this.seesCat) { this.lastX = x; this.lastZ = z; } return; } // something to go on while he has lost sight of you
     if (this.state === 'CLEAN') { this.pending = { x, z }; return; } // he finishes the job in hand first
     this.state = 'INVESTIGATE';
     this.routeTo(this.nav.nearest(x, z));
   }
 
-  routeTo(node) { this.path = this.planTo(node); this.pathI = 0; }
+  routeTo(node) { // (if the new route carries on the way he's already going, he doesn't turn back to the last waypoint first)
+    const cur = this.path[this.pathI];
+    this.path = this.planTo(node);
+    this.pathI = this.path.length > 1 && this.path[1] === cur ? 1 : 0;
+  }
 
   /** Back to the patrol, at whichever stop of the loop is nearest. */
   _resumePatrol() {
@@ -231,8 +238,125 @@ export class Vacuum {
     if (near) this._startClean(near); else this._resumePatrol();
   }
 
+  // ---- sight, the chase, the search
+  /** Can he see the cat right now? A cone in front of him, shorter if it's slinking, blocked by walls and tall furniture. */
+  _canSee() {
+    const P = this.player;
+    if (P.noclip) return false;
+    const dx = P.pos.x - this.x, dz = P.pos.z - this.z, d = Math.hypot(dx, dz) || 1;
+    if (d > V.sightRange[this.anger - 1] * (P.slink > 0.5 ? V.slinkSight : 1)) return false;
+    if ((dx * Math.sin(this.heading) + dz * Math.cos(this.heading)) / d < V.sightCos) return false;
+    const a = this._a, b = this._b;
+    a.x = this.x; a.y = 0.35; a.z = this.z; b.x = P.pos.x; b.y = P.feetY + 0.15; b.z = P.pos.z;
+    return this.world.countOccluders(a, b, 1, true) === 0;
+  }
+
+  _perceive(dt) {
+    this.seesCat = this._canSee();
+    if (this.seesCat) { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; }
+    if (this.state === 'CHASE') return;
+    this.seeT = this.seesCat ? this.seeT + dt : Math.max(0, this.seeT - dt);
+    if (this.seeT >= V.noticeTime[this.anger - 1]) this._startChase();
+  }
+
+  _startChase() {
+    if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
+    this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
+    audio.play('vac.surge', { follow: this.model.hoseSocket, rolloff: 0 });
+  }
+
+  /** Is the straight line to this point clear for his body? */
+  _clear(tx, tz) {
+    const len = Math.hypot(tx - this.x, tz - this.z), steps = Math.max(1, Math.ceil(len / 0.1));
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      if (this.world.penetration(this.x + (tx - this.x) * t, this.z + (tz - this.z) * t, V.radius, 0.03, V.height) > 0) return false;
+    }
+    return true;
+  }
+
+  /** He's been heading straight for the cat, off the graph: pick the graph back up at the nearest waypoint he can reach. */
+  _rejoin() {
+    this.direct = false;
+    const T = this.tether;
+    let best = T[T.length - 1], bd = Infinity;
+    for (const n of this.nav.nodes.values()) { const d = (n.x - this.x) ** 2 + (n.z - this.z) ** 2; if (d < bd && this._clear(n.x, n.z)) { bd = d; best = n; } }
+    this._arrived(best);
+    this.path = [best]; this.pathI = 0;
+  }
+
+  _tickChase(dt) {
+    if (this.seesCat) this.loseT = 0; else this.loseT += dt;
+    if (this.loseT >= V.loseTime) { this._startSearch(); return; }
+    this.replanT -= dt;
+    if (this.replanT <= 0) {
+      this.replanT = V.replan;
+      this.directOK = this.seesCat && this._clear(this.lastX, this.lastZ);
+      if (this.directOK) this.direct = true;
+      else {
+        if (this.direct) this._rejoin();
+        const n = this.nav.nearest(this.lastX, this.lastZ);
+        if (n !== this.chaseNode) { this.chaseNode = n; this.routeTo(n); }
+      }
+    }
+    const speed = V.chaseSpeed[this.anger - 1];
+    if (this.direct) { // the cord still only goes so far
+      if (this._paid() < C.length - 0.05) this._steer(dt, this.lastX, this.lastZ, speed);
+      return;
+    }
+    this._followPath(dt, speed);
+  }
+
+  _startSearch() {
+    if (this.direct) this._rejoin();
+    this.state = 'SEARCH'; this.sweep = false; this.seeT = 0;
+    this.routeTo(this.nav.nearest(this.lastX, this.lastZ));
+  }
+
+  _tickSweep(dt) { // at the spot: he turns on the spot, looking
+    this.heading = wrap(this.heading + V.searchTurn * dt);
+    this.sweepT -= dt;
+    if (this.sweepT <= 0) { this.sweep = false; this._resumePatrol(); }
+  }
+
+  /** His body touching a cat on the floor. */
+  _touching() {
+    const P = this.player;
+    return !P.noclip && P.feetY < V.catchHeight && Math.hypot(P.pos.x - this.x, P.pos.z - this.z) < V.radius + V.catchReach;
+  }
+
+  _catch(how) {
+    this.caught = true; this.state = 'CATCH';
+    this.slurp?.stop(0.05); this.slurp = null;
+    this.onCatch?.(how);
+  }
+
+  /** Turn toward a point and glide. Full speed when pointed the right way; he swings round almost on the spot when he isn't. */
+  _steer(dt, tx, tz, speed) {
+    const want = Math.atan2(tx - this.x, tz - this.z), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
+    this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
+    const s = speed * Math.max(0, Math.cos(diff));
+    this.x += Math.sin(this.heading) * s * dt;
+    this.z += Math.cos(this.heading) * s * dt;
+  }
+
+  _followPath(dt, speed) {
+    let target = this.path[this.pathI];
+    if (Math.hypot(target.x - this.x, target.z - this.z) < V.arrive) {
+      this._arrived(target);
+      if (this.pathI >= this.path.length - 1) {
+        this._routeEnd();
+        if (this.state === 'CLEAN' || this.sweep || this.state === 'CHASE') return;
+      } else this.pathI++;
+      target = this.path[this.pathI];
+    }
+    this._steer(dt, target.x, target.z, speed);
+  }
+
   /** The end of the route he was on. */
   _routeEnd() {
+    if (this.state === 'CHASE') return; // waits there: the replanning decides what's next
+    if (this.state === 'SEARCH') { this.sweep = true; this.sweepT = V.searchTime; return; }
     if (this.state === 'INVESTIGATE') {
       const m = this._nearestMess(V.cleanReach, false);
       if (m) this._startClean(m); else this._resumePatrol();
@@ -254,28 +378,19 @@ export class Vacuum {
     this._updateDrone(dt);
     if (this.plugLock > 0) this.plugLock -= dt;
     if (this.plugState !== 'in' && !this.off) { this._tickPlug(dt); return; }
-    if (this.frozen || this.off) return;
+    if (this.frozen || this.off || this.caught) return;
+    this._perceive(dt);
+    if (this._touching()) { this._catch('body'); return; }
+    if (this.state === 'CHASE') { this._tickChase(dt); return; }
     if (this.state === 'CLEAN') { this._tickClean(dt); return; }
+    if (this.state === 'SEARCH' && this.sweep) { this._tickSweep(dt); return; }
     this.spotT -= dt;
-    if (this.spotT <= 0) { // a mess right in front of him stops him on his way
+    if (this.spotT <= 0 && this.state !== 'SEARCH') { // a mess right in front of him stops him on his way
       this.spotT = V.spotEvery;
       const m = this._nearestMess(V.cleanSee, true);
       if (m) { this._startClean(m); return; }
     }
-    let target = this.path[this.pathI];
-    if (Math.hypot(target.x - this.x, target.z - this.z) < V.arrive) {
-      this._arrived(target);
-      if (this.pathI >= this.path.length - 1) { this._routeEnd(); if (this.state === 'CLEAN') return; }
-      else this.pathI++;
-      target = this.path[this.pathI];
-    }
-    const dx = target.x - this.x, dz = target.z - this.z;
-    const want = Math.atan2(dx, dz), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
-    this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
-    // he glides: full speed when pointed the right way, and swings round almost on the spot when he isn't
-    const speed = V.speed[this.anger - 1] * (this.state === 'INVESTIGATE' ? V.investigateMul : 1) * Math.max(0, Math.cos(diff));
-    this.x += Math.sin(this.heading) * speed * dt;
-    this.z += Math.cos(this.heading) * speed * dt;
+    this._followPath(dt, V.speed[this.anger - 1] * (this.state === 'PATROL' ? 1 : V.investigateMul));
   }
 
   /** Per rendered frame. */

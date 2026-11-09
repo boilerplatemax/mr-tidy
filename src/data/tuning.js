@@ -151,6 +151,17 @@ export const TUNING = {
     angerAt: [5, 10], // knock-overs that raise him to anger 2 and 3
     hearNear: 7, // m: at anger 1 he only investigates crashes this close. From anger 2 he hears them anywhere
     hearSteps: 4, // m: at anger 3 he also hears running footsteps and heavy landings this close. Slink and walk are silent to him
+    sightRange: [4, 6.5, 9], // m he can see the cat, by anger level
+    sightCos: 0.82, // cos of half his view: about 70° in all
+    slinkSight: 0.5, // slinking halves how far away he notices you
+    noticeTime: [0.7, 0.45, 0.25], // s of being seen before he reacts, by anger level: a fair moment to duck
+    loseTime: 2.5, // s out of sight before he gives up the chase and searches
+    searchTime: 3.2, // s he looks around where he last saw you
+    searchTurn: 2.0, // rad/s while looking around
+    chaseSpeed: [1.3, 2.3, 3.1], // m/s by anger level. The cat runs at 3.6, so it can always just outrun him
+    replan: 0.15, // s between re-thinking the route while chasing
+    catchReach: 0.14, // m past his body at which he catches the cat
+    catchHeight: 0.42, // m: a cat with its feet above this is out of reach of his body
     investigateMul: 1.25, // he goes to a noise this much faster than he patrols
     cleanTime: 2.2, // s to suck up a mess: the player's window to get away or set up the next crash
     cleanSee: 1.4, // m: a mess this close, in plain sight, stops him to clean it
