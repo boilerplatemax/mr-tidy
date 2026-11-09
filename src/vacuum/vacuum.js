@@ -549,7 +549,7 @@ export class Vacuum {
   /** His body touching a cat on the floor. */
   _touching() {
     const P = this.player;
-    if (this.anger <= V.harmlessAt) return false; // neutral: harmless
+    if (this.anger <= V.harmlessAt) return false; // neutral and annoyed: harmless
     if (P.slink > 0.5 && !this.seesCat && this.anger <= V.sneakAnger) return false; // crouched and unseen: he doesn't know you're there
     return !P.noclip && P.feetY < V.catchHeight && Math.hypot(P.pos.x - this.x, P.pos.z - this.z) < V.radius + V.catchReach;
   }

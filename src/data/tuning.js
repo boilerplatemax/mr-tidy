@@ -145,7 +145,7 @@ export const TUNING = {
   // ---------------------------------------------------------------- Mr. Tidy (src/vacuum/)
   vac: {
     radius: 0.24, height: 0.45, // m: the body, for navigation and (later) catching the cat
-    // Anger has four stages: 1 neutral (nothing broken yet), 2 annoyed, 3 angry, 4 furious. Arrays below are by stage.
+    // Anger has four stages: 1 neutral (nothing broken yet), 2 annoyed (looks and sounds it, still harmless), 3 angry (hunts you), 4 furious. Arrays below are by stage.
     speed: [0.7, 0.8, 1.4, 2.4], // m/s
     turnRate: 2.4, // rad/s
     arrive: 0.14, // m from a waypoint at which he moves on
@@ -154,7 +154,7 @@ export const TUNING = {
     hearSteps: 4, hearWalk: 1.8, // m: angry or worse, he hears a cat running or walking on the floor this close. Slinking is silent
     hearLand: [3.5, 8], quietLand: 0.25, // m he hears a landing from (soft, heavy), from the annoyed stage up; share of that if you land holding C
     sightRange: [0, 0, 6.5, 9], // m he can see the cat. Neutral and annoyed he doesn't hunt
-    harmlessAt: 1, // at this stage and below, touching him does nothing
+    harmlessAt: 2, // at this stage and below, touching him does nothing
     hearSneeze: 9, // m he hears a sneeze from
     sightCos: 0.82, // cos of half his view: about 70° in all
     slinkSight: 0.5, // slinking halves how far away he notices you

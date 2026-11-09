@@ -170,7 +170,7 @@ function huntChecks(kit) {
   report('catching beats cleaning', dropped, v.state);
 
   // caught by his body, on the floor only
-  reset('H2', 2); v.heading = 0; cat(v.x + 0.2, v.z);
+  reset('H2', 3); v.heading = 0; cat(v.x + 0.2, v.z);
   kit.tick(dt);
   report('touching him on the floor gets you caught', caughtBy === 'snap' && v.caught);
   reset('K2', 2); cat(v.x, v.z, 1.0); P.vy = 0; P.feetY = 1.0; P.eyeFeet = 1; P.prevEyeFeet = 1; P.frozen = true;
@@ -297,7 +297,7 @@ function hoseChecks(kit) {
 
   // being caught from the side or behind: the nozzle still comes round to get you
   P.noclip = false;
-  freshVac(kit, 'H2', 2); v.hose.reset(); P.resetMotion(); P.teleport(v.x, 0.001, v.z + 0.3, 0); P.tick(dt); v.heading = v.prevHeading = Math.PI; caughtBy = null;
+  freshVac(kit, 'H2', 3); v.hose.reset(); P.resetMotion(); P.teleport(v.x, 0.001, v.z + 0.3, 0); P.tick(dt); v.heading = v.prevHeading = Math.PI; caughtBy = null;
   v.frozen = false; kit.tick(dt);
   { const t = v.hose.tip, c = new V3(P.pos.x, P.feetY + 0.12, P.pos.z);
     report('caught from behind, by the nozzle, not the drum', caughtBy === 'snap' && t.distanceTo(c) < 0.05 && v.hose.pts.every((p) => Number.isFinite(p.x + p.y + p.z)), `tip ${t.distanceTo(c).toFixed(2)} m from the cat`); }
@@ -318,9 +318,17 @@ function attackChecks(kit) {
   const hunt = (x, z) => { v.seesCat = true; v.lastX = x; v.lastZ = z; v._startChase(); v.state = 'CHASE'; };
   const hold = (s, fn) => { for (let i = 0; i < Math.round(s * 60); i++) { kit.tick(dt); if (fn && fn()) return true; } return false; };
 
-  // neutral: harmless
-  put('H2', 1, 0, 5.6, 0, -0.25); hold(0.3);
-  report('neutral: touching him does nothing', !caughtBy && !v.caught);
+  // neutral and annoyed: harmless, and he doesn't hunt. Angry, he does
+  for (const [stage, name] of [[1, 'neutral'], [2, 'annoyed']]) {
+    put('H2', stage, 0, 5.6, 0, -0.25); hold(0.3);
+    report(`${name}: touching him does nothing`, !caughtBy && !v.caught);
+    put('L2', stage, -0.3, 3.05, 0, 3.9); v.path = [v.nav.nodes.get('L4')]; v.pathI = 0; hold(1.5);
+    report(`${name}: he looks right at you and does not hunt`, !['CHASE', 'HOSE_REACH', 'BLAST'].includes(v.state), v.state);
+  }
+  put('H2', 3, 0, 5.6, 0, -0.25); hold(0.3);
+  report('angry: touching him catches you', !!caughtBy, caughtBy);
+  put('L2', 3, -0.3, 3.05, 0, 3.9); v.path = [v.nav.nodes.get('L4')]; v.pathI = 0;
+  report('angry: he hunts a cat he can see', hold(1.5, () => ['CHASE', 'HOSE_REACH', 'BLAST'].includes(v.state)), v.state);
 
   // the cobra rears up above the cat, then strikes
   put('K4', 3, 0, 8.5, 0.75, 2.9); hunt(8.5, 2.9);
