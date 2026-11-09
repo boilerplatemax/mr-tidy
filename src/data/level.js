@@ -296,7 +296,7 @@ export const LEVEL = {
     { id: 'globe', type: 'snow_globe', on: 'book4', x: 1.82, z: 5.18 },
     { id: 'clock', type: 'mantel_clock', on: 'book3', x: 1.42, z: 5.18 },
     { id: 'figurine', type: 'cat_figurine', on: 'book2', x: 0.98, z: 5.18 },
-    { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.7, z: 2.5, yaw: -1.57 },
+    { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.7, z: 2.1, yaw: -1.57 },
     { id: 'treeYarn', type: 'yarn_ball', on: 'tree4', x: 1.2, z: 0.55 },
     { id: 'yarn', type: 'yarn_ball', on: 'couchSeat', x: 0.8, z: 3.0 },
     { id: 'floorVaseL', type: 'vase', on: 'floor', topple: true, x: 5.65, z: 3.4 },
