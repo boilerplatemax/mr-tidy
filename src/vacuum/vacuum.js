@@ -6,8 +6,9 @@ import { LEVEL } from '../data/level.js';
 import { buildVacuum } from './vacuum-model.js';
 import { Nav } from './nav.js';
 import { Cord } from './cord.js';
+import { audio } from '../audio/audio.js';
 
-const V = TUNING.vac;
+const V = TUNING.vac, D = TUNING.drone;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const _s = new THREE.Vector3();
 
@@ -23,6 +24,7 @@ export class Vacuum {
     this.state = 'PATROL';
     this.anger = 1;
     this.frozen = false; // F8
+    this.voice = null; this.droneT = 0;
     this.off = false; // Grandma pulled the plug (for now: she woke)
     this.route = LEVEL.patrol.map((id) => this.nav.nodes.get(id));
     this.routeI = 0;
@@ -36,8 +38,37 @@ export class Vacuum {
 
   get ready() { return this.model.ready; }
 
+  /** Anger level 1–3: his face, his speed, the pitch of his motor. */
+  setAnger(level) {
+    this.anger = Math.max(1, Math.min(3, level));
+    this.model.setFace(this.anger);
+  }
+
+  /** Volume for a distance: steep near him, and never quite silent. */
+  droneLevel(d) { return D.floor + (1 - D.floor) / (1 + (d / D.closeness) ** 2); }
+
+  /** Once audio exists (the first click). */
+  startSound() {
+    if (this.off || this.voice) return;
+    // no distance rolloff in the panner (rolloff: 0): droneLevel is the whole volume curve, the panner gives the direction
+    this.voice = audio.play('vac.drone', { follow: this.model.hoseSocket, rolloff: 0, fadeIn: 0.5, gain: D.gain, wet: 0.5 });
+  }
+
+  _updateDrone(dt) {
+    if (!this.voice || this.off) return;
+    this.droneT -= dt;
+    if (this.droneT > 0) return;
+    this.droneT = D.update;
+    const L = audio.listenerPos, d = Math.hypot(this.x - L.x, 0.2 - L.y, this.z - L.z), near = 1 / (1 + (d / D.closeness) ** 2);
+    this.voice.fadeTo(this.droneLevel(d), D.update);
+    this.voice.setRate(D.rate[this.anger - 1] + D.nearRate * near, D.update * 2);
+  }
+
   /** Everything stops: the motor winds down and the face goes dark. */
-  powerDown() { this.off = true; this.state = 'OFF'; this.model.face.visible = false; }
+  powerDown() {
+    this.off = true; this.state = 'OFF'; this.model.face.visible = false;
+    if (this.voice) { this.voice.setRate(0.2, D.windDown); this.voice.stop(D.windDown); this.voice = null; }
+  }
 
   _nextLeg() { // on to the next stop of the patrol loop
     this.routeI = (this.routeI + 1) % this.route.length;
@@ -50,6 +81,7 @@ export class Vacuum {
   /** Per fixed tick. */
   tick(dt) {
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading;
+    this._updateDrone(dt);
     if (this.frozen || this.off) return;
     let target = this.path[this.pathI];
     if (Math.hypot(target.x - this.x, target.z - this.z) < V.arrive) {

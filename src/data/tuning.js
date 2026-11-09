@@ -155,6 +155,15 @@ export const TUNING = {
       cordY: 0.1, backZ: 0.2, // where the cord leaves the back
     },
   },
+  drone: { // the motor. The player must be able to find him by ear (src/vacuum/vacuum.js)
+    closeness: 2.2, // m: at this distance the drone is at half volume. Smaller: it rises more steeply as he nears
+    floor: 0.05, // the quietest it ever gets, anywhere in the house, so he can always be heard
+    gain: 1, // overall level
+    rate: [0.92, 1.1, 1.32], // pitch by anger level 1, 2, 3
+    nearRate: 0.08, // extra pitch right next to you
+    update: 0.08, // s between adjustments
+    windDown: 1.2, // s for the motor to die when Grandma wakes
+  },
   cord: {
     spacing: 0.25, capacity: 256, // m between trail points; how many before the trail is thinned
     radius: 0.009, y: 0.012, slack: 0.018, // m: thickness, height off the floor, how much it wanders

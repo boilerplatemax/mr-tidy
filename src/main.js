@@ -71,7 +71,7 @@ audio.world = world;
 audio.indoorBoxes = house.indoor;
 subtitles.isIndoor = (p) => audio.isIndoor(p);
 audio.onCaption = (label, pos) => subtitles.sound(label, pos, audio.listenerPos, player.yaw);
-audio.onStart.push(() => { house.startSound(); grandma.startSound(); });
+audio.onStart.push(() => { house.startSound(); grandma.startSound(); vac.startSound(); });
 
 // ---------------------------------------------------------------- UI
 const hudLayer = new HudLayer(canvas);

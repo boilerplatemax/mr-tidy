@@ -93,6 +93,13 @@ class Voice {
     this.gain.gain.linearRampToValueAtTime(this.baseGain * gainMul, t + Math.max(0.01, seconds));
   }
 
+  /** Glide to a new playback rate (pitch) over this many seconds. */
+  setRate(rate, seconds = 0.1) {
+    const t = this.engine.ctx.currentTime;
+    this.src.playbackRate.cancelScheduledValues(t);
+    this.src.playbackRate.setTargetAtTime(rate, t, Math.max(0.005, seconds / 3));
+  }
+
   stop(fade = 0.05) {
     if (this.ended) return;
     this.fadeTo(0, fade);

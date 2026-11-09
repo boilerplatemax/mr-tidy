@@ -65,7 +65,19 @@ const cough = (sr) => {
 };
 const creak = (sr) => S.declick(S.normalise(S.env(S.biquad(S.saw(S.buffer(0.7, sr), sr, (t) => 70 + 45 * Math.sin(t * 11)), sr, 'bp', 780, 5), sr, 0.03, 0.25), 0.7), sr);
 
+// ---------------------------------------------------------------- Mr. Tidy's motor (a placeholder)
+function drone(sr) { // a 2 s seamless loop: built 0.25 s long, then the tail is crossfaded into the head. Every tone fits a whole number of cycles in 2 s, so they line up
+  const n = S.buffer(2.25, sr);
+  S.mix(n, S.saw(S.buffer(2.25, sr), sr, 74), 0.4);
+  S.mix(n, S.saw(S.buffer(2.25, sr), sr, 111), 0.22);
+  S.mix(n, S.sine(S.buffer(2.25, sr), sr, 37), 0.55);
+  S.biquad(n, sr, 'lp', 900, 0.9);
+  S.mix(n, S.biquad(S.biquad(S.noise(S.buffer(2.25, sr)), sr, 'hp', 500), sr, 'lp', 3400), 0.32);
+  return S.normalise(S.loopable(n, sr, 0.25), 0.8);
+}
+
 export const SOUNDS = {
+  'vac.drone': { gen: drone, loop: true, gain: 0.75 },
   // Grandma: the snoring lightens through four stages; a cue marks each step toward waking
   'grandma.snore0': { gen: snore({ len: 3.4, f: 62, rasp: 1, air: 0.4, in: 0.5, out: 0.4, peak: 0.85 }), loop: true, gain: 0.9 },
   'grandma.snore1': { gen: snore({ len: 2.8, f: 72, rasp: 0.6, air: 0.5, in: 0.45, out: 0.4, peak: 0.6 }), loop: true, gain: 0.9 },

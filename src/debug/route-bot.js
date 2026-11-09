@@ -113,6 +113,13 @@ function vacChecks(kit) {
   look(14, 0.3, 2.6, 15.2, 0.3, 2.6);
   for (let t = 0; t < 40; t++) { C.timer = 0; C.tick(dt, v.x, v.z); }
   report('and moves to the nearest outlet once nobody can see it', C.outlet === near(v.x, v.z) && C.outlet === kitchen, `now ${C.outlet.id}`);
+  // the drone's shape: louder as he nears, steepest close up, never silent
+  const lv = [0.5, 1, 2, 4, 8, 16].map((d) => v.droneLevel(d));
+  report('the drone rises steeply as he nears, and is never silent', lv.every((x, i) => i === 0 || x < lv[i - 1]) && lv[1] > lv[3] * 3 && lv[5] >= TUNING.drone.floor, lv.map((x) => x.toFixed(2)).join(' '));
+  const rates = TUNING.drone.rate;
+  report('its pitch rises with anger', rates[0] < rates[1] && rates[1] < rates[2]);
+  v.setAnger(3); const furious = v.model.face.material.map === v.model.faces[3]; v.setAnger(1);
+  report('his face follows his anger', furious && v.model.face.material.map === v.model.faces[1]);
   // F8
   const fx = v.x; v.frozen = true; for (let t = 0; t < 30; t++) kit.tick(dt);
   report('F8 holds him still', v.x === fx);
