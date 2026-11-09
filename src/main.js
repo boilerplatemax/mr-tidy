@@ -24,6 +24,7 @@ import { Grandma } from './world/grandma.js';
 import { Vacuum } from './vacuum/vacuum.js';
 import { CatchSequence } from './vacuum/catch.js';
 import { WakeIcon } from './ui/wake-icon.js';
+import { DustOverlay } from './ui/dust-overlay.js';
 import { EndScreen } from './ui/end-screen.js';
 import { Debug } from './debug/debug.js';
 import { LandingMarker } from './player/landing-marker.js';
@@ -56,6 +57,7 @@ const noise = new Noise();
 const debris = new Debris(scene, world);
 const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
 player.onStep = (gait) => { if (!player.groundCollider) noise.emit({ kind: 'step', gait, x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only on the floor: furniture is quiet, and slinking makes no steps at all
+player.onSneeze = () => noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: TUNING.vac.hearSneeze }); // a sneeze gives you away
 player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
 const grandma = new Grandma({ noise, house });
 const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });
@@ -78,6 +80,7 @@ audio.onStart.push(() => { house.startSound(); grandma.startSound(); vac.startSo
 const hudLayer = new HudLayer(canvas);
 const overlay = new DevOverlay();
 const staminaBar = new StaminaBar(hudLayer);
+const dustOverlay = new DustOverlay(hudLayer);
 const wakeIcon = TUNING.hud.wakeIcon ? new WakeIcon(hudLayer) : null;
 const roomLabel = hudLayer.label('hud-room').place('center', 0, 0.14);
 roomLabel.set([{ text: "Grandma's room" }], 'center');
@@ -154,6 +157,7 @@ function frame(alpha, dt, frameMs) {
     knock.frame(input.live ? alpha : 1);
     debris.frame(input.live ? alpha : 1);
     staminaBar.frame(player, dt);
+    dustOverlay.frame(player);
   }
   vac.frame(input.live ? alpha : 1);
   env.update(camera);

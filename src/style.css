@@ -116,3 +116,6 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 /* the hard cut to black at the end of a catch (src/vacuum/catch.js) */
 #cut { position: absolute; inset: 0; z-index: 11; background: #000; }
 #cut[hidden] { display: none; }
+
+/* dust in the cat's eyes (src/ui/dust-overlay.js) */
+#dust { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges; pointer-events: none; }

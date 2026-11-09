@@ -5,6 +5,7 @@ import { TUNING } from '../data/tuning.js';
 import { settings } from '../data/settings.js';
 import { audio } from '../audio/audio.js';
 
+const DUST = TUNING.dust;
 const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge, C = TUNING.climb, ST = TUNING.stamina, SW = TUNING.swipe, D = TUNING.dash;
 const expK = (rate, dt) => 1 - Math.exp(-rate * dt);
 
@@ -36,6 +37,7 @@ export class Player {
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
     this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 0; this.airDashUsed = false; this.fovKick = 0; this.prevFovKick = 0;
+    this.dust = 0; this.sneezeT = 0; this.onSneeze = null; // dusted: slowed, and a sneeze on the way
     this.wedgedT = 0;
     this.swipeT = -1; this.prevSwipeT = -1; this.swipeCd = 0; this.swipeHit = false;
     this.onSwipe = null; // () when the paw connects: the knockables hook in here
@@ -58,7 +60,14 @@ export class Player {
   }
 
   /** Back to plain movement, whatever the cat was doing. */
-  resetMotion() { this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
+  /** Hit by a dust blast: slowed, shaken off whatever it was holding, and about to sneeze. */
+  dustHit() {
+    this.dust = DUST.time; this.sneezeT = DUST.sneezeDelay;
+    if (this.mode === 'hang') this._letGo();
+    else if (this.mode === 'climb' || this.mode === 'slide') this._offWall();
+  }
+
+  resetMotion() { this.dust = 0; this.sneezeT = 0; this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
 
   /** Put the feet at (x, y, z) facing yaw (rad, 0 = toward −z), with no interpolation from the old spot. */
   teleport(x, y, z, yaw = this.yaw) {
@@ -95,6 +104,11 @@ export class Player {
     this.prevSwipeT = this.swipeT; this.prevFovKick = this.fovKick; this.prevShimmyDist = this.shimmyDist; this.prevClimbDist = this.climbDist;
     this.prevSlink = this.slink; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
     if (this.noclip) { this._fly(dt); return; }
+    if (this.dust > 0) this.dust = Math.max(0, this.dust - dt);
+    if (this.sneezeT > 0) {
+      this.sneezeT -= dt;
+      if (this.sneezeT <= 0) { this.landDip = DUST.sneezeDip; audio.play('cat.sneeze', { rate: 0.95 + Math.random() * 0.15 }); this.onSneeze?.(); }
+    }
     this._wish();
     if (this.grabLock > 0) this.grabLock -= dt;
     if (this.clawLock > 0) this.clawLock -= dt;
@@ -305,6 +319,7 @@ export class Player {
     let speed = (this.gait === 'run' ? P.runSpeed : this.gait === 'slink' ? P.slinkSpeed : P.walkSpeed) * (surf.speed ?? 1);
     if (this.wfwd < 0) speed *= P.backwardMul;
     if (this.charging) speed *= J.moveMul;
+    if (this.dust > 0) speed *= DUST.speedMul;
     const dashing = this.dashT > 0;
     if (dashing) { // the dash owns the cat's speed until it ends
       this.dashT -= dt;
@@ -611,6 +626,7 @@ export class Player {
       const x = x0 + Math.cos((a / 16) * Math.PI * 2) * d, z = z0 + Math.sin((a / 16) * Math.PI * 2) * d;
       if (W.penetration(x, z, r * 1.05, lowY, highY, null, this.feetY) === 0) { this.pos.x = x; this.pos.z = z; this.prev.x = x; this.prev.z = z; this.vel.x = this.vel.z = 0; this.wedgedT = 0; return; }
     }
+    this.dust = 0; this.sneezeT = 0; this.onSneeze = null; // dusted: slowed, and a sneeze on the way
     this.wedgedT = 0;
   }
 

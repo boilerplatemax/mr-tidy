@@ -153,7 +153,9 @@ export const TUNING = {
     hearNear: 7, // m: annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
     hearSteps: 4, hearWalk: 1.8, // m: angry or worse, he hears a cat running or walking on the floor this close. Slinking is silent
     hearLand: [3.5, 8], quietLand: 0.25, // m he hears a landing from (soft, heavy), from the annoyed stage up; share of that if you land holding C
-    sightRange: [0, 0, 6.5, 9], // m he can see the cat. Neutral and annoyed he doesn't hunt: bump into him and he gets you, but he won't come after you
+    sightRange: [0, 0, 6.5, 9], // m he can see the cat. Neutral and annoyed he doesn't hunt
+    harmlessAt: 1, // at this stage and below, touching him does nothing
+    hearSneeze: 9, // m he hears a sneeze from
     sightCos: 0.82, // cos of half his view: about 70° in all
     slinkSight: 0.5, // slinking halves how far away he notices you
     slinkNotice: 2.5, // ...and he takes this many times longer to react
@@ -184,6 +186,21 @@ export const TUNING = {
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
     },
   },
+  blast: { // the dust blast: he spits a glob of dirt at a cat he can see (src/vacuum/blast.js)
+    minAnger: 3, cooldown: [0, 0, 8, 5], // from the angry stage; s between blasts by stage
+    range: 7, minRange: 1.2, // m: how far it's aimed from
+    aim: 0.6, recover: 0.5, // s of telegraph (the wheeze, the nozzle lifting), s after firing
+    speed: 9, gravity: 2.5, lead: 0.5, // m/s, m/s² of droop, how much of the cat's movement it aims ahead for
+    hit: 0.32, life: 1.4, // m from the cat that counts as a hit; s before it falls apart
+    knockRadius: 0.2, knockSpeed: 2.2, // an object it hits gets shoved (which can knock it off: that still counts for you)
+    aimOut: 0.7, aimUp: 0.35, // m: where the nozzle lifts to, to aim
+    cubes: 8, cubeSize: 0.05, spread: 0.08, color: 0x7d7360, puffTime: 0.4, puffSize: 0.35,
+  },
+  dust: { // what a dust blast does to the cat (src/player/player.js)
+    time: 3, speedMul: 0.6, // s it lasts; how much it slows you
+    sneezeDelay: 1, sneezeDip: 0.05, // s until the sneeze; m the camera jolts
+    opacity: 0.85, fadeFrom: 1, // how thick it looks; s from the end at which it starts to clear
+  },
   hose: { // the snake out of the hole (src/vacuum/hose.js, src/vacuum/voxels.js)
     minLength: 1.6, // m: the hose is never shorter than this. When the tip is close, the excess hangs and bows aside like a chain
     slackPull: 0.02, damping: 0.92, sag: 6, aside: 14, chainPasses: 6, // the chain: how much a slack hose keeps to its route, how fast swinging dies down, m/s² of droop, of bowing sideways; how stiffly the links hold
@@ -200,7 +217,8 @@ export const TUNING = {
     minAnger: 3, // he only uses the hose once he's angry
     cooldown: [0, 0, 5, 2.5], // s between attacks
     windup: 1.0, // s of prep: the hose rises and hovers, sniffing, with the rattle playing
-    hover: 0.9, sway: 0.05, swayRate: 7, riseSpeed: 3, // m short of the cat that it waits; m it sways; rad/s; m/s rising
+    rear: 0.45, rearMin: 0.8, // the cobra: m above the cat it rears up to, and never lower than this off the floor
+    hover: 0.9, sway: 0.08, swayRate: 7, riseSpeed: 3, // m short of the cat that it waits; m it sways; rad/s; m/s rising
     homeSpeed: 5.5, homeTurn: 1.8, homeTime: 0.5, homeReplan: 0.08, // the charge: m/s; rad/s it can turn (lower = easier to dodge); s before it runs out; s between re-aiming around obstacles
     hit: 0.2, // m from the cat's chest that counts as caught
     giveUp: 0.3, // m past its range that the cat can be when the prep ends before he doesn't bother

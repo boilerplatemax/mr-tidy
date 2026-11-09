@@ -85,7 +85,7 @@ function freshVac(kit, id, anger = 1) {
   for (const m of kit.debris.messes) m.cleaned = true;
   if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
   v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
-  v._endReach(); v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
+  v._endReach(); v._endBlast(); v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
   v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
   v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
   return v;
@@ -301,6 +301,83 @@ function hoseChecks(kit) {
   v.frozen = false; kit.tick(dt);
   { const t = v.hose.tip, c = new V3(P.pos.x, P.feetY + 0.12, P.pos.z);
     report('caught from behind, by the nozzle, not the drum', caughtBy === 'snap' && t.distanceTo(c) < 0.05 && v.hose.pts.every((p) => Number.isFinite(p.x + p.y + p.z)), `tip ${t.distanceTo(c).toFixed(2)} m from the cat`); }
+
+  v.onCatch = onCatch0; v.caught = false; freshVac(kit, 'L1', 1); v.hose.reset(); P.noclip = true;
+  return rows;
+}
+
+/** The attacks: the cobra's rear-up and pathfinding around things, the dust blast and what it does. */
+function attackChecks(kit) {
+  const v = kit.vac, P = kit.player, I = kit.input, K = kit.knock, H = TUNING.hose, B = TUNING.blast, D = TUNING.dust, W = kit.world, dt = 1 / 60, rows = [], V3 = kit.camera.position.constructor;
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} ATTACK ${name}${note ? ' (' + note + ')' : ''}`);
+  P.noclip = false; let caughtBy = null; const onCatch0 = v.onCatch; v.onCatch = (how) => { caughtBy = how; };
+  const put = (id, anger, heading, x, y, z, blastCd = 99) => {
+    freshVac(kit, id, anger); v.hose.reset(); v.blastCd = blastCd; caughtBy = null; v.heading = heading; v.prevHeading = heading; I.keys.clear(); P.frozen = false; P.resetMotion();
+    P.teleport(x, y + 0.001, z, 0); for (let i = 0; i < 4 && !P.grounded; i++) P.tick(dt);
+  };
+  const hunt = (x, z) => { v.seesCat = true; v.lastX = x; v.lastZ = z; v._startChase(); v.state = 'CHASE'; };
+  const hold = (s, fn) => { for (let i = 0; i < Math.round(s * 60); i++) { kit.tick(dt); if (fn && fn()) return true; } return false; };
+
+  // neutral: harmless
+  put('H2', 1, 0, 5.6, 0, -0.25); hold(0.3);
+  report('neutral: touching him does nothing', !caughtBy && !v.caught);
+
+  // the cobra rears up above the cat, then strikes
+  put('K4', 3, 0, 8.5, 0.75, 2.9); hunt(8.5, 2.9);
+  hold(0.5, () => v.state === 'HOSE_REACH');
+  let peak = 0; while (v.reachPhase === 'rise') { kit.tick(dt); peak = Math.max(peak, v.hose.tip.y); }
+  report('the cobra rears up above you before it strikes', peak > 0.87 + H.rear * 0.7, `tip up to ${peak.toFixed(2)} m, cat at 0.87`);
+  hold(1, () => caughtBy);
+  report('then strikes', caughtBy === 'hose');
+
+  // no clipping, tube included: full strikes from a set of awkward places
+  const inside = (x, y, z) => W.penetration(x, z, 0.006, y - 0.005, y + 0.005, null, y - 0.005) > 0;
+  const spots = [['K4', 0, 8.5, 0.75, 2.9], ['K3', 0, 10.4, 0.9, 3.7], ['L5', -0.3, 4.05, 1.7, 5.1], ['K2', 1.2, 10.35, 1.72, 4.95], ['Ld', 1.57, 7.1, 0, 4.35], ['Hs', -1.57, 11.7, 0, -0.45], ['K5', 0.3, 7.5, 0.45, 2.9], ['S1', 3.14, 13.2, 1.1, 3.5]];
+  let clips = 0, verts = 0, strikes = 0;
+  for (const [id, h, x, y, z] of spots) {
+    put(id, 3, h, x, y, z); hunt(x, z);
+    for (let i = 0; i < 150 && !caughtBy; i++) {
+      kit.tick(dt); v.frame(1);
+      if (v.state === 'HOSE_REACH') strikes++;
+      const a = v.hose.mesh.geometry.attributes.position;
+      for (let k = 0; k < a.count; k += 3) { verts++; if (inside(a.getX(k), a.getY(k), a.getZ(k))) clips++; }
+    }
+  }
+  report('strikes from eight awkward spots: the tube never clips anything', strikes > 100 && clips === 0, `${clips} of ${verts} surface points inside something`);
+
+  // the blast: out of hose range, at a cat it can see
+  put('H2', 3, 1.57, 10.0, 0, -0.45, 0); hunt(10.0, -0.45);
+  hold(0.3, () => v.state === 'BLAST');
+  const blasting = v.state === 'BLAST', dust0 = P.dust; let aimT = 0;
+  while (v.blastPhase === 'aim' && aimT < 2) { kit.tick(dt); aimT += dt; }
+  report('a cat out of hose range gets a dust blast, after a telegraph', blasting && Math.abs(aimT - B.aim) < 0.1 && v.blast.state === 'fly', `${aimT.toFixed(2)} s`);
+  hold(1.5, () => P.dust > 0 || v.blast.state === 'idle');
+  report('it hits a cat that stands still, but does not catch it', P.dust > 0 && dust0 === 0 && !caughtBy && v.blast.lastHit === 'cat', v.blast.lastHit);
+  // what it does
+  { let heard = null; const prev = P.onSneeze; P.onSneeze = () => { heard = true; };
+    P.yaw = Math.PI / 2; I.keys.add('KeyW'); hold(0.6); const speed = P.speed; I.keys.clear();
+    report('dust slows you down', speed < TUNING.player.walkSpeed * 0.8 && speed > 0, `${speed.toFixed(2)} m/s`);
+    hold(D.sneezeDelay + 0.3); P.onSneeze = prev;
+    report('then you sneeze', heard === true); }
+  put('H2', 2, 1.57, 5.6, 0, -0.45); { let t = 0; const s0 = v.state; kit.noise.emit({ kind: 'thud', x: 11, y: 0, z: -0.45, radius: TUNING.vac.hearSneeze }); t = v.state; report('and he hears the sneeze', s0 === 'PATROL' && t === 'INVESTIGATE', t); }
+  // knocked off a wall and a ledge
+  put('H2', 2, 0, 9, 0, -0.45); P.mode = 'climb'; P.dustHit(); { const wall = P.mode === 'move'; P.mode = 'hang'; P.dustHit(); report('it knocks you off a wall or a ledge', wall && P.mode === 'move', P.mode); } P.resetMotion();
+  // dodging it
+  put('H2', 3, 1.57, 10.0, 0, -0.45, 0); hunt(10.0, -0.45);
+  hold(0.3, () => v.state === 'BLAST'); while (v.blastPhase === 'aim') kit.tick(dt);
+  { const f = P.tick; P.pos.x = 10.0; P.pos.z = -1.1; P.tick = () => {}; hold(1.5, () => v.blast.state !== 'fly'); P.tick = f; }
+  report('a cat that moves after it fires is missed', P.dust === 0 && v.blast.lastHit !== 'cat', v.blast.lastHit);
+  // an object in the way gets knocked: a blast that misses you can help you
+  put('H2', 3, 1.57, 10.0, 0, -0.45);
+  { const o = K.byId.get('mug2'); o.state = 'rest'; o.x = o.px = 8.5; o.y = o.py = 0.05; o.z = o.pz = -0.45; o.vx = o.vz = 0;
+    v.blast.fire(new V3(5.9, 0.15, -0.45), new V3(1, 0, 0)); hold(1.2, () => v.blast.state !== 'fly');
+    report('it knocks things in its way', v.blast.lastHit === 'object' && Math.abs(o.vx) + Math.abs(o.vz) > 0, v.blast.lastHit); o.state = 'rest'; o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z; o.vx = o.vz = 0; o.dirty = true; }
+  // the can't-reach case: a cat on the curtain rod gets dusted rather than stared at
+  put('L5', 3, 0, 3.0, 2.05, 5.11, 0); v.x = v.px = 3.0; v.z = v.pz = 3.9; hunt(3.0, 5.11);
+  report('a cat out of his reach is what the blast is for', hold(0.4, () => v.state === 'BLAST'), v.state);
+  put('H2', 2, 1.57, 8.0, 0, -0.45, 0); hunt(8.0, -0.45); hold(0.5);
+  report('never while merely annoyed', v.state !== 'BLAST', v.state);
+  { put('L2', 4, 0.18, 3.45, 0, 3.2); I.keys.add('KeyC'); for (let i = 0; i < 40; i++) P.tick(dt); const hid = !v._canSee(); P.dust = 2; const seen = v._canSee(); P.dust = 0; I.keys.clear(); report('covered in dust you cannot hide', hid && seen); }
 
   v.onCatch = onCatch0; v.caught = false; freshVac(kit, 'L1', 1); v.hose.reset(); P.noclip = true;
   return rows;
@@ -865,6 +942,7 @@ export function runRouteBot(kit) {
   rows.push(...hearingChecks(kit));
   rows.push(...huntChecks(kit));
   rows.push(...hoseChecks(kit));
+  rows.push(...attackChecks(kit));
   rows.push(...catchChecks(kit));
   rows.push(...grandmaChecks(kit));
   rows.push(...restartChecks(kit));

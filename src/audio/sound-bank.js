@@ -95,6 +95,10 @@ export const SOUNDS = {
     S.mix(x, S.env(S.sine(S.buffer(0.5, sr), sr, (t) => 50 + 180 * t), sr, 0.005, 0.2), 0.9);
     return S.declick(S.normalise(x, 0.98), sr);
   }, gain: 1.5 },
+  'vac.cough': { gen: (sr) => S.declick(S.normalise(S.env(S.biquad(S.saw(S.buffer(0.65, sr), sr, (t) => 60 + 70 * t), sr, 'bp', (t) => 400 + 900 * t, 2), sr, 0.15, 0.5), 0.8), sr), gain: 0.85, subtitle: 'a wheezing cough' },
+  'vac.spit': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.25, sr)), sr, 'bp', (t) => 1400 - 900 * t, 1), sr, 0.005, 0.08), 0.95), sr), 2), gain: 1 },
+  'dust.hit': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.3, sr)), sr, 'lp', 1600), sr, 0.002, 0.1), 0.8), sr), 2), gain: 0.65 },
+  'cat.sneeze': { gen: v((sr) => { const x = S.buffer(0.32, sr); S.mix(x, S.env(S.biquad(S.noise(S.buffer(0.1, sr)), sr, 'bp', 1200, 2), sr, 0.03, 0.04), 0.5); S.mix(x, S.env(S.biquad(S.noise(S.buffer(0.2, sr)), sr, 'bp', 3200, 1.2), sr, 0.002, 0.05), 1, Math.round(0.1 * sr)); return S.declick(S.normalise(x, 0.9), sr); }, 2), gain: 0.9 },
   'vac.drone': { gen: drone, loop: true, gain: 0.75 },
   // Grandma: the snoring lightens through four stages; a cue marks each step toward waking
   'grandma.snore0': { gen: snore({ len: 3.4, f: 62, rasp: 1, air: 0.4, in: 0.5, out: 0.4, peak: 0.85 }), loop: true, gain: 0.9 },
