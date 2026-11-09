@@ -37,7 +37,7 @@ export class Player {
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
     this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 0; this.airDashUsed = false; this.fovKick = 0; this.prevFovKick = 0;
-    this.dust = 0; this.tumbleT = 0; this.hitAge = 99; this.hitSide = 1; this.sneezeT = 0; this.onSneeze = null; // dusted: bowled over, then slow, with a sneeze on the way
+    this.cornerT = 0; this.dust = 0; this.tumbleT = 0; this.hitAge = 99; this.hitSide = 1; this.sneezeT = 0; this.onSneeze = null; // dusted: bowled over, then slow, with a sneeze on the way
     this.pullX = 0; this.pullZ = 0; // m/s of suction dragging the cat along the ground, set by the vac each tick
     this.wedgedT = 0;
     this.swipeT = -1; this.prevSwipeT = -1; this.swipeCd = 0; this.swipeHit = false;
@@ -454,6 +454,7 @@ export class Player {
       n.x = tx * s; n.z = tz * s; // the next face round
       const cx = ex + tx * toEnd - h.nx * L.shimmyEnd * 1.5, cz = ez + tz * toEnd - h.nz * L.shimmyEnd * 1.5;
       if (!this._topSpot(b, n, cx, cz) || !this._hangClear(b, n.x, n.z, cx, cz)) return; // a wall or nothing to stand on: stop here
+      this.cornerT = L.cornerTime; // the body and the paws ease round it
       h.nx = n.x; h.nz = n.z; h.ex = cx; h.ez = cz; h.tx = this._ts.x; h.tz = this._ts.z;
       h.x = cx + n.x * (r + 0.005); h.z = cz + n.z * (r + 0.005);
       audio.play('cat.grab', { gain: 0.5 });
@@ -467,7 +468,8 @@ export class Player {
   }
 
   _tickHang(dt) {
-    const I = this.input, h = this.hang, k = expK(L.settle, dt);
+    if (this.cornerT > 0) this.cornerT -= dt;
+    const I = this.input, h = this.hang, k = expK(this.cornerT > 0 ? L.cornerSettle : L.settle, dt);
     this.pos.x += (h.x - this.pos.x) * k; this.pos.z += (h.z - this.pos.z) * k;
     this.feetY += (h.top - L.hangDrop - this.feetY) * k;
     this.viewDip += (L.hangDip - this.viewDip) * expK(14, dt);

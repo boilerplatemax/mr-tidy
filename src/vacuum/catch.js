@@ -87,6 +87,7 @@ export class CatchSequence {
     m.setFace(4); m.face.visible = true; m.still = true; // furious, whatever he was before, and for once perfectly still
     this.faceBase.copy(m.face.position);
     audio.play('vac.fwoomp', { gain: 0.7 });
+    audio.play('sting.spot', { gain: 1.1 });
     v.scream();
   }
 
@@ -138,6 +139,9 @@ export class CatchSequence {
   _toHold() {
     const cam = this.camera;
     this.phase = 'hold'; this.t = 0;
+    this.vac.model.shriek(C.hold);
+    if (Math.random() < 0.6) { audio.play('vac.laugh', { bus: 'voice' }); audio.play('vac.shriek', { delay: 1.15, gain: 0.8 }); }
+    else audio.play('vac.shriek', { gain: 1.3 });
     cam.position.copy(this.end);
     this.from.copy(cam.quaternion);
     _m.lookAt(this.end, this.faceAt, _up);

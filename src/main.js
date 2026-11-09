@@ -30,8 +30,10 @@ import { LandingMarker } from './player/landing-marker.js';
 import { Paws } from './player/paws.js';
 import { LandingShimmer } from './player/landing-shimmer.js';
 import { StaminaBar } from './ui/stamina-bar.js';
+import { Blackout } from './world/blackout.js';
 
 const params = new URLSearchParams(location.search);
+const _portraitV = new THREE.Vector3();
 const R = TUNING.render;
 
 // ---------------------------------------------------------------- renderer, scene, camera
@@ -50,8 +52,8 @@ const world = new CollisionWorld();
 const input = new Input(canvas);
 const player = new Player(camera, world, input);
 const house = buildHouse({ scene, world });
-let updateScreens = null;
-import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); updateScreens = m.updateScreens; });
+let updateScreens = null, pokeAerial = null;
+import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); updateScreens = m.updateScreens; pokeAerial = m.pokeAerial; });
 PS1.setLightZones(house.zones);
 PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
@@ -63,10 +65,20 @@ player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; noise.emit({ k
 const grandma = new Grandma({ noise, house });
 const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });
 knock.vac = vac; // (something dropped on him stuns him)
-player.onSwipe = () => { knock.swipe(player, camera); vac.swipeOutlet(camera); }; // the paw bats objects, and the outlet he's plugged into
+player.onSwipe = () => { knock.swipe(player, camera); vac.swipeOutlet(camera); pokeAerial?.(camera); }; // the paw bats objects, and the outlet he's plugged into
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
+const blackout = new Blackout({ scene, env, house, knock });
+/** Looking at a portrait from nearby, its nameplate shows as a caption (it can't be read at this resolution). */
+function portraitWords() {
+  const v = camera.getWorldDirection(_portraitV), e = camera.position;
+  if (ended || catchSeq.active || !input.live) return;
+  for (const p of house.portraits) {
+    const dx = p.x - e.x, dy = p.y - e.y, dz = p.z - e.z, d = Math.hypot(dx, dy, dz);
+    if (d < TUNING.hud.portraitRange && (dx * v.x + dy * v.y + dz * v.z) / d > TUNING.hud.portraitCos) subtitles.show(p.text, 'portrait:' + p.text, 2.2, '', true);
+  }
+}
 const marker = new LandingMarker(camera);
 const shimmer = new LandingShimmer(scene);
 const paws = new Paws(camera);
@@ -89,6 +101,7 @@ let roomShown = false;
 const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
 /** A whole new run, without a reload. */
 function resetRun() {
+  blackout.reset();
   ended = false; runTime = 0;
   catchSeq.reset(); endScreen.hide();
   audio.resume();
@@ -127,6 +140,7 @@ let wallTime = 0;
 function tick(dt) {
   player.snapView(); // last tick's view offsets, so the frame can interpolate them (see src/core/loop.js)
   debug.tick();
+  if (input.pressed('KeyP')) subtitles.show('paws: ' + paws.cycleMode(), 'pawmode', 1.6, '', true); // (the walking-paws experiment)
   if (input.live) {
     if (!catchSeq.active) player.tick(dt);
     knock.tick(dt);
@@ -141,9 +155,10 @@ function tick(dt) {
 
 function frame(alpha, dt, frameMs) {
   wallTime += dt;
-  updateScreens?.(wallTime);
+  updateScreens?.(wallTime, dt);
+  house.frame(wallTime);
   const onTitle = !menu.el.hidden && !menu.started;
-  if (catchSeq.active) catchSeq.update(dt);
+  if (catchSeq.active) { catchSeq.update(dt); paws.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (catchSeq.phase === 'done') { /* black, the restart screen is up: hold the view */ }
   else if (onTitle) { // the title: a slow, still view of the scene
     camera.position.set(titleCam.x + Math.sin(wallTime * 0.31) * titleCam.sway, titleCam.y + Math.sin(wallTime * 0.23) * titleCam.sway * 0.5, titleCam.z);
@@ -161,6 +176,8 @@ function frame(alpha, dt, frameMs) {
     staminaBar.frame(player, dt);
   }
   vac.frame(input.live ? alpha : 1, dt);
+  blackout.frame(vac.dark, wallTime, camera);
+  portraitWords();
   env.update(camera);
   audio.update(dt, camera);
   subtitles.update(dt);

@@ -95,8 +95,8 @@ export function buildVacuum() {
   root.add(body);
   const out = {
     root, body, ready: false, stage: 1, k: 1, shriekT: 0, flick: 0, alert: 0, twitchT: 0, tiltZ: 0, tiltX: 0, bodyMats: [],
-    still: false,
-    faces: { 1: faceTexture((g) => drawCalm(g, 1)), 2: faceTexture((g) => drawCalm(g, 2)), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => drawHoles(g, true, true)) },
+    still: false, kick: 0,
+    faces: { 1: faceTexture((g) => drawCalm(g, 1)), 2: faceTexture((g) => drawCalm(g, 2)), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => { drawHoles(g, true, false); for (const side of [-1, 1]) { blob(g, X(side * EYE_X), Y(EYE_Y), 3, 3, '#d8e4ff'); } }), s: faceTexture((g) => drawHoles(g, true, true)) },
   };
 
   // the intake: a black disc, smaller once it has become a nose
@@ -147,6 +147,23 @@ export function buildVacuum() {
 
   /** The moment of a scream: the mouth drops open. */
   out.shriek = (seconds) => { out.shriekT = seconds; };
+  /** A cough: he jolts back. */
+  out.cough = () => { out.kick = 0.26; };
+  // electricity crawling over him, once he's taken the house's power
+  const ARC = TUNING.surge.arcs, arcPos = new Float32Array(ARC * 8 * 6), arcGeo = new THREE.BufferGeometry();
+  arcGeo.setAttribute('position', new THREE.BufferAttribute(arcPos, 3));
+  const arcs = new THREE.LineSegments(arcGeo, new THREE.LineBasicMaterial({ color: 0xbfd6ff, fog: false })); arcs.visible = false; arcs.frustumCulled = false; root.add(arcs);
+  out.arcsOn = (t) => {
+    arcs.visible = t > 0 && Math.random() < 0.7;
+    if (!arcs.visible) return;
+    let w = 0;
+    for (let a = 0; a < ARC; a++) {
+      let ang = Math.random() * 6.28, y = 0.05 + Math.random() * 0.4, x0 = Math.sin(ang) * 0.24, z0 = Math.cos(ang) * 0.24;
+      for (let i = 0; i < 8; i++) { ang += (Math.random() - 0.5) * 0.7; y += (Math.random() - 0.5) * 0.09; const R = 0.23 + Math.random() * 0.05, x1 = Math.sin(ang) * R, z1 = Math.cos(ang) * R; arcPos[w++] = x0; arcPos[w++] = y; arcPos[w++] = z0; arcPos[w++] = x1; arcPos[w++] = y; arcPos[w++] = z1; x0 = x1; z0 = z1; }
+    }
+    arcGeo.attributes.position.needsUpdate = true;
+  };
+
   /** The face flickers between the old and the new for a moment: he's changing. */
   out.flicker = () => { out.flick = M.flickTime; };
 
@@ -159,14 +176,15 @@ export function buildVacuum() {
     hole.scale.set(cur, cur, 1); hole.position.y = M.holeY * out.k; out.hoseSocket.position.y = M.holeY * out.k;
     for (const m of out.bodyMats) { const c = m.color.r + (M.tone[s] - m.color.r) * ease; m.color.setRGB(c, c * (1 - (1 - M.tone[s]) * 0.2), c * (1 - (1 - M.tone[s]) * 0.2)); }
     out.alert += ((listening ? 1 : 0) - out.alert) * (1 - Math.exp(-14 * dt));
-    let tz = 0, tx = -M.listenTilt * out.alert;
+    out.kick *= Math.exp(-7 * dt);
+    let tz = 0, tx = -M.listenTilt * out.alert - out.kick;
     if (out.stage >= 4 && !out.still) { // he can't hold still any more
       out.twitchT -= dt;
       if (out.twitchT <= 0) { out.twitchT = 0.12 + Math.random() * 0.9; out.tiltZ = (Math.random() - 0.5) * M.twitch; out.tiltX = (Math.random() - 0.5) * M.twitch * 0.5; }
       tz = out.tiltZ; tx += out.tiltX;
     }
     if (out.shriekT > 0) {
-      out.shriekT -= dt; show(out.shriekT > 0 ? 5 : out.stage);
+      out.shriekT -= dt; show(out.shriekT > 0 ? 's' : out.stage);
       if (!out.still) { tz += (Math.random() - 0.5) * M.twitch * 1.2; tx -= 0.08; }
     } else if (out.flick > 0) {
       out.flick -= dt; show(out.flick > 0 && Math.floor(out.flick * 22) % 2 ? Math.max(1, out.stage - 1) : out.stage);

@@ -38,7 +38,7 @@ export class DustCloud {
     this.puffs = Array.from({ length: F.puffs }, () => {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, color: F.color, transparent: true, opacity: 0, depthWrite: false, fog: false }));
       s.visible = false; scene.add(s);
-      return { s, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 1 };
+      return { s, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, size: 1, life: 0, born: 0 };
     });
   }
 
@@ -52,8 +52,15 @@ export class DustCloud {
     const pos = this.motes.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) pos.setXYZ(i, this.min.x + Math.random() * (this.max.x - this.min.x), Math.random() * 2.6, this.min.z + Math.random() * (this.max.z - this.min.z));
     pos.needsUpdate = true;
-    for (const b of this.puffs) { const a = Math.random() * 6.28, sp = 0.6 + Math.random() * F.puffSpeed; b.x = x; b.y = y; b.z = z; b.vx = Math.cos(a) * sp; b.vz = Math.sin(a) * sp; b.vy = -0.2 + Math.random() * 0.9; b.size = 0.3; b.s.visible = true; }
     this.motes.visible = true;
+  }
+
+  /** One puff of dust out of the nozzle, flying along (dx, dy, dz). */
+  emit(x, y, z, dx, dy, dz, speed) {
+    let b = this.puffs[0];
+    for (const p of this.puffs) if (p.life < b.life) b = p;
+    const j = () => (Math.random() - 0.5) * 0.5;
+    b.x = x; b.y = y; b.z = z; b.vx = (dx + j()) * speed; b.vy = (dy + j()) * speed; b.vz = (dz + j()) * speed; b.size = 0.12; b.life = F.puffLife; b.s.visible = true;
   }
 
   /** Fade away quickly (he was unplugged, the run ended). */
@@ -61,7 +68,7 @@ export class DustCloud {
 
   reset() {
     this.phase = 'idle'; this.t = 0; this.radius = 0; this.thick = 0; this.u.uPs1CloudAmt.value = 0; this.motes.visible = false;
-    for (const b of this.puffs) { b.s.visible = false; b.s.material.opacity = 0; }
+    for (const b of this.puffs) { b.s.visible = false; b.s.material.opacity = 0; b.life = 0; }
   }
 
   /** How thick it is at a point: 0 ahead of the front as it spreads, up to 1 behind it. */
@@ -73,6 +80,12 @@ export class DustCloud {
 
   tick(dt) {
     this.clock += dt;
+    for (const b of this.puffs) {
+      if (b.life <= 0) continue;
+      b.life -= dt; if (b.life <= 0) { b.s.visible = false; continue; }
+      const drag = Math.exp(-2.2 * dt);
+      b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.vx *= drag; b.vy = b.vy * drag - 0.05 * dt; b.vz *= drag; b.size = Math.min(F.puffSize, b.size + 1.5 * dt); b.y = Math.max(0.15, Math.min(LEVEL.ceiling - 0.15, b.y));
+    }
     if (this.phase === 'idle') return;
     this.t += dt;
     if (this.phase === 'grow') {
@@ -86,16 +99,13 @@ export class DustCloud {
       this.thick = 1 - smooth(this.t / F.fade);
       if (this.t >= F.fade) { this.reset(); return; }
     }
-    for (const b of this.puffs) {
-      b.x += b.vx * dt; b.y += b.vy * dt; b.z += b.vz * dt; b.vx *= 0.985; b.vz *= 0.985; b.vy -= 0.05 * dt; b.size = Math.min(F.puffSize, b.size + 1.3 * dt);
-      b.x = Math.max(this.min.x + 0.2, Math.min(this.max.x - 0.2, b.x)); b.z = Math.max(this.min.z + 0.2, Math.min(this.max.z - 0.2, b.z)); b.y = Math.max(0.2, Math.min(LEVEL.ceiling - 0.2, b.y));
-    }
   }
 
   /** Per rendered frame. */
   frame(dt, cam) {
     const U = this.u;
     U.uPs1CloudAmt.value = this.thick; U.uPs1CloudR.value = this.radius; U.uPs1CloudTime.value = this.clock;
+    for (const b of this.puffs) { if (b.life <= 0) continue; b.s.position.set(b.x, b.y, b.z); b.s.scale.setScalar(b.size); b.s.material.opacity = F.puffAlpha * Math.min(1, b.life / 1.2); }
     if (this.phase === 'idle') return;
     const pos = this.motes.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) {
@@ -108,6 +118,5 @@ export class DustCloud {
     }
     pos.needsUpdate = true;
     this.motes.material.opacity = this.thick * F.moteAlpha;
-    for (const b of this.puffs) { b.s.position.set(b.x, b.y, b.z); b.s.scale.setScalar(b.size); b.s.material.opacity = this.thick * F.puffAlpha * (this.phase === 'grow' ? 1 : 0.55); }
   }
 }

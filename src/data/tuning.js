@@ -40,6 +40,12 @@ export const TUNING = {
   // silhouettes fade into the sky with no seam. indoor*: how much sun / sky reaches inside the indoor boxes, plus a
   // flat fill (nothing casts shadows, so without this a roofed room would be lit by the sun).
   lighting: {
+    blackout: { // the power's gone (stage 5)
+      fog: 0x030405, fogNear: 1.2, fogFar: 9, skyTop: 0x030405,
+      hemiSky: 0x24304a, hemiGround: 0x050505, hemi: 0.22,
+      sun: 0x5a70a0, sunIntensity: 0.05, sunDir: [0.3, 0.8, 0.4], ambient: 0x050507,
+      indoorSun: 1.0, indoorSky: 1.0, indoorFill: 0x000000,
+    },
     order: ['greybox', 'day', 'dusk', 'night'], // the dev key L cycles these
     // Phase 1: readable flat colours and distance fog (build prompt 0.2), not the final dim lighting (section 3).
     greybox: {
@@ -146,14 +152,14 @@ export const TUNING = {
   vac: {
     radius: 0.24, height: 0.45, // m: the body, for navigation and (later) catching the cat
     // Anger has four stages: 1 neutral (nothing broken yet), 2 annoyed (looks and sounds it, still harmless), 3 angry (hunts you), 4 furious. Arrays below are by stage.
-    speed: [0.7, 0.8, 1.4, 2.4], // m/s
+    speed: [0.7, 0.8, 1.4, 2.4, 2.7], // m/s
     turnRate: 2.4, // rad/s
     arrive: 0.14, // m from a waypoint at which he moves on
-    angerAt: [1, 5, 10], // knock-overs that raise him to stages 2, 3 and 4. The first break sets him off
+    angerAt: [1, 5, 9, 13], // knock-overs that raise him to stages 2, 3 and 4. The first break sets him off
     hearNear: 7, // m: annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
     hearSteps: 4, hearWalk: 1.8, // m: angry or worse, he hears a cat running or walking on the floor this close. Slinking is silent
     hearLand: [3.5, 8], quietLand: 0.25, // m he hears a landing from (soft, heavy), from the annoyed stage up; share of that if you land holding C
-    sightRange: [0, 0, 6.5, 9], // m he can see the cat. Neutral and annoyed he doesn't hunt
+    sightRange: [0, 0, 6.5, 9, 10], // m he can see the cat. Neutral and annoyed he doesn't hunt
     harmlessAt: 2, // at this stage and below, touching him does nothing
     hearSneeze: 9, // m he hears a sneeze from
     sightCos: 0.82, // cos of half his view: about 70° in all
@@ -164,11 +170,11 @@ export const TUNING = {
     cleanSight: 0.6, // busy with a mess, he only notices you closer: a clean is still your window
     hideLose: 0.8, // s to lose track of a slinking cat that's out of sight (otherwise loseTime)
     campTime: 6, ignoreTime: 5, // s staring at a cat above his reach before he gives up; s after that before he'll notice it again
-    noticeTime: [0.7, 0.7, 0.45, 0.25], // s of being seen before he reacts: a fair moment to duck
+    noticeTime: [0.7, 0.7, 0.45, 0.25, 0.2], // s of being seen before he reacts: a fair moment to duck
     loseTime: 2.5, // s out of sight before he gives up the chase and searches
     searchTime: 3.2, // s he looks around where he last saw you
-    searchTurn: 2.0, // rad/s while looking around
-    chaseSpeed: [1.3, 1.3, 2.3, 3.1], // m/s. The cat runs at 3.6, so it can always just outrun him
+    searchTurn: 2.0, searchArc: 1.1, // how fast he looks around; rad either side
+    chaseSpeed: [1.3, 1.3, 2.3, 3.1, 3.35], // m/s. The cat runs at 3.6, so it can always just outrun him
     replan: 0.15, // s between re-thinking the route while chasing
     catchReach: 0.14, // m past his body at which he catches the cat
     solidShare: 0.85, // how much of the cat's radius his body keeps out: it can brush him, not go through him
@@ -185,7 +191,7 @@ export const TUNING = {
         profile: [[0.0225, 0.151], [0.045, 0.194], [0.18, 0.204], [0.2025, 0.222], [0.225, 0.226], [0.236, 0.222], [0.281, 0.211], [0.326, 0.206], [0.36, 0.19]],
         lift: 0.006, arc: 3.6, y0: 0.02, y1: 0.36, pxPerM: 358, centerY: 0.15, // m off his surface; rad round him; the height range the canvas covers; canvas px per m; where the camera looks at him
       },
-      stretch: [1, 1, 1.08, 1.22], holeRs: [0.036, 0.036, 0.036, 0.036], tone: [1, 0.92, 0.72, 0.5], // by stage: how tall he stands; the intake's radius; how dark his body has gone
+      stretch: [1, 1, 1.08, 1.22, 1.3], holeRs: [0.036, 0.036, 0.036, 0.036, 0.036], tone: [1, 0.92, 0.72, 0.5, 0.34], // by stage: how tall he stands; the intake's radius; how dark his body has gone
       twitch: 0.09, listenTilt: 0.14, flickTime: 0.45, // rad of twitching at the end; rad he leans back when he stops to listen; s his face flickers when he changes
       catchDist: 0.42, // m in front of the hole where the camera ends up: close, but you see the whole of his face
       reelY: 0.2, reelZ: 0.275, // the cord reel on his back (m): height, how far behind him
@@ -197,26 +203,27 @@ export const TUNING = {
     enter: 1, exit: 1.3, maxY: 1.2, // m from the hole that starts it and ends it; m up, above which he goes back to the strike
     windup: 0.5, // s for the nozzle to get into position before it can catch you
     reach: 1.2, minR: 0.45, // m: the sweep passes at the cat's distance, within these
-    arc: 0.9, rate: [0, 0, 2.6, 3.6], speed: 5, // rad either side of where he faces; how fast it swings, by stage; m/s the nozzle can move
+    arc: 0.9, rate: [0, 0, 2.6, 3.6, 4], speed: 5, // rad either side of where he faces; how fast it swings, by stage; m/s the nozzle can move
     pullRadius: 0.8, pull: 0.8, // m from the nozzle that drags a cat on the ground in, and m/s at its strongest. A run beats it; a slink doesn't
   },
   // ---------------------------------------------------------------- how he thinks and what gives him away
   alert: { // he heard something: he stops dead, the motor drops, the nozzle lifts toward it
-    time: [1.0, 0.9, 0.65, 0.5], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
+    time: [1.0, 0.9, 0.65, 0.5, 0.4], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
     dip: 0.72, rateDip: 0.22, dipEase: 9, // how far the motor falls away (share of volume, share of pitch), 1/s
     sniffOut: 0.55, sniffUp: 0.5, sniffSpeed: 2.5, // m the nozzle lifts toward the sound
     stingEvery: 16, // s between heard-you stingers
   },
   roam: { // the patrol isn't a circuit: he picks where to go next, and changes his mind
     think: [5, 11], // s between second thoughts
-    pauseChance: 0.32, backChance: [0.2, 0.2, 0.3, 0.35], pause: [0.9, 2.4], // stops to look around; turns round and goes back, by stage; s
-    hunchChance: [0, 0, 0.16, 0.28], // by stage: the odd hunch that takes him to the room you're in
+    pauseChance: 0.32, backChance: [0.2, 0.2, 0.3, 0.35, 0.4], pause: [0.9, 2.4], // stops to look around; turns round and goes back, by stage; s
+    hunchChance: [0, 0, 0.16, 0.28, 0.4], // by stage: the odd hunch that takes him to the room you're in
     noiseBonus: 18, randomWeight: 16, distWeight: 0.7, // how he scores a place: age in seconds, plus somewhere noisy, a dice roll, minus m away
     noiseLasts: 40, // s a crash keeps pulling him toward its room
     lookSpeed: 1.3, // rad/s looking around
   },
+  surge: { time: 2.4, flickerUntil: 1.9, eyeLight: 0.7, eyeDist: 2.6, arcs: 5 }, // stage 5: s he stands there pulling the power out of the house; s the lights stutter; the little light the cat sees by; arcs around him
   stun: { time: 0.65, perKg: 0.3, max: 1.2, cooldown: 5 }, // something dropped on him: s he reels, plus this much per kg, at most; s before it can work again
-  hide: { range: 2.6, chance: [0, 0, 0.35, 0.55], time: 4 }, // the tub and behind the closed curtains: he goes looking when he reaches where he lost you. m he checks from; odds he finds you, by stage; s he then knows
+  hide: { range: 2.6, chance: [0, 0, 0.35, 0.55, 0.7], time: 4 }, // the tub and behind the closed curtains: he goes looking when he reaches where he lost you. m he checks from; odds he finds you, by stage; s he then knows
   sting: { // eye contact and being spotted
     eyeCos: 0.94, cooldown: 28, freeze: 0.32, // how squarely you must be looking at him; s between stingers; s he freezes, staring back
     shriekEvery: 16, shriekFace: 1.3, // s between shrieks; s his mouth stays open
@@ -227,19 +234,18 @@ export const TUNING = {
     range: 8, length: 9, speed: 0.72, replan: 0.5, maxTime: 16, // m it can reach and stretch to; m/s; s between re-routes; s before it gives up
     motor: 0.22, // how quiet the motor goes
     floorY: 0.6, // m: a cat below this has come down, and he goes after it instead
-    cooldown: [0, 0, 16, 10], // s before he tries again, by stage
+    cooldown: [0, 0, 16, 10, 8], // s before he tries again, by stage
   },
   fog: { // the dust cloud (src/vacuum/dust-cloud.js)
     minAnger: 4, cooldown: 40, minDist: 2.5, lostFor: 0.4, // furious only; s before he can do it again (from when the last cloud has gone); only if you're this far off, or he lost you this long ago
-    wind: 1.4, recover: 0.7, // s of telegraph (planted, nozzle up, screaming); s standing still after
+    wind: 1.5, coughs: [0.1, 0.65, 1.15], spray: 2.6, sprayEvery: 0.045, spraySpeed: 3.4, recover: 0.5, // s of telegraph (planted, coughing up dust at these moments); s spraying it out of the hose; s between puffs; m/s; s standing still after
     radius: 30, grow: 6, hold: 9, fade: 3.5, density: 1.15, // m it spreads from him (the whole house); s to fill; s at full; s to clear; how thick (per metre)
-    color: 0x8a7a60, moteColor: 0xbfae8a, moteSize: 0.018, motes: 140, moteBox: 3, moteAlpha: 0.75, puffs: 14, puffSize: 2.6, puffSpeed: 1.6, puffAlpha: 0.32,
-    // Fair play: he's blind in his own cloud, and slow, and the strike is much easier to dodge.
-    sight: 1.5, speedMul: 0.62, strikeRangeMul: 0.6, extraWindup: 0.45, strikeCdMul: 2,
+    color: 0x8a7a60, moteColor: 0xbfae8a, moteSize: 0.018, motes: 140, moteBox: 3, moteAlpha: 0.75, puffs: 46, puffSize: 2.2, puffLife: 3.2, puffAlpha: 0.36,
   },
   blast: { // the dust blast: he spits a glob of dirt at a cat he can see (src/vacuum/blast.js)
-    minAnger: 3, cooldown: [0, 0, 8, 5], // from the angry stage; s between blasts by stage
+    minAnger: 3, cooldown: [0, 0, 8, 5, 4], // from the angry stage; s between blasts by stage
     range: 7, minRange: 1.2, // m: how far it's aimed from
+    volley: [1, 1, 1, 3, 5], volleyGap: 0.17, volleySpread: 0.11, // shots at a time by stage; s between them; rad of scatter
     aim: 0.6, recover: 0.5, // s of telegraph (the wheeze, the nozzle lifting), s after firing
     speed: 9, gravity: 2.5, lead: 0.5, // m/s, m/s² of droop, how much of the cat's movement it aims ahead for
     hit: 0.32, life: 3, // m from the cat that counts as a hit; s before it falls apart
@@ -259,6 +265,7 @@ export const TUNING = {
     minLength: 1.6, // m: the hose is never shorter than this. When the tip is close, the excess hangs and bows aside like a chain
     slackPull: 0.02, damping: 0.92, sag: 6, aside: 14, chainPasses: 6, // the chain: how much a slack hose keeps to its route, how fast swinging dies down, m/s² of droop, of bowing sideways; how stiffly the links hold
     length: 3.8, segments: 22, radius: 0.028, tubeSegments: 56, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
+    camClear: 0.3, // m the hose and nozzle bend away from the camera, whatever they're doing
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
     restReach: 0.7, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up
     track: 34, trailStep: 0.06, // 1/s: how fast the body settles onto its trail; m between trail points
@@ -269,7 +276,7 @@ export const TUNING = {
     minPerch: 0.3, // m: a cat higher than this counts as perched: harder to spot, and he parks near it
     standoff: 1.1, // m: how close to a perched cat he tries to park
     minAnger: 3, // he only uses the hose once he's angry
-    cooldown: [0, 0, 5, 2.5], // s between attacks
+    cooldown: [0, 0, 5, 2.5, 2], // s between attacks
     windup: 1.0, // s of prep: the hose rises and hovers, sniffing, with the rattle playing
     rear: 0.45, rearMin: 0.8, // the cobra: m above the cat it rears up to, and never lower than this off the floor
     hover: 0.9, sway: 0.08, swayRate: 7, riseSpeed: 3, // m short of the cat that it waits; m it sways; rad/s; m/s rising
@@ -288,7 +295,7 @@ export const TUNING = {
     lookEase: 5, // 1/s how fast the view comes round to him. It looks at him the whole way: steady, however the route bends
     hoseGap: 0.6, // m the end of the hose stays ahead of you as it reels in: never around the camera
     turn: 0.16, // s to turn and face him at the end of it
-    hold: 1.2, // s held on his face
+    hold: 2.0, // s held on his face (the laugh or the scream)
     faceJitter: 0.0008, // m his face trembles
     beat: 0.8, // s of black silence before the restart screen
     screamRate: 2.3, screamGain: 1.4, screamRamp: 0.9, // the motor at the end: pitch, loudness, s to get there
@@ -297,7 +304,8 @@ export const TUNING = {
     closeness: 2.2, // m: at this distance the drone is at half volume. Smaller: it rises more steeply as he nears
     floor: 0.05, // the quietest it ever gets, anywhere in the house, so he can always be heard
     gain: 1, // overall level
-    rate: [0.9, 0.98, 1.12, 1.32], // pitch by anger stage
+    stageLevel: [0.28, 0.4, 0.72, 1, 1.15], hunting: 1.5, // how loud he is by stage (quiet to begin with), and how much louder when he's after you
+    rate: [0.9, 0.98, 1.12, 1.32, 1.42], // pitch by anger stage
     nearRate: 0.08, // extra pitch right next to you
     update: 0.08, // s between adjustments
     windDown: 1.2, // s for the motor to die when Grandma wakes
@@ -352,6 +360,7 @@ export const TUNING = {
     lookSettle: 10, // 1/s: how fast the view eases inside those limits when you catch the edge
     settle: 30, // 1/s: how fast the body settles into the hanging pose
     mantleTime: 0.4, // s: the pull-up
+    cornerTime: 0.4, cornerSettle: 7, cornerPaw: 13, // going round a corner: s it eases over; 1/s the body and paws follow at
     shimmySpeed: 0.5, // m/s along a ledge with A / D or the arrow keys
     shimmyEnd: 0.06, // m from the end of an edge where the cat goes round the corner (or stops, if it can't)
     inward: [0.16, 0.12, 0.08, 0.04], // m past the lip to end up, tried in order (narrow perches take the shorter ones)
@@ -378,7 +387,7 @@ export const TUNING = {
     kickCost: 0.1, // per kick-off
     springCost: 0.1, // extra for a fully charged spring
     regen: 1.6, // per second while standing on any flat surface
-    barWidth: 100, barBottom: 12, // HUD px
+    barBottom: 12, pawCount: 5, // HUD px; paw prints in the row
     barHold: 0.5, // s the bar stays after refilling
   },
   // ---------------------------------------------------------------- the swipe and knockable physics (src/world/knockables.js)
@@ -408,7 +417,9 @@ export const TUNING = {
     chunkSize: [0.05, 0.09], decalSize: 0.34, // m: the big pieces that a "break" leaves; a stain
     chatter: 3, roll: 1.3, // s dentures chatter across the floor; s a lid or head keeps rolling
     paperPieces: 5, woolPieces: 4, buttons: 20, feathers: 8, puffLife: 0.7, // how far the trails run (0.6 m a piece) and how much spills
-    paperLen: 2.4, paperSpeed: 2.0, paperStep: 0.07, paperPoints: 48, paperWidth: 0.095, rollR: 0.056, rollThin: 0.034, // the toilet roll: m of paper; m/s; m between points on the strip; points; m wide; radius full and bare
+    rollers: { toilet_roll: { len: 7, step: 0.07, width: 0.095, r0: 0.056, r1: 0.034, uniform: false }, yarn_ball: { len: 9, step: 0.05, width: 0.012, r0: 0.049, r1: 0.022, uniform: true } }, // things that unwind as they roll: m it holds; m between points; m wide; radius full and spent; shrinks every way
+    rollFriction: 1.15, rollStart: 2.4, rollStop: 0.12, // m/s²; how fast it sets off; m/s at which it stops. Hit it again and it goes again
+    handsetLeash: 0.34, // m: the phone's handset stays on its cord // the toilet roll: m of paper; m/s; m between points on the strip; points; m wide; radius full and bare
     vacBounce: 1.6, vacThrow: 1.0, // m/s an object comes off him at, up and outward
     bounceMul: 1.6, rollSpeed: 1.5, // how much livelier a bouncy thing is; m/s a ball carries on at
   },
@@ -421,11 +432,15 @@ export const TUNING = {
     decalY: 0.004, decalStep: 0.0004, // m off the floor; extra lift per decal so overlaps never z-fight
   },
   paws: {
-    plantScale: 0.6, glow: 0x2a241e, legLen: 0.15, // a little light of their own, so an underside isn't black; m: the forearm's length in the model
+    plantScale: 0.72, pawScale: 0.92, glow: 0x2a241e, legLen: 0.15, // planted paws: the forearm's scale, the pad's size on top of that, its length in the model
+    shoulder: [0.055, -0.1, 0.07], // in camera space: where the forearms go to, just behind the eye. They run back to the body however you look
+    modes: { off: null, peek: [-0.052, -0.034], low: [-0.03, -0.014], full: [0, 0] }, order: ['peek', 'low', 'full', 'off'], // experiment (P cycles): where the walking paws sit, m below their pose [standing, moving]
+    linger: 0.16, offDrop: 0.14, // s a swiping paw lingers as it drops away; m it drops
+     // a little light of their own, so an underside isn't black; m: the forearm's length in the model
     hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end
     keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)
     climbSpread: 0.06, climbUp: 0.03, climbReach: 0.03, climbStride: 0.2, climbLeg: -0.55, climbIn: 0.008, // on a climbable face: m apart from centre, m above the eye, m each paw reaches up and down, m climbed per pair of steps, rad the forearm comes back from the wall, m off the wall
-    hangSpread: 0.055, hangIn: 0.03, hangLift: 0.014, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
+    hangSpread: 0.055, hangIn: 0.05, hangLift: 0.03, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
     tremble: 0.0035, trembleRate: 46, trembleAt: 0.4, // m, rad/s: the hanging paws shake as stamina gets low, starting at this share of the bar
     shimmyStep: 0.03, shimmyLift: 0.012, shimmyStride: 0.22, // moving along a ledge: m each paw leads and trails, m it lifts, m travelled per pair of steps
     climbSideReach: 0.025, climbSideEase: 12, // climbing sideways: m each paw leads and trails, 1/s easing in and out
@@ -446,6 +461,7 @@ export const TUNING = {
   },
 
   hud: {
+    portraitRange: 1.5, portraitCos: 0.9, // m and how squarely you must look at a portrait to read its plate
     wakeIcon: false, // the small sleeping-face icon. Off for now
     lines: 240, // the HUD's own pixel grid (lines), whatever the render resolution: the pixel font stays one size
   },

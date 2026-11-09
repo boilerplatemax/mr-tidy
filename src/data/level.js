@@ -12,17 +12,22 @@ const IN = T / 2; // wall face offset from the wall's centre line
 /** A solid box. o: land (top is a walkable perch: tan), stripes (faces you can claw: 'n' 's' 'e' 'w'), collide, room. */
 const box = (id, room, x0, x1, z0, z1, y0, y1, o = {}) => ({ id, room, min: [x0, y0, z0], max: [x1, y1, z1], land: true, collide: true, ...o });
 
-/** Floor-length curtains on the wall with a pelmet you can walk along. side: the face that looks into the room. Open: drawn by the model. */
-function openCurtain(id, room, x0, x1, z0, z1, side) {
-  const inX = side === 'e' || side === 'w', c = 0.05, d = 0.15; // the fabric, m out from the wall
-  const cur = inX ? [side === 'e' ? x0 + c : x1 - d, side === 'e' ? x0 + d : x1 - c, z0, z1] : [x0, x1, side === 's' ? z0 + c : z1 - d, side === 's' ? z0 + d : z1 - c];
-  return [box(id + 'P', room, x0, x1, z0, z1, 2.0, 2.2, { noVisual: true }), box(id, room, cur[0], cur[1], cur[2], cur[3], 0, 2.0, { land: false, stripes: [side], climbTo: id + 'P', noVisual: true })];
-}
-/** Closed curtains hanging well out from the wall: climb them, or slip behind them. */
-function closedCurtain(id, room, x0, x1, z0, z1, side) {
-  const inX = side === 'e' || side === 'w', t = 0.06;
-  const cur = inX ? [side === 'e' ? x1 - t : x0, side === 'e' ? x1 : x0 + t, z0, z1] : [x0, x1, side === 's' ? z1 - t : z0, side === 's' ? z1 : z0 + t];
-  return [box(id + 'P', room, x0, x1, z0, z1, 2.0, 2.06, { tex: 'wood_walnut' }), box(id, room, cur[0], cur[1], cur[2], cur[3], 0, 2.0, { land: false, stripes: [side], climbTo: id + 'P', tex: 'fabric_velvet_curtain', occludes: true })];
+/**
+ * A window's curtains: two panels flat against the wall with a slight gap between them, on a slim rail. Nothing can get behind.
+ * along: the axis the wall runs on ('x' | 'z'), from a0 to a1; w: where the wall's face is; n: which way it faces (+1 / -1).
+ */
+function wallCurtain(id, room, along, a0, a1, w, n, top = 2.15) {
+  const mk = (sid, lo, hi, d0, d1, y0, y1, o) => {
+    const p = w + n * d0, q = w + n * d1, c0 = Math.min(p, q), c1 = Math.max(p, q);
+    return along === 'x' ? box(sid, room, lo, hi, c0, c1, y0, y1, o) : box(sid, room, c0, c1, lo, hi, y0, y1, o);
+  };
+  const mid = (a0 + a1) / 2, gap = 0.035, d = 0.09;
+  return [
+    mk(id + 'P', a0, a1, 0, 0.11, top, top + 0.05, { tex: 'wood_walnut', land: false, collide: false }),
+    mk(id, a0, a1, 0, d, 0, top, { land: false, noVisual: true, occludes: true }),
+    mk(id + 'L', a0, mid - gap, 0, d, 0, top, { land: false, collide: false, tex: 'fabric_velvet_curtain' }),
+    mk(id + 'R', mid + gap, a1, 0, d, 0, top, { land: false, collide: false, tex: 'fabric_velvet_curtain' }),
+  ];
 }
 
 export const LEVEL = {
@@ -50,7 +55,7 @@ export const LEVEL = {
       { from: 11.6, to: 12.5, top: 2.05 }, // to the sewing room
       { from: 15.9, to: 16.8, top: 2.05 }, // to the study
     ] },
-    { axis: 'x', at: -6.6, from: -IN, to: 6 + IN }, // dining room, north
+    { axis: 'x', at: -6.6, from: -IN, to: 6 + IN, openings: [{ from: 5.0, to: 5.6, bottom: 0.9, top: 1.95 }] }, // dining room, north (a window)
     { axis: 'z', at: 0, from: -6.6 + IN, to: -1.4 - IN }, // dining room, west
     { axis: 'z', at: 6, from: -6.6 + IN, to: -1.4 - IN, openings: [{ from: -3.1, to: -2.2, top: 2.05 }] }, // dining room | bathroom
     { axis: 'x', at: -5, from: 6 + IN, to: 9.6 + IN }, // bathroom, north
@@ -59,7 +64,7 @@ export const LEVEL = {
     { axis: 'z', at: 18, from: -4 + IN, to: -1.4 - IN }, // study, east
     { axis: 'x', at: 1.6, from: 10.8 - IN, to: 12 + IN }, // pantry, north
     { axis: 'x', at: 3.8, from: 10.8 - IN, to: 12 - IN }, // pantry, south
-    { axis: 'x', at: -6, from: 9.6 - IN, to: 14.4 + IN }, // sewing room, north
+    { axis: 'x', at: -6, from: 9.6 - IN, to: 14.4 + IN, openings: [{ from: 13.4, to: 14.0, bottom: 0.9, top: 1.95 }] }, // sewing room, north (a window)
     { axis: 'z', at: 14.4, from: -6 + IN, to: -1.4 - IN }, // sewing room, east
     { axis: 'x', at: 0, from: -IN, to: 18 + IN, openings: [ // hallway, south
       { from: 1.8, to: 4.3, top: 2.05 }, // a wide arch to the living room
@@ -68,7 +73,7 @@ export const LEVEL = {
     ] },
     { axis: 'x', at: 5.4, from: -IN, to: 10.8 + IN }, // living room + kitchen, south
     { axis: 'x', at: 3.8, from: 12 - IN, to: 15.4 + IN }, // storage, south
-    { axis: 'z', at: 0, from: -1.4 + IN, to: 5.4 - IN }, // west end
+    { axis: 'z', at: 0, from: -1.4 + IN, to: 5.4 - IN, openings: [{ from: 2.7, to: 3.3, bottom: 1.05, top: 2.05 }] }, // west end (a window over the couch)
     // DESIGN NOTE: a wall to the ceiling would cut the high route, so this doorway has no lintel: the wall above it is
     // open like a transom left ajar. The door header (solid 'header') bridges it at 2.12 m and the cat walks through.
     { axis: 'z', at: 6, from: IN, to: 5.4 - IN, openings: [{ from: 3.9, to: 4.8, top: 2.05, noLintel: true }] }, // living | kitchen
@@ -105,10 +110,9 @@ export const LEVEL = {
     box('bracketA', 'living', 3.85, 4.25, 4.95, 5.4 - IN, 1.62, 1.70, { tex: 'wood_walnut' }), // !A! within hose reach
     box('rodE', 'living', 4.6, 5.2, 5.03, 5.4 - IN, 1.99, 2.05),
     // Curtains under the rod: climb the fabric, pull up onto the rod. Everything climbable is the same teal stripes.
-    box('curtainW', 'living', 2.6, 3.5, 5.03, 5.19, 0, 1.99, { land: false, stripes: ['n'], climbTo: 'rodW' }),
-    box('curtainE', 'living', 4.6, 5.2, 5.03, 5.19, 0, 1.99, { land: false, stripes: ['n'], climbTo: 'rodE' }),
+    ...wallCurtain('lwin', 'living', 'z', 2.35, 3.65, IN, 1, 2.3),
+    box('lampPost', 'living', IN, 0.45, 4.45, 4.65, 0, 1.5, { noVisual: true, land: false, occludes: false }),
     box('tvUnit', 'living', 5.465, 6 - IN, 1.82, 2.78, 0, 0.8, { noVisual: true }),
-    ...closedCurtain('lwc', 'living', 4.6, 5.5, IN, 0.46, 's'), // closed, with room to hide behind
     // A scratching panel beside the rod: a second, climbed way onto the route (and a kick-off wall).
     box('scratchPanel', 'living', 5.3, 5.8, 5.0, 5.4 - IN, 0, 1.95, { stripes: ['n'], tex: 'fabric_carpet' }),
     box('header', 'living', 5.85, 6.15, 3.9, 4.8, 2.05, 2.12, { tex: 'wood_walnut' }), // the top of the door frame, through the wall
@@ -145,9 +149,8 @@ export const LEVEL = {
     box('dChairS', 'dining', 2.79, 3.21, -3.46, -3.04, 0.42, 0.46, { noVisual: true }),
     box('dChairW', 'dining', 1.69, 2.11, -4.21, -3.79, 0.42, 0.46, { noVisual: true }),
     box('dChairE', 'dining', 3.89, 4.31, -4.21, -3.79, 0.42, 0.46, { noVisual: true }),
+    ...wallCurtain('dc', 'dining', 'x', 4.7, 5.9, -6.6 + IN, 1),
     box('dSide', 'dining', 0.72, 1.68, -6.6 + IN, -6.065, 0, 0.8, { tex: 'wood_walnut' }), // the sideboard
-    ...openCurtain('dc', 'dining', 4.7, 5.9, -6.6 + IN, -6.6 + IN + 0.2, 's'),
-    ...closedCurtain('dwc', 'dining', IN, 0.46, -3.2, -2.3, 'e'),
     box('dShelf1', 'dining', 2.2, 3.0, -6.6 + IN, -6.325, 1.21, 1.25, { noVisual: true }),
     box('dShelf2', 'dining', 3.4, 4.6, -6.6 + IN, -6.305, 1.66, 1.7, { noVisual: true }),
     box('dBooks', 'dining', IN, 0.405, -5.67, -4.73, 0, 1.95, { noVisual: true }),
@@ -164,20 +167,27 @@ export const LEVEL = {
     box('bRadiator', 'bath', 6.33, 7.17, -1.4 - IN - 0.15, -1.4 - IN, 0, 0.68, { noVisual: true }),
 
     // ------------------------------------------------------------ sewing room: the spare bed, the wardrobe, up the shelves
-    box('sBed', 'sewing', 9.9, 10.99, -6 + IN, -3.77, 0, 0.55, { noVisual: true }),
+    box('sBed', 'sewing', 9.9, 10.99, -6 + IN, -3.77, 0.34, 0.8, { noVisual: true }), // (up on tall legs: a cat fits underneath)
     box('sWardrobe', 'sewing', 11.5, 12.58, -6 + IN, -5.28, 0, 2.07, { noVisual: true }),
     box('sDesk', 'sewing', 13.525, 14.4 - IN, -4.4, -3.2, 0, 0.75, { noVisual: true }),
     box('sChair', 'sewing', 12.79, 13.21, -4.01, -3.59, 0, 0.46, { noVisual: true }),
+    ...wallCurtain('sc', 'sewing', 'x', 13.1, 14.3, -6 + IN, 1),
     box('sShelf1', 'sewing', 14.125, 14.4 - IN, -5.0, -4.5, 1.21, 1.25, { noVisual: true }),
     box('sShelf2', 'sewing', 14.125, 14.4 - IN, -5.55, -5.05, 1.71, 1.75, { noVisual: true }),
-    ...openCurtain('sc', 'sewing', 13.1, 14.3, -6 + IN, -6 + IN + 0.2, 's'),
-    ...closedCurtain('ssc', 'sewing', 10.0, 10.95, -1.86, -1.4 - IN, 'n'),
 
     // ------------------------------------------------------------ hall end and the study
-    ...openCurtain('hc', 'hall', IN, IN + 0.2, -1.1, -0.3, 'e'),
-    box('tStack', 'study', 14.93, 15.87, -4 + IN, -3.6, 0, 1.95, { noVisual: true }),
-    box('tChair', 'study', 16.8, 17.64, -4 + IN, -3.125, 0, 0.64, { noVisual: true }),
-    ...closedCurtain('tc', 'study', 17.54, 18 - IN, -2.9, -2.0, 'w'),
+    // the study: bookcases on the back wall, a desk under the wall lamp, an armchair in the corner by the door
+    box('tBookA', 'study', 14.6, 15.54, -4 + IN, -3.6, 0, 1.95, { noVisual: true }),
+    box('tBookB', 'study', 15.6, 16.54, -4 + IN, -3.6, 0, 1.95, { noVisual: true }),
+    box('tDesk', 'study', 17.125, 18 - IN, -3.4, -2.2, 0, 0.75, { noVisual: true }),
+    box('tStool', 'study', 16.65, 17.07, -3.0, -2.58, 0, 0.46, { noVisual: true }),
+    box('tArmBack', 'study', 14.6, 14.76, -2.42, -1.58, 0, 1.1, { noVisual: true }),
+    box('tArmN', 'study', 14.76, 15.4, -2.42, -2.3, 0, 0.64, { noVisual: true }),
+    box('tArmS', 'study', 14.76, 15.4, -1.7, -1.58, 0, 0.64, { noVisual: true }),
+    box('tSeat', 'study', 14.76, 15.4, -2.3, -1.7, 0, 0.48, { noVisual: true }),
+    // storage clutter you can't walk through
+    box('sBox', 'storage', 14.05, 14.55, 0.5, 0.9, 0, 0.38, { noVisual: true }),
+    box('sBag', 'storage', 12.11, 12.59, 0.26, 0.64, 0, 0.58, { noVisual: true }),
   ],
 
   // The real models. fit: stretched to fill those solids (see src/world/dress.js); the solids are drawn by these instead of as boxes.
@@ -187,7 +197,6 @@ export const LEVEL = {
     { model: 'cattree_platform_60', fit: ['tree1'] }, { model: 'cattree_platform_60', fit: ['tree2'] }, { model: 'cattree_platform_60', fit: ['tree3'] }, { model: 'cattree_perch_tray', fit: ['tree4'], rot: 180 },
     { model: 'cattree_post_80', fit: ['tree1post'] }, { model: 'cattree_post_80', fit: ['tree2post'] }, { model: 'cattree_post_80', fit: ['tree3post'] }, { model: 'cattree_post_80', fit: ['tree4post'] },
     { model: 'psx_nightstand_oak', fit: ['book1'], rot: 180 }, { model: 'bookcase', fit: ['book2'], rot: 180 }, { model: 'bookcase', fit: ['book3'], rot: 180 }, { model: 'bookcase', fit: ['book4'], rot: 180 },
-    { model: 'curtains_pelmet', fit: ['curtainW', 'rodW'], rot: 180 }, { model: 'curtains_pelmet', fit: ['curtainE', 'rodE'], rot: 180 },
     { model: 'tv_console', fit: ['tvUnit'], rot: -90, h: 0.8, tv: true },
     { model: 'psx_rug_braided', at: [3.0, 0.002, 1.6] }, { model: 'psx_floor_lamp', at: [0.35, 0, 4.55] }, { model: 'ceiling_light', at: [3, 0.6, 2.7] },
     // kitchen
@@ -197,42 +206,49 @@ export const LEVEL = {
     { model: 'ceiling_light', at: [8.4, 0.6, 2.7] },
     // hallway
     { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'grandma_door', at: [18 - IN, 0, -0.7], rot: -90 },
-    { model: 'curtains_pelmet', fit: ['hc', 'hcP'], rot: 90 },
     { model: 'ceiling_light', at: [5, 0.6, -0.7] }, { model: 'ceiling_light', at: [13, 0.6, -0.7] },
     // storage
     { model: 'psx_wardrobe_oak', fit: ['w2'], rot: 90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['e2'], rot: -90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['s2'], rot: 180, h: 2.07 },
-    { model: 'psx_box_open', at: [14.3, 0, 0.7] }, { model: 'psx_trash_bag', at: [12.5, 0, 3.4] },
+    { model: 'psx_box_open', at: [14.3, 0, 0.7] }, { model: 'psx_trash_bag', at: [12.35, 0, 0.45] },
     // dining room
     { model: 'dining_table', at: [3, 0, -4] },
     { model: 'dining_chair', at: [3, 0, -4.75] }, { model: 'dining_chair', at: [3, 0, -3.25], rot: 180 }, { model: 'dining_chair', at: [1.9, 0, -4], rot: 90 }, { model: 'dining_chair', at: [4.1, 0, -4], rot: -90 },
-    { model: 'bookcase', at: [IN, 0, -5.2], rot: 90 }, { model: 'curtains_pelmet', fit: ['dc', 'dcP'] },
+    { model: 'bookcase', at: [IN, 0, -5.2], rot: 90 },
     { model: 'shelf_floating_80', at: [2.6, 1.25, -6.6 + IN] }, { model: 'shelf_floating_120', at: [4.0, 1.7, -6.6 + IN] },
     { model: 'psx_rug_braided', at: [3.0, 0.002, -4], rot: 90 }, { model: 'psx_picture_landscape', at: [1.2, 0.2, -6.6 + IN] }, { model: 'psx_wall_clock', at: [5.925, 0.1, -4.5], rot: -90 }, { model: 'ceiling_light', at: [3, 0.6, -4] },
     // bathroom
     { model: 'psx_sink_unit_white', at: [9.019, 0, -5 + IN + 0.31], squash: [0.96, 0.35] }, { model: 'medicine_cabinet', at: [9.02, 1.7, -5 + IN] },
     { model: 'shelf_floating_60_white', at: [7.1, 1.34, -5 + IN] }, { model: 'radiator', at: [6.75, 0, -1.4 - IN], rot: 180 }, { model: 'ceiling_light', at: [7.8, 0.6, -3.2] },
     // sewing room
-    { model: 'psx_bed_single_oak', at: [10.445, 0, -4.85] }, { model: 'psx_wardrobe_oak', at: [12.04, 0, -5.62] },
+    { model: 'psx_bed_single_oak', at: [10.445, 0, -4.85], legs: [0.22, 0.12] }, { model: 'psx_wardrobe_oak', at: [12.04, 0, -5.62] },
     { model: 'psx_table_pine', at: [13.95, 0, -3.8], rot: 90 }, { model: 'psx_chair_ladder_pine', at: [13.0, 0, -3.8], rot: 90 },
     { model: 'shelf_floating_60', at: [14.4 - IN, 1.25, -4.75], rot: -90 }, { model: 'shelf_floating_60', at: [14.4 - IN, 1.75, -5.3], rot: -90 },
-    { model: 'curtains_pelmet', fit: ['sc', 'scP'] }, { model: 'ceiling_light', at: [12, 0.6, -3.7] },
+    { model: 'ceiling_light', at: [12, 0.6, -3.7] },
     // study
-    { model: 'bookcase', at: [15.4, 0, -4 + IN] }, { model: 'armchair', at: [17.22, 0, -3.525], rot: 180 }, { model: 'ceiling_light', at: [16.2, 0.6, -2.7] },
+    { model: 'bookcase', fit: ['tBookA'] }, { model: 'bookcase', fit: ['tBookB'] }, { model: 'armchair', at: [15.0, 0, -2.0], rot: 90 },
+    { model: 'psx_table_pine', fit: ['tDesk'], rot: 90 }, { model: 'psx_chair_ladder_pine', fit: ['tStool'], rot: 90, h: 0.46 }, { model: 'psx_rug_braided', at: [16.2, 0.002, -2.75] }, { model: 'ceiling_light', at: [16.2, 0.6, -2.7] },
   ],
 
   tub: { x0: 6.2, x1: 8.0, z0: -5 + IN, z1: -4.1, top: 0.55 }, // the enamel tub drawn over its rims (src/world/house.js)
 
-  // Painted windows on the wall behind the curtains: moonlit, for show. n: the way it faces. { x, z, w }
+  // The windows: real holes in outside walls, each behind closed curtains. { axis, at, from, to, bottom, top, n: [x, z] facing into the room }
   windows: [
-    { x: 3.05, z: 5.4 - IN, n: [0, -1], w: 0.8 }, { x: 4.9, z: 5.4 - IN, n: [0, -1], w: 0.55 }, { x: 5.05, z: IN, n: [0, 1], w: 0.8 },
-    { x: 5.3, z: -6.6 + IN, n: [0, 1], w: 0.9 }, { x: IN, z: -2.75, n: [1, 0], w: 0.75 }, { x: 13.7, z: -6 + IN, n: [0, 1], w: 0.9 },
-    { x: 10.47, z: -1.4 - IN, n: [0, -1], w: 0.8 }, { x: IN, z: -0.7, n: [1, 0], w: 0.6 }, { x: 18 - IN, z: -2.45, n: [-1, 0], w: 0.75 },
+    { axis: 'z', at: 0, from: 2.7, to: 3.3, bottom: 1.05, top: 2.05, n: [1, 0] },
+    { axis: 'x', at: -6.6, from: 5.0, to: 5.6, bottom: 0.9, top: 1.95, n: [0, 1] },
+    { axis: 'x', at: -6, from: 13.4, to: 14.0, bottom: 0.9, top: 1.95, n: [0, 1] },
   ],
 
   // Places to hide: he can't see a cat low down in here, unless he goes looking and gets lucky. min/max: [x, z].
-  hides: [
-    { id: 'tub', min: [6.3, -4.825], max: [7.9, -4.2] }, { id: 'lwc', min: [4.6, IN], max: [5.5, 0.4] }, { id: 'dwc', min: [IN, -3.2], max: [0.4, -2.3] },
-    { id: 'ssc', min: [10.0, -1.8], max: [10.95, -1.4 - IN] }, { id: 'tc', min: [17.6, -2.9], max: [18 - IN, -2.0] },
+  hides: [{ id: 'tub', min: [6.3, -4.825], max: [7.9, -4.2] }],
+
+  // When the power goes (stage 5): what still gives any light. needs: goes out if that object has been knocked over.
+  darkLights: [
+    { x: 5.3, y: 0.55, z: 2.3, color: 0x8fb0ff, power: 3.2, dist: 5, flicker: 0.5 }, // the television
+    { x: 2.9, y: 1.05, z: -3.95, color: 0xffa050, power: 3.4, dist: 5.5, flicker: 0.28, needs: 'candle1', flame: [2.6, 1.07, -3.9] }, // a candle on the dining table
+    { x: 17.4, y: 0.25, z: -0.7, color: 0xffc27a, power: 2.6, dist: 5, flicker: 0.06 }, // the light under Grandma's door
+    { x: 9.45, y: 0.32, z: -2.0, color: 0x90e0a0, power: 1.0, dist: 3, flicker: 0 }, // a night-light in the bathroom
+    { x: 9.7, y: 0.5, z: 4.5, color: 0xcfe4ff, power: 1.6, dist: 3.5, flicker: 0.15 }, // the fridge, ajar
+    { x: 13.9, y: 1.2, z: -5.5, color: 0x6a86c8, power: 1.1, dist: 3.5, flicker: 0 }, // moonlight, sewing room
   ],
 
   // The cats who came before, down the hallway in order, the empty frame nearest Grandma's door. x along the hall's south wall.
@@ -314,7 +330,7 @@ export const LEVEL = {
     { id: 'phone', type: 'rotary_phone', on: 'sideTable', x: 10.4, z: -1.1 },
     { id: 'glasses', type: 'glasses', on: 'sideTable', x: 10.12, z: -1.05 },
     { id: 'standJar', type: 'vase', on: 'plantStand', x: 15.0, z: -1.1 },
-    { id: 'floorVaseH', type: 'umbrella', on: 'floor', topple: true, x: 17.3, z: -1.15 },
+    { id: 'floorVaseH', type: 'vase', on: 'floor', topple: true, x: 17.3, z: -1.15 },
     // storage: crockery put away, and the odd thing nobody could throw out
     { id: 'w1Mug', type: 'mug', on: 'w1', x: 12.3, z: 1.6 },
     { id: 's1Pot', type: 'teapot', on: 's1', x: 13.4, z: 3.5 },
@@ -335,14 +351,15 @@ export const LEVEL = {
     { id: 'perfume', type: 'perfume', on: 'bShelf', x: 7.0, z: -4.82 },
     { id: 'talc', type: 'talc_tin', on: 'bShelf', x: 7.25, z: -4.82 },
     { id: 'duck', type: 'rubber_duck', on: 'tubS', x: 6.9, z: -4.15 },
-    { id: 'roll', type: 'toilet_roll', on: 'tubE', x: 7.95, z: -4.5 },
+    { id: 'roll', type: 'toilet_roll', on: 'bRadiator', x: 6.75, z: -1.55 },
     // sewing room
     { id: 'buttons', type: 'button_jar', on: 'sDesk', x: 13.9, z: -3.5 },
     { id: 'buttons2', type: 'button_jar', on: 'sShelf1', x: 14.23, z: -4.75 },
     { id: 'cup4', type: 'teacup', on: 'sDesk', x: 13.9, z: -4.1 },
     // study
-    { id: 'studyFig', type: 'cat_figurine', on: 'tStack', x: 15.4, z: -3.75 },
-    { id: 'studyCup', type: 'teacup', on: 'tChair', x: 17.2, z: -3.5 },
+    { id: 'studyFig', type: 'cat_figurine', on: 'tBookA', x: 15.07, z: -3.75 },
+    { id: 'studyLamp', type: 'table_lamp', on: 'tDesk', x: 17.55, z: -3.05 },
+    { id: 'studyCup', type: 'teacup', on: 'tDesk', x: 17.5, z: -2.45 },
   ],
 
   // Links that need a ledge grab (a clean jump can't reach). from: a solid id, or 'floor' with a start point.
@@ -368,6 +385,6 @@ export const LEVEL = {
     // the dining room
     ['dChairN', 'dTable'], ['dChairS', 'dTable'], ['dSide', 'dShelf1'], ['dShelf1', 'dShelf2'],
     // the bathroom and the sewing room
-    ['sChair', 'sDesk'], ['sDesk', 'sShelf1'], ['sShelf1', 'sShelf2'], ['sShelf2', 'scP'], ['sWardrobe', 'scP'], ['dShelf2', 'dcP'],
+    ['sChair', 'sDesk'], ['sDesk', 'sShelf1'], ['sShelf1', 'sShelf2'],
   ],
 };

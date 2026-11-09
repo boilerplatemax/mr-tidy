@@ -275,8 +275,13 @@ export class Hose {
   }
 
   /** Per rendered frame: the smooth tube through the points. */
-  frame(alpha) {
-    for (let i = 0; i <= this.n; i++) this.draw[i].lerpVectors(this.prev[i], this.pts[i], alpha);
+  frame(alpha, cam) {
+    for (let i = 0; i <= this.n; i++) {
+      const p = this.draw[i].lerpVectors(this.prev[i], this.pts[i], alpha);
+      if (!cam) continue; // nothing comes inside a small bubble round the eye: it bends past instead of passing through the view
+      const d = p.distanceTo(cam);
+      if (d < H.camClear && d > 1e-5 && i > 0) p.sub(cam).multiplyScalar(H.camClear / d).add(cam);
+    }
     this.curve.updateArcLengths(); // (three.js caches the curve's length: it has to be told the points moved)
     this.mesh.geometry.dispose();
     this.mesh.geometry = new THREE.TubeGeometry(this.curve, H.tubeSegments, H.radius, H.tubeSides, false);

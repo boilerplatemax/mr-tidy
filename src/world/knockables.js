@@ -67,6 +67,7 @@ export class Knockables {
   _clone(name) {
     if (name === 'picture_frame') return this._frame();
     if (SPLIT[name]) return this._shaker(name);
+    if (name === 'button_jar') return this._jarFill();
     const n = this.lib?.getObjectByName(name);
     if (!n) { console.warn(`knockables: no node ${name}`); return new THREE.Group(); }
     const c = n.clone(true); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1);
@@ -89,11 +90,25 @@ export class Knockables {
     return new THREE.Mesh(this.shakerGeo[name], src.material);
   }
 
+  /** What's in the button jar: buttons, lying every which way, and a lid. */
+  _jarFill() {
+    const g = new THREE.Group(), src = this.lib.getObjectByName('fx_button');
+    for (let i = 0; i < 34; i++) {
+      const b = src.clone(true), a = Math.random() * 6.28, y = 0.008 + Math.pow(Math.random(), 1.2) * 0.078, R = Math.random() * (0.03 - y * 0.03);
+      b.position.set(Math.cos(a) * R, y, Math.sin(a) * R); b.rotation.set(Math.random() * 1.2 - 0.6, Math.random() * 6.28, Math.random() * 1.2 - 0.6); b.scale.setScalar(1.15);
+      const tint = pick(PALETTES.buttons); b.traverse((q) => { if (q.isMesh) q.material = this.debris.tinted(q.material, tint); });
+      g.add(b);
+    }
+    if (!this.lidMat) { this.lidMat = makePS1(new THREE.MeshLambertMaterial({ color: 0xc9a44a })); this.lidGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.018, 12); }
+    const lid = new THREE.Mesh(this.lidGeo, this.lidMat); lid.position.y = 0.128; g.add(lid);
+    return g;
+  }
+
   /** A little gold photo frame on a stand, made here (the pack's one came out garbled). */
   _frame() {
     if (!this.frameParts) {
       const c = document.createElement('canvas'); c.width = 16; c.height = 24; const g = c.getContext('2d');
-      g.fillStyle = '#7f94a8'; g.fillRect(0, 0, 16, 24); g.fillStyle = '#5c7a52'; g.fillRect(0, 14, 16, 10); g.fillStyle = '#d2a860'; g.fillRect(6, 9, 5, 7); g.fillStyle = '#3a2a1e'; g.fillRect(6, 7, 5, 3);
+      g.fillStyle = '#8f9ba8'; g.fillRect(0, 0, 16, 24); g.fillStyle = '#5c7a52'; g.fillRect(0, 15, 16, 9); g.fillStyle = '#6a4a30'; g.fillRect(3, 13, 3, 4); g.fillStyle = '#3f6b3a'; g.fillRect(1, 8, 7, 6);
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t);
       this.frameParts = { gold: makePS1(new THREE.MeshLambertMaterial({ color: 0xc9a44a })), pic: makePS1(new THREE.MeshLambertMaterial({ map: t })), body: new THREE.BoxGeometry(0.12, 0.16, 0.012), face: new THREE.PlaneGeometry(0.096, 0.136), strut: new THREE.BoxGeometry(0.03, 0.15, 0.006) };
     }
@@ -102,7 +117,7 @@ export class Knockables {
     const body = new THREE.Mesh(P.body, P.gold); body.position.y = 0.08;
     const pic = new THREE.Mesh(P.face, P.pic); pic.position.set(0, 0.08, 0.0065);
     tilt.add(body, pic);
-    const strut = new THREE.Mesh(P.strut, P.gold); strut.position.set(0, 0.07, -0.02); strut.rotation.x = 0.35;
+    const strut = new THREE.Mesh(P.strut, P.gold); strut.position.set(0, 0.066, -0.048); strut.rotation.x = 0.36;
     grp.add(tilt, strut);
     return grp;
   }
@@ -131,7 +146,7 @@ export class Knockables {
     for (const o of this.list) {
       o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z;
       o.vx = o.vy = o.vz = 0; o.wx = o.wy = o.wz = 0; o.startQ ? (o.q.copy(o.startQ), o.pq.copy(o.startQ)) : (o.q.identity(), o.pq.identity());
-      o.state = 'rest'; o.tipT = 0; o.bounces = 0; o.knocked = false; o.dirty = true; o.mesh.visible = true; o.hits = 0; o.hitVac = false; o.unroll = null; if (o.node) o.node.scale.set(1, 1, 1);
+      o.state = 'rest'; o.tipT = 0; o.bounces = 0; o.knocked = false; o.dirty = true; o.mesh.visible = true; o.hits = 0; o.hitVac = false; o.roll = null; if (o.node) { o.node.scale.set(1, 1, 1); o.node.position.y = -o.h / 2; }
       if (o.swapped && this.lib) { o.mesh.remove(o.node); o.swapped = false; this._dressOne(o); }
     }
     this.frame(1);
@@ -160,6 +175,7 @@ export class Knockables {
 
   /** Give an object a push along (dx, dz) at this speed. */
   shove(o, dx, dz, speed) {
+    if (o.roll) { const u = o.roll; u.yaw = Math.atan2(dz, dx); u.dx = dx; u.dz = dz; u.v = Math.max(u.v, Math.min(X.rollStart * 1.3, speed)); o.state = 'unroll'; o.dirty = true; return; }
     if (o.t.topple && !o.knocked) { if (speed >= K.toppleSpeed) { o.y = 0; this._knockOver(o); } return; } // knocked over where it stands
     o.vx += dx * speed; o.vz += dz * speed; o.dirty = true;
     if (o.state === 'rest') o.state = 'slide';
@@ -171,10 +187,13 @@ export class Knockables {
     if (!this.lib) return bits;
     for (const part of n.parts || []) { // what survives flies off on its own (they all share the object's origin)
       const m = this._clone(part);
-      bits.push(D.bit(m, x, Math.max(0.03, o.y), z, SURVIVOR[part] || 'tumble', { life: part.includes('teeth') ? X.chatter : X.roll, r: t.r * 0.7 }));
+      const handset = part.includes('handset');
+      const b = D.bit(m, x, Math.max(0.03, o.y), z, SURVIVOR[part] || 'tumble', { life: part.includes('teeth') ? X.chatter : X.roll, r: t.r * 0.7, speed: handset ? 0.5 : undefined, up: handset ? 1 : undefined });
+      if (handset) { b.leash = X.handsetLeash; b.base = o; }
+      bits.push(b);
     }
     const lie = (name, yaw) => { const m = this._clone(name); m.rotation.y = yaw; return m; };
-    if (fx.includes('fx_ribbon') && t.id !== 'toilet_roll') { // a long trail of paper or wool across the floor, as far as there's floor
+    if (fx.includes('fx_ribbon') && !X.rollers[t.id]) { // a long trail of paper or wool across the floor, as far as there's floor
       const paper = t.id === 'toilet_roll', mat = (() => { let r = null; this.lib.getObjectByName('fx_ribbon').traverse((m) => { if (m.isMesh && !r) r = m.material; }); return r; })();
       let px = x, pz = z, yaw = Math.random() * 6.28;
       for (let i = 0; i < (paper ? X.paperPieces : X.woolPieces); i++) {
@@ -195,7 +214,7 @@ export class Knockables {
     if (fx.includes('fx_cord')) { // the handset's curly cord, stretched back to the phone
       const hand = bits[0], m = this._clone('fx_cord');
       this.scene.add(m);
-      hand.link = { mesh: m, from: { x, y: o.y, z } };
+      hand.link = { mesh: m, from: o };
       bits.push({ mesh: m, x, y: o.y, z, scale: 1, settled: true, mode: 'lie', drawn: true, from: null, q: m.quaternion, px: x, py: o.y, pz: z, link: null });
       D.bits.push(bits[bits.length - 1]);
     }
@@ -222,45 +241,49 @@ export class Knockables {
     } else if (t.id === 'rubber_duck') audio.play('knock.squeak', { pos: o, rate: 0.9 + Math.random() * 0.25 });
     else audio.play('knock.thud', { pos: o, gain: 0.6 });
     this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.points, room, objectId: o.id });
-    if (t.id === 'toilet_roll') this._startUnroll(o, bits);
+    if (X.rollers[t.id]) this._startRoll(o, bits);
   }
 
-  /** The toilet roll goes over on its side and rolls away, thinner and thinner, leaving a strip of paper behind it. */
-  _startUnroll(o, bits) {
-    const a = Math.hypot(o.vx, o.vz) > 0.05 ? Math.atan2(o.vz, o.vx) : Math.random() * 6.28, n = X.paperPoints;
+  /** Toilet paper and wool: it goes on rolling, and unwinds behind it. Hit it again and it goes again, until it's spent. */
+  _startRoll(o, bits) {
+    const R = X.rollers[o.t.id], n = Math.ceil(R.len / R.step) + 6, a = Math.hypot(o.vx, o.vz) > 0.05 ? Math.atan2(o.vz, o.vx) : Math.random() * 6.28;
     const g = new THREE.BufferGeometry(), pos = new Float32Array(n * 6), nor = new Float32Array(n * 6), idx = [];
     for (let i = 1; i < nor.length; i += 3) nor[i] = 1;
-    for (let i = 0; i < n - 1; i++) { const q = i * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); } // (wound to face up, so the paper is lit)
+    for (let i = 0; i < n - 1; i++) { const q = i * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setIndex(idx); g.setDrawRange(0, 0);
     const m = new THREE.Mesh(g, makePS1(new THREE.MeshLambertMaterial({ color: o.t.tint, side: THREE.DoubleSide }))); m.frustumCulled = false;
     const strip = this.debris.bit(m, 0, 0, 0, 'lie'); strip.ribbon = true; bits.push(strip);
-    o.vx = o.vz = 0; o.vy = 0; o.wx = o.wy = o.wz = 0; o.bounces = 0; o.state = 'unroll';
-    o.unroll = { dx: Math.cos(a), dz: Math.sin(a), yaw: a, L: 0, spin: 0, next: 0, n: 0, pos, g };
-    this._layPaper(o);
+    o.vx = o.vz = o.vy = 0; o.wx = o.wy = o.wz = 0; o.bounces = 0;
+    o.roll = { R, n, pos, g, strip, yaw: a, dx: Math.cos(a), dz: Math.sin(a), v: X.rollStart, L: 0, next: 0, count: 0, spent: false };
+    if (!R.uniform) o.q.setFromUnitVectors(_vy, _axis.set(o.roll.dz, 0, -o.roll.dx)); // a roll goes over on its side
+    o.state = 'unroll';
+    this._layTrail(o);
   }
 
-  _layPaper(o) {
-    const u = o.unroll, ax = -u.dz * X.paperWidth / 2, az = u.dx * X.paperWidth / 2, i = u.n * 6, y = 0.004;
-    u.pos[i] = o.x - u.dx * 0.04 + ax; u.pos[i + 1] = y; u.pos[i + 2] = o.z - u.dz * 0.04 + az;
-    u.pos[i + 3] = o.x - u.dx * 0.04 - ax; u.pos[i + 4] = y; u.pos[i + 5] = o.z - u.dz * 0.04 - az;
-    u.n++; u.g.attributes.position.needsUpdate = true; u.g.setDrawRange(0, Math.max(0, u.n - 1) * 6);
+  _layTrail(o) {
+    const u = o.roll, ax = (-u.dz * u.R.width) / 2, az = (u.dx * u.R.width) / 2, i = u.count * 6, y = 0.004 + (u.R.uniform ? 0.002 : 0), bx = o.x - u.dx * u.R.r0 * 0.7, bz = o.z - u.dz * u.R.r0 * 0.7;
+    u.pos[i] = bx + ax; u.pos[i + 1] = y; u.pos[i + 2] = bz + az; u.pos[i + 3] = bx - ax; u.pos[i + 4] = y; u.pos[i + 5] = bz - az;
+    u.count++; u.g.attributes.position.needsUpdate = true; u.g.setDrawRange(0, Math.max(0, u.count - 1) * 6);
   }
 
-  _unroll(o, dt) {
-    const u = o.unroll, k = Math.min(1, u.L / X.paperLen), speed = X.paperSpeed * (1 - 0.65 * k), step = speed * dt;
-    u.yaw += Math.sin(u.L * 2.3) * 0.5 * dt; u.dx = Math.cos(u.yaw); u.dz = Math.sin(u.yaw);
-    const nx = o.x + u.dx * step, nz = o.z + u.dz * step, r = X.rollR + (X.rollThin - X.rollR) * k;
-    const blocked = this.world.penetration(nx + u.dx * r, nz + u.dz * r, 0.02, 0.01, 0.1) > 0;
-    if (!blocked) { o.x = nx; o.z = nz; u.L += step; u.spin += step / r; }
-    if (u.L >= u.next && u.n < X.paperPoints) { this._layPaper(o); u.next = u.L + X.paperStep; }
-    o.y = r - o.h / 2;
-    if (o.node) o.node.scale.set(r / X.rollR, 1, r / X.rollR);
-    _axis.set(u.dz, 0, -u.dx);
-    o.q.setFromUnitVectors(_vy, _axis).premultiply(_dq.setFromAxisAngle(_axis, u.spin));
-    if (u.L >= X.paperLen || blocked || u.n >= X.paperPoints) { // out of paper, or up against something: it lies there, a bare tube
-      o.state = 'rest'; o.px = o.x; o.pz = o.z; o.py = o.y; o.pq.copy(o.q); o.dirty = true;
-      if (this.lib) { o.mesh.remove(o.node); const g = new THREE.Group(); g.position.y = -o.h / 2; g.add(this._clone(o.t.nodes.variants.unrolled)); o.node = g; o.mesh.add(g); o.swapped = true; }
+  _roll(o, dt) {
+    const u = o.roll, R = u.R, k = Math.min(1, u.L / R.len), r = R.r0 + (R.r1 - R.r0) * k;
+    u.v = Math.max(0, u.v - X.rollFriction * dt);
+    u.yaw += Math.sin(o.x * 3.1 + o.z * 2.3) * 0.5 * dt; u.dx = Math.cos(u.yaw); u.dz = Math.sin(u.yaw);
+    const step = u.v * dt, nx = o.x + u.dx * step, nz = o.z + u.dz * step;
+    if (this.world.penetration(nx + u.dx * r, nz + u.dz * r, 0.02, 0.01, 0.1) > 0) { u.yaw += Math.PI * (0.55 + Math.random() * 0.9); u.v *= 0.55; } // off whatever it ran into
+    else {
+      o.x = nx; o.z = nz; o.q.premultiply(_dq.setFromAxisAngle(_axis.set(u.dz, 0, -u.dx), step / r));
+      if (!u.spent) u.L += step;
+      if (!u.spent && !u.strip.total && u.L >= u.next && u.count < u.n) { this._layTrail(o); u.next = u.L + R.step; }
     }
+    o.y = r - o.h / 2;
+    if (o.node) { const s0 = r / R.r0; o.node.scale.set(s0, R.uniform ? s0 : 1, s0); if (R.uniform) o.node.position.y = (-o.h / 2) * s0; }
+    if (!u.spent && u.L >= R.len) { // nothing left on it
+      u.spent = true;
+      if (this.lib && o.t.nodes.variants?.unrolled) { o.mesh.remove(o.node); const g = new THREE.Group(); g.position.y = -o.h / 2; g.add(this._clone(o.t.nodes.variants.unrolled)); o.node = g; o.mesh.add(g); o.swapped = true; }
+    }
+    if (u.v <= X.rollStop) { o.state = 'rest'; o.dirty = true; }
   }
 
   /** Something falling on him: it bounces off, and he reels for a moment. */
@@ -279,7 +302,7 @@ export class Knockables {
       if (o.state === 'rest' || o.state === 'gone') continue;
       o.px = o.x; o.py = o.y; o.pz = o.z; o.pq.copy(o.q); o.dirty = true;
       this._cur = o;
-      if (o.state === 'unroll') { this._unroll(o, dt); continue; }
+      if (o.state === 'unroll') { this._roll(o, dt); continue; }
       if (o.state === 'slide') this._slide(o, dt);
       else if (o.state === 'tip') this._tip(o, dt);
       else this._fall(o, dt);
@@ -361,7 +384,7 @@ export class Knockables {
     }
     o.vy = 0; o.wx = o.wy = o.wz = 0; o.bounces = 0;
     o.vx *= K.bounceKeep; o.vz *= K.bounceKeep;
-    if (o.t.landing === 'roll') { const l = Math.hypot(o.vx, o.vz) || 1, a = l < 0.01 ? Math.random() * 6.28 : 0; o.vx = l < 0.01 ? Math.cos(a) * X.rollSpeed : (o.vx / l) * X.rollSpeed; o.vz = l < 0.01 ? Math.sin(a) * X.rollSpeed : (o.vz / l) * X.rollSpeed; } // a ball carries on
+    if (o.t.landing === 'roll' && !o.roll) { const l = Math.hypot(o.vx, o.vz) || 1, a = l < 0.01 ? Math.random() * 6.28 : 0; o.vx = l < 0.01 ? Math.cos(a) * X.rollSpeed : (o.vx / l) * X.rollSpeed; o.vz = l < 0.01 ? Math.sin(a) * X.rollSpeed : (o.vz / l) * X.rollSpeed; } // a ball carries on
     o.state = 'slide';
   }
 

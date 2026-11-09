@@ -51,6 +51,7 @@ function boxFaces(B, min, max, pick) {
   face('e', [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [z1, y0], [z0, y1]);
 }
 
+const PLATES = ['An empty frame. Marmalade, 1997–', 'Biscuit, 1961–1974', 'Mr. Whiskers, 1975–1983', 'Duchess, 1984–1989', 'Pepper, 1990–1992', 'Tuna, 1993–1994', 'Marigold, 1995', 'Sapphire, 1996', 'Mittens, 1996'];
 const roomAt = (x, z) => LEVEL.rooms.find((r) => x >= r.min[0] && x <= r.max[0] && z >= r.min[1] && z <= r.max[1]) || null;
 
 export function buildHouse({ scene, world }) {
@@ -112,6 +113,7 @@ export function buildHouse({ scene, world }) {
     let cursor = w.from;
     for (const o of [...(w.openings || [])].sort((p, q) => p.from - q.from)) {
       wallBox(w.axis, w.at, cursor, o.from, 0, LEVEL.ceiling);
+      if (o.bottom) wallBox(w.axis, w.at, o.from, o.to, 0, o.bottom); // (a window: wall below it as well as above)
       if (!o.noLintel) wallBox(w.axis, w.at, o.from, o.to, o.top, LEVEL.ceiling);
       cursor = o.to;
     }
@@ -154,19 +156,37 @@ export function buildHouse({ scene, world }) {
 
   scene.add(bathtub(LEVEL.tub));
 
-  // ---- windows behind the curtains: moonlight, for show
-  { const c = document.createElement('canvas'); c.width = 48; c.height = 72; const g = c.getContext('2d');
-    g.fillStyle = '#3d2a1a'; g.fillRect(0, 0, 48, 72); // the frame
-    for (let y = 3; y < 69; y++) { const k = (y - 3) / 66; g.fillStyle = `rgb(${Math.round(26 + 38 * k)},${Math.round(40 + 44 * k)},${Math.round(78 + 44 * k)})`; g.fillRect(3, y, 42, 1); }
-    g.fillStyle = '#d8dce8'; for (let i = 0; i < 16; i++) g.fillRect(4 + ((i * 29) % 40), 5 + ((i * 17) % 40), 1, 1); // stars
-    g.fillStyle = '#3d2a1a'; g.fillRect(22, 3, 3, 66); g.fillRect(3, 34, 42, 3); // the bars
+  // ---- windows: real holes, with a frame in them and the night outside, seen in the gap between the curtains
+  const nightMat = (() => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 72; const g = c.getContext('2d');
+    for (let y = 0; y < 72; y++) { const k = y / 72; g.fillStyle = 'rgb(' + Math.round(10 + 34 * k) + ',' + Math.round(16 + 42 * k) + ',' + Math.round(40 + 64 * k) + ')'; g.fillRect(0, y, 128, 1); }
+    g.fillStyle = '#c8d4e8'; for (let i = 0; i < 46; i++) g.fillRect((i * 37) % 128, (i * 23) % 40, 1, 1);
+    g.fillStyle = '#e8ecd8'; g.beginPath(); g.arc(92, 18, 7, 0, 7); g.fill(); g.fillStyle = '#10182e'; g.beginPath(); g.arc(95, 16, 6, 0, 7); g.fill(); // the moon
+    g.fillStyle = '#05070c'; for (let x = 0; x < 128; x += 1) { const h = 14 + Math.abs(Math.sin(x * 0.22)) * 10 + Math.abs(Math.sin(x * 0.57)) * 6; g.fillRect(x, 72 - h, 1, h); } // the trees at the end of the garden
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t);
-    const m = makePS1(new THREE.MeshBasicMaterial({ map: t }));
-    for (const w of LEVEL.windows) {
-      const q = new THREE.Mesh(new THREE.PlaneGeometry(w.w, 1.25), m);
-      q.position.set(w.x + w.n[0] * 0.006, 1.32, w.z + w.n[1] * 0.006); q.rotation.y = Math.atan2(w.n[0], w.n[1]);
-      scene.add(q);
-    } }
+    return new THREE.MeshBasicMaterial({ map: t, fog: false });
+  })();
+  const frameMat2 = lambert(0xc8c0ac), glass = new THREE.MeshBasicMaterial({ color: 0x9fb8e0, transparent: true, opacity: 0.1, depthWrite: false, fog: false });
+  const clouds = (() => {
+    const c = document.createElement('canvas'); c.width = 128; c.height = 32; const g = c.getContext('2d');
+    g.fillStyle = 'rgba(120,132,160,0.55)'; for (let i = 0; i < 26; i++) g.fillRect((i * 53) % 128, (i * 11) % 28, 14 + (i * 7) % 26, 2 + (i * 3) % 3);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; pixelTexture(t);
+    return t;
+  })();
+  const cloudMat = new THREE.MeshBasicMaterial({ map: clouds, transparent: true, depthWrite: false, fog: false });
+  const addBar = (w, a, y0, y1, depth, along) => { const wide = w.axis === 'x'; const g = new THREE.BoxGeometry(wide ? along : depth, y1 - y0, wide ? depth : along), m = new THREE.Mesh(g, frameMat2); m.position.set(wide ? a : w.at, (y0 + y1) / 2, wide ? w.at : a); scene.add(m); };
+  for (const w of LEVEL.windows) {
+    const mid = (w.from + w.to) / 2, midY = (w.bottom + w.top) / 2, W0 = w.to - w.from, H0 = w.top - w.bottom, b = 0.03, d = T * 0.8;
+    addBar(w, w.from + b / 2, w.bottom, w.top, d, b); addBar(w, w.to - b / 2, w.bottom, w.top, d, b); addBar(w, mid, w.bottom, w.top, d, b * 0.7);
+    for (const y of [w.bottom + b / 2, w.top - b / 2, midY]) { const wide = w.axis === 'x', m = new THREE.Mesh(new THREE.BoxGeometry(wide ? W0 : d, y === midY ? b * 0.7 : b, wide ? d : W0), frameMat2); m.position.set(wide ? mid : w.at, y, wide ? w.at : mid); scene.add(m); }
+    const pos = (out) => [w.axis === 'x' ? mid : w.at, midY, w.axis === 'x' ? w.at : mid].map((v, i) => v - (i === 0 ? w.n[0] : i === 2 ? w.n[1] : 0) * out), yaw = Math.atan2(w.n[0], w.n[1]);
+    const pane = new THREE.Mesh(new THREE.PlaneGeometry(W0, H0), glass); pane.position.fromArray(pos(0)); pane.rotation.y = yaw; pane.renderOrder = 3; scene.add(pane);
+    const night = new THREE.Mesh(new THREE.PlaneGeometry(7, 4), nightMat); night.position.fromArray(pos(3.2)); night.position.y = 1.7; night.rotation.y = yaw; scene.add(night);
+    const sky = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.5), cloudMat); sky.position.fromArray(pos(3.1)); sky.position.y = 2.6; sky.rotation.y = yaw; sky.renderOrder = 2; scene.add(sky);
+    // the moonlight that gets in through the gap, lying across the floor
+    const beam = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 1.7).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8ea8dc, transparent: true, opacity: 0.22, depthWrite: false, fog: false }));
+    beam.position.set((w.axis === 'x' ? mid : w.at) + w.n[0] * 0.95, 0.008, (w.axis === 'x' ? w.at : mid) + w.n[1] * 0.95); beam.rotation.y = yaw; scene.add(beam);
+  }
 
   // ---- the portraits down the hallway: the cats who came before
   const portraits = new THREE.Group(), frameMat = tex('wood_walnut');
@@ -184,7 +204,8 @@ export function buildHouse({ scene, world }) {
   const XS = LEVEL.rooms.flatMap((r) => [r.min[0], r.max[0]]), ZS = LEVEL.rooms.flatMap((r) => [r.min[1], r.max[1]]);
   const shell = new THREE.Box3(new THREE.Vector3(Math.min(...XS) - 1, -1, Math.min(...ZS) - 1), new THREE.Vector3(Math.max(...XS) + 1, LEVEL.ceiling + 0.2, Math.max(...ZS) + 1));
 
-  return { zones, indoor: [shell], spawn: H.spawn, byId, doorStrip: mats.strip, tick() {}, startSound() {} };
+  const ceiling0 = C.ceilingGlow, ceilingMat = mats.ceiling;
+  return { zones, indoor: [shell], spawn: H.spawn, byId, doorStrip: mats.strip, portraits: LEVEL.portraits.map(([x, , plate]) => ({ x, y: 1.25, z: -T / 2, text: PLATES[plate] })), tick() {}, startSound() {}, frame(time) { clouds.offset.x = time * 0.006; }, setDark(k) { ceilingMat.emissiveIntensity = ceiling0 * (1 - k); } };
 }
 
 /** A roll-top enamel bath on claw feet: rounded loops stacked up the outside, over the lip, and down into the hollow. */

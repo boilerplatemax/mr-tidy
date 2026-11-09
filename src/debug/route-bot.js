@@ -461,10 +461,13 @@ function attackChecks(kit) {
     for (let i = 0; i < Math.ceil((Fg.grow + 0.5) * 60); i++) c.tick(dt);
     const thick = c.amountAt(c.pos.x, 1, c.pos.z), far = c.amountAt(0.5, 1, 4.8), other = c.amountAt(13, 1, -5);
     report('it rolls out from him through the whole house', early === 0 && thick > 0.9 && far > 0.9 && other > 0.9, `${early} before it arrives, ${far.toFixed(2)} at the far end`);
-    P.resetMotion(); P.teleport(v.x + 3, 0.001, v.z, 0); P.tick(dt); v.heading = v.prevHeading = 1.57;
-    report('he is nearly blind in it', !v._canSee() && Math.hypot(P.pos.x - v.x, P.pos.z - v.z) > Fg.sight);
-    v.state = 'CHASE'; report('and he cannot spit dust through it', !v._canBlast()); v.state = 'PATROL';
     P.resetMotion(); P.noclip = true; c.reset(); P.noclip = false; }
+  // ---- stage 5: the power goes
+  { put('H2', 4, 0, 5.6, 0, -0.45 - 3); const dark0 = v.dark; v.setAnger(5); const surging = v.state === 'SURGE'; hold(TUNING.surge.time + 0.2);
+    report('stage 5: he surges and the power goes out', dark0 === 0 && surging && v.dark === 1 && v.state !== 'SURGE', v.state); v.dark = 0; v.arcV?.stop(0.01); v.arcV = null; v.setAnger(3); }
+  // ---- a furious burst
+  { put('H2', 4, 1.57, 10.0, 0, -0.45, 0); hunt(10.0, -0.45); v.lob = false; B.lobChance = 0; hold(0.3, () => v.state === 'BLAST'); let most = 0; for (let i = 0; i < 80; i++) { kit.tick(dt); most = Math.max(most, v.blasts.filter((b) => b.state === 'fly').length); } B.lobChance = lob0;
+    report('furious, he fires a burst', most >= 2, `${most} in the air at once`); v.blasts.forEach((b) => b.reset()); P.resetMotion(); }
   // ---- something dropped on him
   { put('K1', 3, 1.57, 8.2, 0, 4.0); hunt(8.2, 4.0); hold(0.2, () => v.state === 'HOSE_REACH'); const was = v.state; const o = K.byId.get('mug5'); v.stunCd = 0;
     o.state = 'fall'; o.x = o.px = v.x + 0.05; o.z = o.pz = v.z; o.y = o.py = 0.42; o.vy = -2; o.vx = o.vz = 0; o.knocked = false; o.hitVac = false; const x0 = v.x;
@@ -477,7 +480,7 @@ function attackChecks(kit) {
     v.lastX = 7.1; v.lastZ = -4.5; v.state = 'SEARCH'; v.path = [v.nav.nodes.get('B1')]; v.pathI = 0; v.x = v.px = 7.0; v.z = v.pz = -3.4; v._routeEnd(); const found = v.foundT > 0 && v.state === 'CHASE'; hold(4, () => caughtBy);
     H0.chance[2] = c0; v.onCatch = onCatch;
     report('hidden in the tub he cannot see you, but he can go looking and find you', hid && found && caughtBy === 'hose', `${v.state}`);
-    put('L1', 3, 0, 5.05, 0, 0.22); report('behind the closed curtains too', !v._canSee() && v._catHidden()); }
+    }
   // ---- his body
   { for (const anger of [1, 3]) { put('H2', anger, 0, 5.3, 0, -0.45); v.frozen = false; P.frozen = false; P.yaw = -Math.PI / 2; I.keys.add('KeyW'); I.keys.add('ShiftLeft'); caughtBy = null; const eg = () => v.onCatch; void eg; let min = 9; hold(1, () => { min = Math.min(min, Math.hypot(P.pos.x - v.x, P.pos.z - v.z)); return caughtBy; }); I.keys.clear();
       report(`the cat cannot run through him (stage ${anger})`, anger === 3 ? !!caughtBy : min >= TUNING.vac.radius + 0.05, `closest ${min.toFixed(2)} m`); } }
@@ -520,7 +523,7 @@ function catchChecks(kit) {
   const toVac = new (cam.position.constructor)().setFromMatrixPosition(v.model.root.matrixWorld).setY(v.model.faceCenterY()).sub(cam.position).normalize();
   report('and it is looking straight at him', dir.dot(toVac) > 0.98, dir.dot(toVac).toFixed(3));
   { const h = v.heading, want = Math.atan2(Q.end.x - v.x, Q.end.z - v.z); report('he has turned to face you', Math.abs(Math.atan2(Math.sin(h - want), Math.cos(h - want))) < 0.05); }
-  report('face furious, in front of the hole', v.model.face.material.map === v.model.faces[4] && cam.position.distanceTo(Q.end) < 0.001);
+  report('face furious, in front of the hole', [v.model.faces[4], v.model.faces.s].includes(v.model.face.material.map) && cam.position.distanceTo(Q.end) < 0.001);
   report('hard cut to black', !Q.cut.hidden && Q.phase === 'black');
   let beat = 0; while (Q.phase === 'black' && beat < 3) { Q.update(dt); beat += dt; }
   report('a beat, then Try again', Math.abs(beat - K.beat) < 0.05 && !kit.endScreen.el.hidden && Q.phase === 'done');
@@ -871,12 +874,6 @@ function climbChecks(kit) {
   I.keys.clear();
   report('floor -> couch arm', P.groundCollider?.id === 'couchArmS');
 
-  // curtains: climb the fabric, end up on the rod
-  put(3.0, 0.001, 4.75, Math.PI); I.keys.add('KeyW'); t = 0;
-  while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; }
-  I.keys.clear();
-  report('floor -> curtain -> rodW', P.groundCollider?.id === 'rodW', `${t.toFixed(2)} s`);
-
   // the kitchen's climbed way up
   put(9.5, 0.001, 4.75, Math.PI); I.keys.add('KeyW'); t = 0;
   while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; }
@@ -1042,7 +1039,7 @@ function climbChecks(kit) {
 function propChecks(kit) {
   const K = kit.knock, D = kit.debris, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} PROPS ${name}${note ? ' (' + note + ')' : ''}`);
-  const count = K.count, types = new Set(); let paper = 0, rolled = 0, rollRest = '', bad = 0, missing = 0, bitsMade = 0, chars = 0;
+  const count = K.count, types = new Set(); let again = 0, paper = 0, rolled = 0, rollRest = '', bad = 0, missing = 0, bitsMade = 0, chars = 0;
   const warn0 = console.warn; console.warn = (...a) => { if (String(a[0]).includes('no node')) missing++; else warn0(...a); };
   report('the pack has loaded', !!K.lib);
   for (const o of K.list) {
@@ -1053,13 +1050,13 @@ function propChecks(kit) {
     const m = D.messes.find((q) => q.id === o.id);
     if (!m) bad++; else { bitsMade += m.bits.length; if (o.t.landing === 'shatter' || o.t.landing === 'break') { if (o.state !== 'gone' || !m.cubes.length) bad++; } else if (o.state === 'gone') bad++; }
     if (!Number.isFinite(o.x + o.y + o.z)) bad++;
-    if (o.t.nodes.variants && !o.swapped) chars++;
-    if (o.type === 'toilet_roll') { const m2 = D.messes.find((q) => q.id === o.id), strip = m2?.bits.find((b) => b.ribbon); paper = strip ? strip.mesh.geometry.drawRange.count : 0; rolled = Math.hypot(o.x - 3.4, o.z - 1.4); rollRest = o.state; }
+    if (o.t.nodes.variants && !o.swapped && !o.roll) chars++;
+    if (o.type === 'toilet_roll') { const m2 = D.messes.find((q) => q.id === o.id), strip = m2?.bits.find((b) => b.ribbon); paper = strip ? strip.mesh.geometry.drawRange.count : 0; rolled = o.roll?.L ?? 0; rollRest = o.state; K.shove(o, -1, 0, 3); for (let i = 0; i < 90; i++) kit.tick(dt); again = m2 ? strip.mesh.geometry.drawRange.count : 0; }
   }
   console.warn = warn0;
   for (let i = 0; i < 300; i++) kit.tick(dt);
   report(`all ${new Set(LEVEL.knockables.map((d) => d.type)).size} kinds do what they should when they land`, types.size === new Set(LEVEL.knockables.map((d) => d.type)).size && bad === 0 && missing === 0 && chars === 0, `${types.size} kinds, ${bitsMade} pieces thrown clear, ${bad} wrong, ${missing} missing meshes`);
-  report('the toilet roll rolls away and leaves a strip of paper', paper > 60 && rolled > 0.5 && rollRest === 'rest', `${rolled.toFixed(2)} m, ${paper / 6} pieces of strip`);
+  report('the toilet roll rolls away leaving paper, and unwinds more when hit again', paper > 60 && rolled > 0.5 && rollRest === 'rest' && again > paper, `${rolled.toFixed(2)} m, strip ${paper / 6} then ${again / 6}`);
   report('every piece comes to rest', D.bits.every((b) => b.settled || b.mode === 'puff') && D.live.length === 0, `${D.bits.filter((b) => !b.settled).length} still moving`);
   K.count = count; kit.resetRun(); kit.vac.frozen = true; kit.player.noclip = false;
   report('and they all go back for a new run', K.list.every((o) => o.state === 'rest' && !o.knocked && o.node) && D.bits.length === 0);

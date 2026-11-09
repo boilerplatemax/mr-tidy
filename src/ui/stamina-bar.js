@@ -1,4 +1,4 @@
-// The stamina bar: a thin pixel bar at the bottom of the screen, shown only while stamina is being used or refilling.
+// Stamina: a row of paw prints at the bottom of the screen, shown only while stamina is being used or refilling.
 import { TUNING } from '../data/tuning.js';
 
 const S = TUNING.stamina;
@@ -15,8 +15,8 @@ export class StaminaBar {
     this.hold = inUse ? S.barHold : Math.max(0, this.hold - dt);
     const show = this.hold > 0;
     if (show) {
-      const v = Math.round(player.stamina * (S.barWidth - 2));
-      if (v !== this.last) { this.last = v; this.label.set([{ bar: v / (S.barWidth - 2), width: S.barWidth }], 'center'); }
+      const v = Math.round(player.stamina * 35);
+      if (v !== this.last) { this.last = v; this.label.set([{ paws: v / 35, count: S.pawCount }], 'center'); }
     }
     if (show !== this.shown) { this.shown = show; this.label.show(show); }
   }

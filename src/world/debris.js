@@ -141,6 +141,7 @@ export class Debris {
   _tickBit(b, dt) {
     b.t += dt; b.px = b.x; b.py = b.y; b.pz = b.z;
     if (b.mode === 'puff') { if (b.t >= b.life) b.settled = true; return; }
+    if (b.leash) { const dx = b.x - b.base.x, dz = b.z - b.base.z, d = Math.hypot(dx, dz); if (d > b.leash) { b.x = b.base.x + (dx / d) * b.leash; b.z = b.base.z + (dz / d) * b.leash; b.vx = b.vz = 0; } }
     if (b.mode === 'drift') { // falling like a feather
       b.vy = -0.28; b.x += Math.sin(b.t * 3 + b.sway) * 0.5 * dt + b.vx * dt * Math.exp(-b.t * 2); b.z += Math.cos(b.t * 2.4 + b.sway) * 0.5 * dt + b.vz * dt * Math.exp(-b.t * 2); b.y += b.vy * dt;
       this._turn(b, dt, 2.5);
@@ -209,6 +210,7 @@ export class Debris {
       if (b.mode !== 'lie') b.mesh.quaternion.copy(b.q);
       if (b.link) { // the curly cord between the phone and its handset
         const m = b.link.mesh, a = b.link.from, p = b.mesh.position;
+        if (b.settled && b.leash) { const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz); if (d > b.leash) { b.x = a.x + (dx / d) * b.leash; b.z = a.z + (dz / d) * b.leash; b.mesh.position.x = b.x; b.mesh.position.z = b.z; } } // the base got dragged off: the handset comes with it
         m.position.set(a.x, a.y + 0.04, a.z);
         _d.set(p.x - a.x, p.y + 0.03 - (a.y + 0.04), p.z - a.z);
         const l = _d.length();
