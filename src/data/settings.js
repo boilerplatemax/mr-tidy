@@ -33,7 +33,6 @@ const DEFAULTS = {
   sensitivity: 1.0,
   invertY: false,
   headBob: true,
-  chargeMode: 'cancel', // 'cancel' (full charge holds a moment, then the jump is called off) | 'loop' (weak, strong, weak...)
   subtitles: true, // captions for speech and important sounds
   volume: 1.0,
 };

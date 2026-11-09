@@ -21,12 +21,12 @@ void main() {
 }`;
 
 const FRAG = /* glsl */`
-uniform float uTime, uBase, uAmp, uFreq, uSpeed;
+uniform float uTime, uBase, uAmp, uFreq, uSpeed, uFade;
 uniform vec3 uColor;
 varying vec3 vW;
 void main() {
   float w = 0.5 + 0.5 * sin( ( vW.x + vW.z * 0.7 + vW.y * 1.6 ) * uFreq - uTime * uSpeed );
-  gl_FragColor = vec4( uColor * ( uBase + uAmp * w * w ), 1.0 );
+  gl_FragColor = vec4( uColor * ( uBase + uAmp * w ) * uFade, 1.0 );
 }`;
 
 export class LandingShimmer {
@@ -34,22 +34,26 @@ export class LandingShimmer {
     this.uniforms = {
       uPs1Res: PS1.uniforms.uPs1Res, uPs1Snap: PS1.uniforms.uPs1Snap, // shared: follows the look settings
       uTime: { value: 0 }, uBase: { value: S.base }, uAmp: { value: S.amp }, uFreq: { value: S.freq }, uSpeed: { value: S.speed },
-      uColor: { value: new THREE.Color(S.color) },
+      uColor: { value: new THREE.Color(S.color) }, uFade: { value: 0 },
     };
     this.mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.ShaderMaterial({
       vertexShader: VERT, fragmentShader: FRAG, uniforms: this.uniforms,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     }));
     this.mesh.visible = false;
+    this.col = null; this.fade = 0;
     scene.add(this.mesh);
   }
 
   /** Per rendered frame. Shimmers perches you'd land on or catch, never the floor or a bare wall. */
-  update(aim, time) {
+  update(aim, time, dt) {
     const c = aim.ok && (aim.kind === 'land' || aim.kind === 'grab') ? aim.col : null;
     this.mesh.visible = !!c;
+    if (c !== this.col) { this.col = c; this.fade = 0; } // a new target fades in rather than snapping on
     if (!c) return;
+    this.fade += (1 - this.fade) * (1 - Math.exp(-S.fade * dt));
     this.uniforms.uTime.value = time;
+    this.uniforms.uFade.value = this.fade;
     const p = S.pad * 2;
     this.mesh.position.set(c.cx, (c.minY + c.maxY) / 2, c.cz);
     this.mesh.scale.set(c.hx * 2 + p, c.maxY - c.minY + p, c.hz * 2 + p);

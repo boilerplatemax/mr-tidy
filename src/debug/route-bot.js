@@ -166,6 +166,32 @@ function climbChecks(kit) {
   I.keys.clear();
   report('S climbs down to the floor', P.grounded && P.feetY === 0);
 
+  // jump at a climbable face with no keys held: the claws catch it
+  put(5.55, 0.001, 4.35, Math.PI); I.keys.add('Space'); I.edges.add('Space');
+  for (let i = 0; i < 22; i++) kit.tick(dt);
+  I.keys.clear(); t = 0;
+  while (t < 1.5 && P.mode !== 'climb' && !(P.grounded && t > 0.1)) { kit.tick(dt); t += dt; }
+  report('jumping at a climbable face clings to it', P.mode === 'climb', `mode ${P.mode}, height ${P.feetY.toFixed(2)}`);
+  I.keys.add('KeyC'); kit.tick(dt); I.keys.clear(); for (let i = 0; i < 90; i++) kit.tick(dt);
+
+  // the dash
+  put(2.4, 0.001, 1.0, Math.PI); let z0 = P.pos.z;
+  I.keys.add('ShiftLeft'); I.edges.add('ShiftLeft'); kit.tick(dt); I.keys.clear();
+  for (let i = 0; i < 10; i++) kit.tick(dt);
+  report('ground dash covers distance', P.pos.z - z0 > 0.6, `${(P.pos.z - z0).toFixed(2)} m`);
+  put(2.4, 0.001, 1.0, Math.PI);
+  I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt); I.keys.clear(); for (let i = 0; i < 4; i++) kit.tick(dt);
+  z0 = P.pos.z; const yAir = P.feetY;
+  I.edges.add('ShiftLeft'); kit.tick(dt);
+  for (let i = 0; i < 8; i++) kit.tick(dt);
+  const first = P.pos.z - z0, level = Math.abs(P.feetY - yAir) < 0.001;
+  for (let i = 0; i < 40 && !P.airDashUsed; i++) kit.tick(dt);
+  P.dashCd = 0;
+  I.edges.add('ShiftLeft'); kit.tick(dt);
+  report('air dash travels level, and only once', first > 0.5 && level && P.airDashUsed && P.dashT <= 0, `${first.toFixed(2)} m`);
+  for (let i = 0; i < 90 && !P.grounded; i++) kit.tick(dt);
+  report('landing refreshes the air dash', P.grounded && !P.airDashUsed);
+
   // a kick-off, up the panel: looking back into the room, leaves the wall and flies
   put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
   for (let i = 0; i < 60; i++) kit.tick(dt);

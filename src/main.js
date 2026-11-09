@@ -104,8 +104,8 @@ function frame(alpha, dt, frameMs) {
     if (input.live) player.look();
     player.render(alpha);
     debug.frame();
-    marker.update(player.aim);
-    shimmer.update(player.aim, wallTime);
+    marker.update(player.aim, camera, dt);
+    shimmer.update(player.aim, wallTime, dt);
     paws.frame(player, dt, input.live ? alpha : 1, debug.thirdPerson);
     knock.frame(input.live ? alpha : 1);
     staminaBar.frame(player, dt);

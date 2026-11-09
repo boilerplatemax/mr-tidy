@@ -31,7 +31,6 @@ export const TABS = {
     ['Mouse sensitivity', 'sensitivity', 'range', [0.2, 3, 0.05, (v) => v.toFixed(2)]],
     ['Invert Y', 'invertY', 'check'],
     ['Head-bob', 'headBob', 'check'],
-    ['Jump charge', 'chargeMode', 'cycle', [['cancel', 'Holds, then cancels'], ['loop', 'Loops weak-strong']]],
     ['Volume', 'volume', 'range', [0, 1, 0.05, pct]],
     ['Subtitles', 'subtitles', 'check'],
   ],
@@ -49,8 +48,8 @@ export const TABS = {
 };
 // Controls: two columns of [group title, [[key, action], ...]]. Edit for your game.
 export const CONTROL_COLUMNS = [
-  [['Moving', [['W A S D', 'Move'], ['Mouse', 'Look'], ['Shift (hold)', 'Run'], ['C (hold)', 'Slink (silent)'], ['Space (hold)', 'Charge, release: jump'], ['Left click', 'Swipe'], ['Esc', 'Pause']]]],
-  [['Parkour', [['Space', 'Hanging: pull up'], ['S or C', 'Hanging: let go'], ['W into teal stripes', 'Climb'], ['Space', 'Climbing: kick off'], ['C', 'Climbing: let go']]], ['Debug', [['F1', 'Overlay'], ['F2 / F3', 'Third person / noclip'], ['F9', 'Key list']]]],
+  [['Moving', [['W A S D', 'Move'], ['Mouse', 'Look'], ['Shift', 'Dash, hold: run'], ['C (hold)', 'Slink (silent)'], ['Space (hold)', 'Charge, release: jump'], ['Left click', 'Swipe'], ['Esc', 'Pause']]]],
+  [['Parkour', [['Space', 'Hanging: pull up'], ['S or C', 'Hanging: let go'], ['W into stripes', 'Climb'], ['Space', 'Climbing: kick off'], ['C', 'Climbing: let go']]], ['Debug', [['F1', 'Overlay'], ['F2 / F3', 'Third person / noclip'], ['F9', 'Key list']]]],
 ];
 
 export class Menu {

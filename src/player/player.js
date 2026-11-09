@@ -5,7 +5,7 @@ import { TUNING } from '../data/tuning.js';
 import { settings } from '../data/settings.js';
 import { audio } from '../audio/audio.js';
 
-const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge, C = TUNING.climb, ST = TUNING.stamina, SW = TUNING.swipe;
+const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge, C = TUNING.climb, ST = TUNING.stamina, SW = TUNING.swipe, D = TUNING.dash;
 const expK = (rate, dt) => 1 - Math.exp(-rate * dt);
 
 export class Player {
@@ -34,6 +34,7 @@ export class Player {
     this.aim = { ok: false, kind: 'land', x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, col: null }; // where a jump released now would end (the target marker and shimmer read this)
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
+    this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 0; this.airDashUsed = false; this.fovKick = 0; this.prevFovKick = 0;
     this.swipeT = -1; this.prevSwipeT = -1; this.swipeCd = 0; this.swipeHit = false;
     this.onSwipe = null; // () when the paw connects: the knockables hook in here
     this.stamina = 1; this.clawLock = 0;
@@ -54,7 +55,7 @@ export class Player {
   }
 
   /** Back to plain movement, whatever the cat was doing. */
-  resetMotion() { this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
+  resetMotion() { this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
 
   /** Put the feet at (x, y, z) facing yaw (rad, 0 = toward −z), with no interpolation from the old spot. */
   teleport(x, y, z, yaw = this.yaw) {
@@ -88,7 +89,7 @@ export class Player {
 
   tick(dt) {
     this.prev.x = this.pos.x; this.prev.z = this.pos.z; this.prevEyeFeet = this.eyeFeet;
-    this.prevSwipeT = this.swipeT;
+    this.prevSwipeT = this.swipeT; this.prevFovKick = this.fovKick;
     this.prevSlink = this.slink; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
     if (this.noclip) { this._fly(dt); return; }
     this._wish();
@@ -101,12 +102,14 @@ export class Player {
     else {
       this._slinkUpdate(dt);
       this._jump(dt);
+      this._dash(dt);
       this._groundAndAir(dt);
-      if (this.mode === 'move' && this.wfwd > 0 && this.clawLock <= 0) this._tryClimb();
+      if (this.mode === 'move' && (this.wfwd > 0 || !this.grounded) && this.clawLock <= 0) this._tryClimb();
       if (this.mode === 'move' && !this.grounded) this._tryGrab();
       if (this.mode === 'move' && this.grounded) this.stamina = Math.min(1, this.stamina + ST.regen * dt);
     }
     this._swipe(dt);
+    this.fovKick += ((this.dashT > 0 ? 1 : 0) - this.fovKick) * expK(D.fovEase, dt);
     this._eyeAndSteps(dt);
   }
 
@@ -150,12 +153,7 @@ export class Player {
     this.slink = want ? Math.min(1, this.slink + step) : Math.max(0, this.slink - step);
   }
 
-  get charge() {
-    if (!this.charging) return 0;
-    const p = this.chargeT / J.chargeTime;
-    if (settings.chargeMode === 'loop') { const q = p % 2; return q <= 1 ? q : 2 - q; } // weak, strong, weak...
-    return Math.min(1, p);
-  }
+  get charge() { return this.charging ? Math.min(1, this.chargeT / J.chargeTime) : 0; }
 
   // Hold Space to charge, release to leap. Coyote time and a press buffer make it forgiving.
   _jump(dt) {
@@ -173,7 +171,7 @@ export class Player {
       else if (!space) this._launch(this.charge);
       else {
         this.chargeT += dt;
-        if (settings.chargeMode !== 'loop' && this.chargeT >= J.chargeTime + J.holdAtMax) { // held too long: called off
+        if (this.chargeT >= J.chargeTime + J.holdAtMax) { // held too long: called off
           this.charging = false; this.chargeT = 0;
           audio.play('cat.huff');
         }
@@ -183,6 +181,23 @@ export class Player {
     this.chargeDip += (c * J.dip - this.chargeDip) * expK(16, dt);
     this.viewDip += (c * J.dipPitch - this.viewDip) * expK(16, dt);
     if (this.charging) this._predict(c); else this.aim.ok = false;
+  }
+
+  // Shift: a burst along the keys (or the view), anywhere. Press to dash, keep holding to run on from it. In the air it's
+  // once only, until the cat touches something. Horizontal, with gravity off for its short length.
+  _dash(dt) {
+    const I = this.input;
+    if (this.dashCd > 0) this.dashCd -= dt;
+    if (this.grounded) this.airDashUsed = false;
+    const wanted = (I.pressed('ShiftLeft') || I.pressed('ShiftRight')) && !this.frozen && !this.charging && this.slink < 0.5;
+    if (!wanted || this.dashCd > 0 || (!this.grounded && this.airDashUsed)) return;
+    let dx = this.wx, dz = this.wz;
+    if (this.wlen <= 0) { dx = this.fx; dz = this.fz; }
+    const l = Math.hypot(dx, dz) || 1;
+    this.dashX = dx / l; this.dashZ = dz / l; this.dashT = D.time; this.dashCd = D.cooldown;
+    if (!this.grounded) this.airDashUsed = true;
+    this.launched = false;
+    audio.play('cat.dash', { rate: 0.95 + Math.random() * 0.15 });
   }
 
   /** The way a jump would go right now: x, z and whether it goes anywhere. Writes this._dir. */
@@ -222,7 +237,7 @@ export class Player {
       if (vy > 0) { const ceil = W.ceiling(x, z, r * 0.8, y + P.height - 0.02); if (y + P.height > ceil) { y = ceil - P.height; vy = 0; } } // a bonked head
       if (W.penetration(x, z, r, y + P.stepHeight, y + P.height, null, y) > 0.02) { this._predictFace(px, py, pz, d); return; }
       const g = W.ground(x, z, r * P.edgeSupport, y + P.stepHeight, this._g);
-      if (vy <= 0 && y <= g.y) { a.ok = true; a.kind = 'land'; a.x = x; a.y = g.y; a.z = z; a.nx = 0; a.ny = 1; a.nz = 0; a.col = g.collider; return; }
+      if (vy <= 0 && y <= g.y) { const f = Math.max(0, Math.min(1, (py - g.y) / Math.max(1e-5, py - y))); a.ok = true; a.kind = 'land'; a.x = px + (x - px) * f; a.y = g.y; a.z = pz + (z - pz) * f; a.nx = 0; a.ny = 1; a.nz = 0; a.col = g.collider; return; }
     }
   }
 
@@ -237,7 +252,8 @@ export class Player {
       const b = hit.collider, rel = b.maxY - py;
       a.ok = true; a.nx = hit.nx; a.ny = hit.ny; a.nz = hit.nz; a.col = b;
       a.x = o.x + rd.x * hit.t; a.y = o.y; a.z = o.z + rd.z * hit.t;
-      if (b.land && rel >= L.minAbove && rel <= L.paw + L.reach) { a.kind = 'grab'; a.y = b.maxY - J.markerSize / 2; } // right under the lip
+      if (b.land && rel >= L.minAbove && rel <= L.paw + L.reach) { a.kind = 'grab'; a.y = b.maxY - J.dotBelowLip; } // right under the lip
+      else if (b.stripes?.includes(Math.abs(hit.nx) > Math.abs(hit.nz) ? (hit.nx > 0 ? 'e' : 'w') : (hit.nz > 0 ? 's' : 'n'))) a.kind = 'grab'; // you'd cling to it
       else a.kind = 'wall';
       return;
     }
@@ -251,6 +267,12 @@ export class Player {
     let speed = (this.gait === 'run' ? P.runSpeed : this.gait === 'slink' ? P.slinkSpeed : P.walkSpeed) * (surf.speed ?? 1);
     if (this.wfwd < 0) speed *= P.backwardMul;
     if (this.charging) speed *= J.moveMul;
+    const dashing = this.dashT > 0;
+    if (dashing) { // the dash owns the cat's speed until it ends
+      this.dashT -= dt;
+      this.vel.x = this.dashX * D.speed; this.vel.z = this.dashZ * D.speed;
+      if (this.dashT <= 0 && !this.grounded) { this.vel.x = this.dashX * D.exitSpeed; this.vel.z = this.dashZ * D.exitSpeed; this.launchSpeed = D.exitSpeed; }
+    }
     let tx = this.wx * speed, tz = this.wz * speed;
     let rate = this.wlen > 0 ? P.accel : P.decel;
     if (!this.grounded) {
@@ -260,8 +282,10 @@ export class Player {
       else if (this.launched) { tx = this.launchX * this.launchSpeed; tz = this.launchZ * this.launchSpeed; rate = P.airAccel; } // a pounce carries on by itself, even after brushing a face
       else rate = P.airDecel;
     }
-    this.vel.x += (tx - this.vel.x) * expK(rate, dt);
-    this.vel.z += (tz - this.vel.z) * expK(rate, dt);
+    if (!dashing) {
+      this.vel.x += (tx - this.vel.x) * expK(rate, dt);
+      this.vel.z += (tz - this.vel.z) * expK(rate, dt);
+    }
     if (Math.abs(this.vel.x) < 1e-3 && !this.wlen) this.vel.x = 0;
     if (Math.abs(this.vel.z) < 1e-3 && !this.wlen) this.vel.z = 0;
 
@@ -282,11 +306,11 @@ export class Player {
     } else {
       if (this.grounded) { this.launched = false; this.launchSpeed = Math.hypot(this.vel.x, this.vel.z); this.grabLock = L.dropLock; } // walked off an edge
       this.grounded = false;
-      this.vy -= P.gravity * dt;
+      if (dashing) this.vy = 0; else this.vy -= P.gravity * dt;
       this.feetY += this.vy * dt;
       if (this.feetY <= g.y && this.vy <= 0) {
         const impact = -this.vy;
-        this.feetY = g.y; this.vy = 0; this.grounded = true; this.launched = false;
+        this.feetY = g.y; this.vy = 0; this.grounded = true; this.launched = false; this.airDashUsed = false;
         this._land(impact);
       }
     }
@@ -323,6 +347,7 @@ export class Player {
       h.x = ex + n.x * (r + 0.005); h.z = ez + n.z * (r + 0.005);
       this.mode = 'hang'; this.vy = 0; this.vel.x = this.vel.z = 0; this.grounded = false; this.launched = false;
       this.charging = false; this.chargeDip = 0; this.aim.ok = false; this.bufferT = 0;
+      this.swipeT = -1; this.dashT = 0; this.airDashUsed = false;
       audio.play('cat.grab');
       return true;
     }
@@ -383,10 +408,13 @@ export class Player {
       const d = W._boxDist(b, x, z, n);
       if (d < r - 0.04 || d > r + C.contact) continue;
       if (!b.stripes.includes(this._stripeFace(b, n))) continue;
-      if (-(this.wx * n.x + this.wz * n.z) < C.facing) continue;
+      const keys = -(this.wx * n.x + this.wz * n.z);
+      if (this.wlen > 0 && this.wfwd <= 0 && keys < C.facing) continue; // backing or side-stepping away: not trying to hold on
+      if (keys < C.facing && (this.grounded || this.input.down('KeyC') || -(this.fx * n.x + this.fz * n.z) < C.airFacing)) continue;
       this.climb.col = b; this.climb.x = n.x; this.climb.z = n.z;
       this.mode = 'climb'; this.grounded = false; this.vy = 0; this.vel.x = this.vel.z = 0;
       this.charging = false; this.chargeDip = 0; this.aim.ok = false; this.launched = false;
+      this.swipeT = -1; this.dashT = 0; this.airDashUsed = false;
       audio.play('cat.grab');
       return;
     }
@@ -562,6 +590,8 @@ export class Player {
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
     cam.position.set(x + c * bobX, feet + eye + bobY - landDip, z - s * bobX);
     cam.rotation.set(this.pitch - viewDip, this.yaw, roll, 'YXZ');
+    const fov = TUNING.render.fov + lerp(this.prevFovKick, this.fovKick, alpha) * D.fovKick;
+    if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
     cam.updateMatrixWorld();
   }
 }

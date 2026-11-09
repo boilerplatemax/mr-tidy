@@ -126,11 +126,21 @@ export const TUNING = {
     buffer: 0.12, // s a press before landing still counts
     airSteerMin: 1.0, // m/s: steering speed in the air on a very short hop
     dip: 0.03, dipPitch: 0.06, // the camera dips (m, rad) at full charge
-    holdAtMax: 0.8, // s a full charge is held before the jump is called off (Settings › Jump charge: 'Holds, then cancels')
+    holdAtMax: 0.8, // s a full charge is held before the jump is called off
     predictDt: 0.02, predictT: 1.4, // s: landing-spot prediction step and horizon
-    markerSize: 0.26, markerThick: 0.05, // m: the target outline (thick enough to hold together at 240 lines)
+    markerDot: 0.016, // the target dot's radius per metre of distance: the same size on screen near and far
+    markerEase: 22, // 1/s: how fast the dot glides to a new spot
+    dotBelowLip: 0.04, // m: where the dot sits under an edge you'd catch
     markerColors: { land: 0xfff0c8, grab: 0x9fe6a0, wall: 0x9fb4d8 }, // landing on a surface / would catch this edge / would hit a wall
-    shimmer: { color: 0xffa050, base: 0.04, amp: 0.2, freq: 8, speed: 5, pad: 0.006 }, // the wave of colour over the target perch: strength, wave size and speed, m past its faces
+    shimmer: { color: 0xffc890, base: 0.035, amp: 0.05, freq: 2.2, speed: 1.3, fade: 7, pad: 0.006 }, // the soft glow over the target perch: strength, slow broad wave (size, speed), 1/s fade-in, m past its faces
+  },
+
+  // ---------------------------------------------------------------- the dash (src/player/player.js)
+  dash: {
+    time: 0.15, speed: 6.2, // s, m/s: about 0.9 m. Gravity is off for its duration
+    exitSpeed: 2.6, // m/s carried out of an air dash
+    cooldown: 0.55, // s between dashes. In the air, also once only until you touch something
+    fovKick: 7, fovEase: 14, // degrees wider during a dash, 1/s
   },
 
   // ---------------------------------------------------------------- ledge grab and mantle (src/player/player.js)
@@ -145,7 +155,7 @@ export const TUNING = {
     letGoLock: 0.35, // s after letting go before it can grab again
     hangDrop: 0.34, // m: feet below the edge while hanging: the eye is under the lip, looking up at the paws
     hangDip: -0.16, // rad: the view tips up toward the edge (negative = up)
-    yawLimit: 0.6, pitchMin: -0.35, pitchMax: 0.6, // rad: how far you can look around while hanging (left/right of the ledge, down, up)
+    yawLimit: 1.57, pitchMin: -0.9, pitchMax: 0.9, // rad: how far you can look around while hanging (left/right of the ledge, down, up)
     lookSettle: 10, // 1/s: how fast the view eases inside those limits when you catch the edge
     settle: 30, // 1/s: how fast the body settles into the hanging pose
     mantleTime: 0.4, // s: the pull-up
@@ -157,6 +167,7 @@ export const TUNING = {
     strafe: 0.45, // m/s sideways along it
     contact: 0.05, // m: how close to the face counts as touching it
     facing: 0.6, // cos: how squarely the keys must push into the face
+    airFacing: 0.3, // cos: in mid-air you cling just by flying at a face while looking at it, no keys needed
     topOff: 0.2, // m: this far below the top, the cat pulls itself over
     slideSpeed: 0.9, // m/s down when stamina runs out. Controlled, no damage
     kickVy: 3.6, kickSpeed: 2.6, // m/s: the kick-off leap (up, away)
@@ -176,8 +187,8 @@ export const TUNING = {
   swipe: {
     reach: 0.55, // m from the eye to an object's centre
     cone: 0.68, // cos of the half-angle: how far off-centre an object can be and still get hit
-    time: 0.24, // s: the whole swipe animation
-    impactAt: 0.07, // s into the swipe when objects get hit
+    time: 0.3, // s: the whole swipe animation
+    impactAt: 0.09, // s into the swipe when objects get hit
     cooldown: 0.32, // s between swipes
     impulse: 0.6, // shove strength: speed = impulse / mass. Light things fly, heavy things inch
     maxSpeed: 3.2, // m/s: a cap, so a very light thing doesn't launch across the house
@@ -201,10 +212,12 @@ export const TUNING = {
   },
   paws: {
     color: 0xa89a88, glow: 0x2a241e, // a little light of its own, so an underside isn't black
-    idleX: 0.1, idleY: -0.08, idleZ: -0.19, idleLeg: 0.75, idleYaw: 0.25, // the paw at rest, bottom-right of the view (camera space)
-    swipeEndX: -0.09, swipeLift: 0.045, swipeReach: 0.07, swipeYaw: -0.9, swipeOut: 0.42, // the arc across the screen; swipeOut: share of the swipe spent going out
-    bobY: 0.6, bobX: 0.5, // how much of the head-bob the paw picks up
-    wiggleAmp: 0.0045, wiggleRate: 30, // m, rad/s: the pounce wiggle at full charge
+    // The swipe: the same paw as the hanging one. It only exists while you're swiping: it rises into view, sweeps, drops away.
+    swipeStartX: 0.12, swipeEndX: -0.1, swipeHiddenY: -0.2, swipeY: -0.045, swipeZ: -0.2, // camera space, m
+    swipeLift: 0.03, swipeReach: 0.05, // m: the arc up and forward
+    swipeYaw0: 0.5, swipeYaw1: -0.6, swipeRoll0: -0.2, swipeRoll1: 0.2, // rad: how the paw turns through the sweep
+    swipeLeg: 1.32, swipeLegLen: 2.6, // the forearm, as when hanging
+    swipeOut: 0.42, reveal: 0.2, // share of the swipe spent going out; share spent rising into view (and dropping away)
     hangSpread: 0.055, hangIn: 0.03, hangLift: 0.014, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
     tremble: 0.0035, trembleRate: 46, // m, rad/s: the paws shake harder as stamina runs out
     drop: 0.08, ease: 18, // m below the lip as it appears, 1/s ease in and out
@@ -253,7 +266,7 @@ export const TUNING = {
       ceiling: 0x77777c, ceilingLine: 0x3c3c42, ceilingGlow: 0.55, // the ceiling: tile colour, tile lines, how much it lights itself (nothing shines on it from below)
       wallTop: 0x3a3a3e, outside: 0x202024,
       knockable: 0xece6d8, // anything you can knock over
-      climb: '#2fb3a4', climbDark: '#17665e', // every climbable surface, whatever it is, is this colour
+      climb: '#8b9a90', climbDark: '#737f77', // every climbable surface, whatever it is, is this: quiet grey-green lines
       grandmaDoor: 0x7a1414, doorStrip: 0xffd28a, outlet: 0xb8b4a8,
     },
     doorLight: { color: 0xffc27a, intensity: 2.2, distance: 4.5, decay: 1.6 }, // the glow from under Grandma's door

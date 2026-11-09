@@ -49,5 +49,6 @@ export const SOUNDS = {
   'paw.swipe': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.12, sr)), sr, 'bp', (t) => 900 + 1800 * t, 1.2), sr, 0.02, 0.03), 0.6), sr), 3), gain: 0.22 },
   'knock.clink': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.07, sr)), sr, 'bp', rand(1800, 3000), 5), sr, 0.0005, 0.016), 0.8), sr), 4), gain: 0.4 },
   'knock.thud': { gen: v((sr) => thud(sr, 95, 0.2, 0.3), 3), gain: 0.7 },
+  'cat.dash': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.16, sr)), sr, 'bp', (t) => 1400 - 900 * t, 0.9), sr, 0.008, 0.05), 0.7), sr), 3), gain: 0.3 },
   'foot.thud': { gen: v((sr) => thud(sr, 62, 0.28), 2), gain: 0.75 }, // a big drop: the vac can hear this one
 };

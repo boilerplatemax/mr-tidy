@@ -56,33 +56,27 @@ export class Paws {
     paw.userData.leg.scale.z = V.hangLegLen; // ...and reaches down past the bottom of the view
   }
 
-  /** The right paw at rest bottom-right, or partway through a swipe across the view. */
-  _idle(player, alpha) {
+  /** The right paw mid-swipe: it rises into view, sweeps across, drops away. */
+  _swipePose(player, alpha) {
     const p = this.right, leg = p.userData.leg;
-    leg.rotation.x = V.idleLeg; leg.scale.z = 1;
-    let t = 0;
-    if (player.swipeT >= 0) {
-      const a = player.prevSwipeT >= 0 ? player.prevSwipeT + (player.swipeT - player.prevSwipeT) * alpha : player.swipeT;
-      const u = Math.min(1, a / SW.time);
-      t = u < V.swipeOut ? ease(u / V.swipeOut) : 1 - ease((u - V.swipeOut) / (1 - V.swipeOut));
-    }
-    const arc = Math.sin(t * Math.PI), c = player.charge;
-    const bob = player.bobA * player.bobW;
-    const bobY = -bob * V.bobY * (0.5 + 0.5 * Math.cos(player.bobPh * Math.PI));
-    const bobX = Math.sin(player.bobPh * Math.PI) * bob * V.bobX;
-    const wig = Math.sin(player.time * V.wiggleRate) * V.wiggleAmp * c; // the pounce wiggle (build prompt 4.2: on the paws, not the camera)
-    p.position.set(V.idleX + (V.swipeEndX - V.idleX) * t + bobX + wig, V.idleY + arc * V.swipeLift + bobY + Math.abs(wig), V.idleZ - arc * V.swipeReach);
-    p.rotation.set(0, V.idleYaw + (V.swipeYaw - V.idleYaw) * t, 0);
+    leg.rotation.x = V.swipeLeg; leg.scale.z = V.swipeLegLen;
+    const a = player.prevSwipeT >= 0 ? player.prevSwipeT + (player.swipeT - player.prevSwipeT) * alpha : player.swipeT;
+    const u = Math.min(1, a / SW.time);
+    const t = u < V.swipeOut ? ease(u / V.swipeOut) : 1 - ease((u - V.swipeOut) / (1 - V.swipeOut));
+    const reveal = ease(Math.min(1, Math.min(u, 1 - u) / V.reveal)), arc = Math.sin(t * Math.PI);
+    p.position.set(V.swipeStartX + (V.swipeEndX - V.swipeStartX) * t, V.swipeHiddenY + (V.swipeY - V.swipeHiddenY) * reveal + arc * V.swipeLift, V.swipeZ - arc * V.swipeReach);
+    p.rotation.set(0, V.swipeYaw0 + (V.swipeYaw1 - V.swipeYaw0) * t, V.swipeRoll0 + (V.swipeRoll1 - V.swipeRoll0) * t);
   }
 
-  /** Per rendered frame, after the camera is placed. hidden: third-person debug view. */
+  /** Per rendered frame, after the camera is placed. hidden: third-person debug view. Paws show only while gripping or swiping. */
   frame(player, dt, alpha, hidden = false) {
     const gripping = (player.mode === 'hang' || player.mode === 'mantle') && !!player.hang.col;
+    const swiping = !gripping && player.swipeT >= 0;
     this.grip += ((gripping ? 1 : 0) - this.grip) * (1 - Math.exp(-V.ease * dt));
     this.left.visible = gripping && !hidden;
-    this.right.visible = !hidden;
+    this.right.visible = (gripping || swiping) && !hidden;
     if (hidden) return;
     if (gripping) { this._plant(this.left, player, -1); this._plant(this.right, player, 1); }
-    else this._idle(player, alpha);
+    else if (swiping) this._swipePose(player, alpha);
   }
 }

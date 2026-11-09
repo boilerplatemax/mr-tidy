@@ -19,12 +19,12 @@ Open <http://localhost:8080> and click **Begin**.
 | Key | Action |
 |---|---|
 | W A S D, mouse | Move, look |
-| Shift (hold) | Run |
+| Shift | Dash (once per jump in the air). Keep holding to run |
 | C (hold) | Slink: slow, low, silent |
-| Space (hold, release) | Charge and jump. Tap for a hop. An outline marks where a charged jump will land |
+| Space (hold, release) | Charge and jump. Tap for a hop. A dot marks where a charged jump will end |
 | Space while hanging | Pull up |
 | S or C while hanging | Let go |
-| W into a teal striped surface | Climb: W up, S down, A / D sideways, stamina drains (holding still drains slowly) |
+| W into a grey-green striped surface, or jump at one | Climb: W up, S down, A / D sideways, stamina drains (holding still drains slowly) |
 | Space while climbing | Kick off, the way you're looking or with A / D to the side |
 | C while climbing | Let go |
 | Left click | Swipe: bats whatever is in front of you |

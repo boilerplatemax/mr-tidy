@@ -1,36 +1,31 @@
-// The outline on the spot a charged jump would end (build prompt 0.4 / 4.2). Shown while charging, on whatever the arc
-// meets: a surface or the floor (land), the edge of a ledge the cat would catch (grab), or a wall (wall). Player._predict
-// flies the arc against the real colliders and fills player.aim.
+// The target dot: where a charged jump would end (build prompt 0.4 / 4.2). Always faces the camera and draws over
+// everything, so it stays visible from under a shelf. It glides between spots rather than hopping. Player._predict flies
+// the arc against the real colliders and fills player.aim.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
-import { makePS1 } from '../render/ps1-material.js';
 
 const J = TUNING.jump;
-const UP = new THREE.Vector3(0, 1, 0);
 
 export class LandingMarker {
   constructor(scene) {
-    const s = J.markerSize, t = J.markerThick, h = s / 2;
-    this.mat = makePS1(new THREE.MeshBasicMaterial({ color: J.markerColors.land, fog: false, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide }));
-    const edges = [
-      new THREE.PlaneGeometry(s, t).rotateX(-Math.PI / 2).translate(0, 0, -h),
-      new THREE.PlaneGeometry(s, t).rotateX(-Math.PI / 2).translate(0, 0, h),
-      new THREE.PlaneGeometry(t, s).rotateX(-Math.PI / 2).translate(-h, 0, 0),
-      new THREE.PlaneGeometry(t, s).rotateX(-Math.PI / 2).translate(h, 0, 0),
-    ];
-    this.mesh = new THREE.Group();
-    for (const g of edges) this.mesh.add(new THREE.Mesh(g, this.mat));
+    this.mat = new THREE.MeshBasicMaterial({ color: J.markerColors.land, fog: false, transparent: true, opacity: 0.9, depthTest: false, depthWrite: false });
+    this.mesh = new THREE.Mesh(new THREE.CircleGeometry(1, 10), this.mat);
+    this.mesh.renderOrder = 10;
     this.mesh.visible = false;
     scene.add(this.mesh);
-    this._n = new THREE.Vector3();
+    this._t = new THREE.Vector3();
   }
 
-  update(aim) {
-    this.mesh.visible = aim.ok;
-    if (!aim.ok) return;
-    this._n.set(aim.nx, aim.ny, aim.nz);
-    this.mesh.quaternion.setFromUnitVectors(UP, this._n); // lies flat on the floor or a top, stands up on a wall
-    this.mesh.position.set(aim.x + aim.nx * 0.012, aim.y + aim.ny * 0.012, aim.z + aim.nz * 0.012); // just off the surface: no z-fighting
+  /** Per rendered frame. */
+  update(aim, camera, dt) {
+    const m = this.mesh;
+    if (!aim.ok) { m.visible = false; return; }
+    this._t.set(aim.x, aim.y, aim.z);
+    if (!m.visible) m.position.copy(this._t); // just appeared: start there
+    else m.position.lerp(this._t, 1 - Math.exp(-J.markerEase * dt));
+    m.visible = true;
+    m.quaternion.copy(camera.quaternion);
+    m.scale.setScalar(m.position.distanceTo(camera.position) * J.markerDot); // the same size on screen at any distance
     this.mat.color.setHex(J.markerColors[aim.kind]);
   }
 }
