@@ -18,6 +18,7 @@ export class Vacuum {
     this.world = world; this.knock = knock; this.debris = debris; this.camera = camera; this.player = player;
     this.hose = new Hose(scene); this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
+    this._dirv = { x: 0, y: 0, z: 0 }; this._under = null; this._notUnder = (c) => c.solid && c !== this._under; this.campT = 0; this.ignoreT = 0;
     this.seeT = 0; this.seesCat = false; this.lastX = 0; this.lastZ = 0; this.loseT = 0; this.replanT = 0; this.direct = false; this.directOK = false; this.chaseNode = null; this.sweep = false; this.sweepT = 0;
     noise.on((ev) => this._hear(ev));
     this.pending = null; this.mess = null; this.cleanT = 0; this.spotT = 0; this.slurp = null; this._h = { x: 0, y: 0, z: 0 }; this._a = { x: 0, y: 0, z: 0 }; this._b = { x: 0, y: 0, z: 0 };
@@ -55,6 +56,7 @@ export class Vacuum {
     this._endReach();
     this.x = this.px = start.x; this.z = this.pz = start.z; this.heading = this.prevHeading = 0;
     this.state = 'PATROL'; this.off = false; this.caught = false; this.frozen = false; this.pending = null; this.mess = null;
+    this.campT = 0; this.ignoreT = 0;
     this.reachCd = 0; this.seeT = 0; this.seesCat = false; this.loseT = 0; this.direct = false; this.chaseNode = null; this.sweep = false; this.cleanT = 0;
     this.plugState = 'in'; this.plugT = 0; this.plugLock = 0;
     this.cord.setOutlet(o); this.cord.setTrim(0);
@@ -72,7 +74,7 @@ export class Vacuum {
 
   /** Anger level 1–3: his face, his speed, the pitch of his motor. */
   setAnger(level) {
-    this.anger = Math.max(1, Math.min(3, level));
+    this.anger = Math.max(1, Math.min(4, level));
     this.model.setFace(this.anger);
   }
 
@@ -129,6 +131,7 @@ export class Vacuum {
     this._endReach();
     this.direct = false;
     this.plugState = 'retract'; this.plugT = 0; this.state = 'UNPLUGGED';
+    this.setAnger(C.unplugAnger); // he comes back at this stage, whatever he was before
     this.model.face.visible = false;
     audio.play('vac.unplug', { pos: p });
     if (this.voice) { this.voice.setRate(0.2, D.windDown); this.voice.fadeTo(0, D.windDown); }
@@ -215,12 +218,14 @@ export class Vacuum {
   _hear(ev) {
     if (this.off || this.plugState !== 'in') return;
     if (ev.kind === 'crash') { // every knock-over can raise his anger, whether he hears it or not
-      const c = this.knock.count, want = c >= V.angerAt[1] ? 3 : c >= V.angerAt[0] ? 2 : 1;
+      const c = this.knock.count, A = V.angerAt, want = c >= A[2] ? 4 : c >= A[1] ? 3 : c >= A[0] ? 2 : 1;
       if (want > this.anger) this.setAnger(want);
     }
     const d = Math.hypot(ev.x - this.x, ev.z - this.z);
-    const heard = ev.kind === 'crash' ? this.anger >= 2 || d <= V.hearNear : this.anger >= 3 && d <= V.hearSteps;
-    if (heard) this._investigate(ev.x, ev.z);
+    const heard = ev.kind === 'crash' ? this.anger >= 3 || (this.anger === 2 && d <= V.hearNear) : this.anger >= 4 && d <= V.hearSteps;
+    if (!heard) return;
+    if (ev.kind === 'crash') { const m = this.debris.messes.find((x) => x.id === ev.objectId); if (m) m.known = true; } // on his to-do list now
+    this._investigate(ev.x, ev.z);
   }
 
   _investigate(x, z) {
@@ -258,7 +263,15 @@ export class Vacuum {
     return best;
   }
 
+  /** The nearest mess he knows about (heard or seen) and hasn't got to yet. */
+  _nextKnownMess() {
+    let best = null, bd = Infinity;
+    for (const m of this.debris.messes) { if (m.cleaned || !m.known) continue; const d = (m.x - this.x) ** 2 + (m.z - this.z) ** 2; if (d < bd) { bd = d; best = m; } }
+    return best;
+  }
+
   _startClean(m) {
+    m.known = true;
     this.state = 'CLEAN'; this.mess = m; this.cleanT = 0;
     this.slurp = audio.play('vac.slurp', { follow: this.model.hoseSocket, rolloff: 0, gain: 1 });
   }
@@ -274,7 +287,9 @@ export class Vacuum {
     const p = this.pending; this.pending = null;
     if (p) { this._investigate(p.x, p.z); return; }
     const near = this._nearestMess(V.cleanSee, true);
-    if (near) this._startClean(near); else this._resumePatrol();
+    if (near) { this._startClean(near); return; }
+    const next = this._nextKnownMess();
+    if (next) { this.state = 'INVESTIGATE'; this.routeTo(this.nav.nearest(next.x, next.z)); } else this._resumePatrol();
   }
 
   // ---- sight, the chase, the search
@@ -283,15 +298,22 @@ export class Vacuum {
     const P = this.player;
     if (P.noclip) return false;
     const dx = P.pos.x - this.x, dz = P.pos.z - this.z, d = Math.hypot(dx, dz) || 1;
-    if (d > V.sightRange[this.anger - 1] * (P.slink > 0.5 ? V.slinkSight : 1)) return false;
+    const slinking = P.slink > 0.5;
+    if (d > V.sightRange[this.anger - 1] * (slinking ? V.slinkSight : 1) * (P.feetY >= H.minPerch ? V.perchSight : 1) * (this.state === 'CLEAN' ? V.cleanSight : 1)) return false;
     if ((dx * Math.sin(this.heading) + dz * Math.cos(this.heading)) / d < V.sightCos) return false;
     const a = this._a, b = this._b;
     a.x = this.x; a.y = 0.35; a.z = this.z; b.x = P.pos.x; b.y = P.feetY + 0.15; b.z = P.pos.z;
     // what the cat is standing on doesn't hide it: from the floor, a cat on a fridge is just on top of the fridge
     const under = P.groundCollider, was = under ? under.occludes : false;
     if (under) under.occludes = false;
-    const clear = this.world.countOccluders(a, b, 1, true) === 0;
+    let clear = this.world.countOccluders(a, b, 1, true) === 0;
     if (under) under.occludes = was;
+    if (clear && slinking) { // crouched behind anything at all, even a low table, the cat is hidden
+      const o = this._a, dir = this._dirv, dy = b.y - a.y, len = Math.hypot(dx, dy, dz);
+      dir.x = dx / len; dir.y = dy / len; dir.z = dz / len;
+      this._under = under;
+      if (this.world.raycast(o, dir, len - 0.05, this._notUnder, false)) clear = false;
+    }
     return clear;
   }
 
@@ -299,6 +321,7 @@ export class Vacuum {
     this.seesCat = this._canSee();
     if (this.seesCat) { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; }
     if (this.state === 'CHASE' || this.state === 'HOSE_REACH') return;
+    if (this.ignoreT > 0) { this.ignoreT -= dt; this.seeT = 0; return; } // recently gave up on this cat
     this.seeT = this.seesCat ? this.seeT + dt : Math.max(0, this.seeT - dt);
     if (this.seeT >= V.noticeTime[this.anger - 1]) this._startChase();
   }
@@ -402,7 +425,9 @@ export class Vacuum {
   _tickChase(dt) {
     if (this._canReach()) { this._startReach(); return; }
     if (this.seesCat) this.loseT = 0; else this.loseT += dt;
-    if (this.loseT >= V.loseTime) { this._startSearch(); return; }
+    if (this.loseT >= (this.player.slink > 0.5 ? V.hideLose : V.loseTime)) { this._startSearch(); return; }
+    // staring up at a cat he can't get to: after a while he gives up and goes back to work
+    if (this.seesCat && this.player.feetY > H.reachTop) { this.campT += dt; if (this.campT >= V.campTime) { this.campT = 0; this.ignoreT = V.ignoreTime; this._giveUp(); return; } } else this.campT = 0;
     this.replanT -= dt;
     if (this.replanT <= 0) {
       this.replanT = V.replan;
@@ -426,6 +451,12 @@ export class Vacuum {
     this._followPath(dt, speed);
   }
 
+  _giveUp() {
+    if (this.direct) this._rejoin();
+    const next = this._nextKnownMess();
+    if (next) { this.state = 'INVESTIGATE'; this.routeTo(this.nav.nearest(next.x, next.z)); } else this._resumePatrol();
+  }
+
   _startSearch() {
     if (this.direct) this._rejoin();
     this.state = 'SEARCH'; this.sweep = false; this.seeT = 0;
@@ -441,6 +472,7 @@ export class Vacuum {
   /** His body touching a cat on the floor. */
   _touching() {
     const P = this.player;
+    if (P.slink > 0.5 && !this.seesCat && this.anger <= V.sneakAnger) return false; // crouched and unseen: he doesn't know you're there
     return !P.noclip && P.feetY < V.catchHeight && Math.hypot(P.pos.x - this.x, P.pos.z - this.z) < V.radius + V.catchReach;
   }
 

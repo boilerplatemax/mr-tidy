@@ -1,5 +1,5 @@
 // The catch (build prompt 0.7): control locks; a loud suction burst and a screen shake; the camera is dragged along the
-// hose's actual path, faster and faster, rolling as it goes; it stops in front of the hole and turns to face him, the
+// hose's actual path, faster and faster; it stops in front of the hole and turns to face him, the
 // furious face and the black hole filling the screen while the motor screams; hard cut to black, a beat of silence.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
@@ -24,7 +24,7 @@ export class CatchSequence {
   /** how: 'hose' (the camera rides the hose back) or 'body' (it's a short pull straight in). */
   start(how) {
     const v = this.vac, cam = this.camera, m = v.model;
-    this.active = true; this.phase = 'drag'; this.t = 0; this.spin = 0;
+    this.active = true; this.phase = 'drag'; this.t = 0;
     m.root.updateMatrixWorld(true);
     m.catchCamTarget.getWorldPosition(_end);
     const pts = [cam.position.clone()];
@@ -33,7 +33,7 @@ export class CatchSequence {
     pts.push(_end.clone());
     this.curve = new THREE.CatmullRomCurve3(pts);
     this.end = _end.clone();
-    m.setFace(3); m.face.visible = true; // furious, whatever he was before
+    m.setFace(4); m.face.visible = true; // furious, whatever he was before
     this.faceBase.copy(m.face.position);
     audio.play('vac.fwoomp');
     v.scream();
@@ -50,7 +50,6 @@ export class CatchSequence {
       const shake = C.shake * (1 - u);
       cam.position.set(_p.x + rnd() * shake, _p.y + rnd() * shake, _p.z + rnd() * shake);
       if (_p.distanceToSquared(_look) > 1e-8) cam.lookAt(_look);
-      cam.rotateZ((this.spin += C.spin * dt)); // tumbling along the hose
       cam.updateMatrixWorld();
       if (u >= 1) this._toHold();
       return;

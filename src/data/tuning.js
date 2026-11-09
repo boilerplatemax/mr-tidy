@@ -145,20 +145,26 @@ export const TUNING = {
   // ---------------------------------------------------------------- Mr. Tidy (src/vacuum/)
   vac: {
     radius: 0.24, height: 0.45, // m: the body, for navigation and (later) catching the cat
-    speed: [0.8, 1.4, 2.4], // m/s by anger level 1, 2, 3
+    // Anger has four stages: 1 neutral (nothing broken yet), 2 annoyed, 3 angry, 4 furious. Arrays below are by stage.
+    speed: [0.7, 0.8, 1.4, 2.4], // m/s
     turnRate: 2.4, // rad/s
     arrive: 0.14, // m from a waypoint at which he moves on
-    angerAt: [5, 10], // knock-overs that raise him to anger 2 and 3
-    hearNear: 7, // m: at anger 1 he only investigates crashes this close. From anger 2 he hears them anywhere
-    hearSteps: 4, // m: at anger 3 he also hears running footsteps and heavy landings this close. Slink and walk are silent to him
-    sightRange: [0, 6.5, 9], // m he can see the cat, by anger level. At anger 1 he does not hunt at all: bump into him and he gets you, but he never comes after you
+    angerAt: [1, 5, 10], // knock-overs that raise him to stages 2, 3 and 4. The first break sets him off
+    hearNear: 7, // m: annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
+    hearSteps: 4, // m: furious, he also hears running footsteps (on the floor only) and heavy landings this close
+    sightRange: [0, 0, 6.5, 9], // m he can see the cat. Neutral and annoyed he doesn't hunt: bump into him and he gets you, but he won't come after you
     sightCos: 0.82, // cos of half his view: about 70° in all
     slinkSight: 0.5, // slinking halves how far away he notices you
-    noticeTime: [0.7, 0.45, 0.25], // s of being seen before he reacts, by anger level: a fair moment to duck
+    sneakAnger: 3, // at this stage or below, a crouching cat he can't see can brush right past him
+    perchSight: 0.7, // he's a floor machine: a cat up on something is harder to notice
+    cleanSight: 0.6, // busy with a mess, he only notices you closer: a clean is still your window
+    hideLose: 0.8, // s to lose track of a slinking cat that's out of sight (otherwise loseTime)
+    campTime: 6, ignoreTime: 5, // s staring at a cat above his reach before he gives up; s after that before he'll notice it again
+    noticeTime: [0.7, 0.7, 0.45, 0.25], // s of being seen before he reacts: a fair moment to duck
     loseTime: 2.5, // s out of sight before he gives up the chase and searches
     searchTime: 3.2, // s he looks around where he last saw you
     searchTurn: 2.0, // rad/s while looking around
-    chaseSpeed: [1.3, 2.3, 3.1], // m/s by anger level. The cat runs at 3.6, so it can always just outrun him
+    chaseSpeed: [1.3, 1.3, 2.3, 3.1], // m/s. The cat runs at 3.6, so it can always just outrun him
     replan: 0.15, // s between re-thinking the route while chasing
     catchReach: 0.14, // m past his body at which he catches the cat
     catchHeight: 0.42, // m: a cat with its feet above this is out of reach of his body
@@ -187,8 +193,8 @@ export const TUNING = {
     reachH: 1.6, reachTop: 1.8, // m: how far out from the hole, and how high a perch it can get to. Tier-2 spots above this are safe
     minPerch: 0.3, // m: a cat higher than this counts as perched (lower, his body gets it instead)
     standoff: 1.1, // m: how close to a perched cat he tries to park
-    minAnger: 2, // he doesn't use the hose at anger 1
-    cooldown: [0, 5, 2.5], // s between reaches, by anger level
+    minAnger: 3, // he only uses the hose once he's angry
+    cooldown: [0, 0, 5, 2.5], // s between reaches
     windup: 1.0, // s of telegraph: the hose rises, sways and sniffs, with the rattle playing. The player's chance
     hover: 0.42, sway: 0.09, swayRate: 7, riseSpeed: 3, // m short of the cat that it hovers; m it sways; rad/s; m/s rising
     lungeSpeed: 10, hit: 0.2, // m/s; m from the cat's chest that counts as caught
@@ -199,7 +205,6 @@ export const TUNING = {
   },
   catch: { // the catch: the most important moment in the game (src/vacuum/catch.js)
     drag: 0.7, // s along the hose, speeding up
-    spin: 11, // rad/s the camera rolls on the way
     shake: 0.03, // m of screen shake at the start of the drag
     turn: 0.16, // s to turn and face him at the end of it
     hold: 1.2, // s held on his face
@@ -211,7 +216,7 @@ export const TUNING = {
     closeness: 2.2, // m: at this distance the drone is at half volume. Smaller: it rises more steeply as he nears
     floor: 0.05, // the quietest it ever gets, anywhere in the house, so he can always be heard
     gain: 1, // overall level
-    rate: [0.92, 1.1, 1.32], // pitch by anger level 1, 2, 3
+    rate: [0.9, 0.98, 1.12, 1.32], // pitch by anger stage
     nearRate: 0.08, // extra pitch right next to you
     update: 0.08, // s between adjustments
     windDown: 1.2, // s for the motor to die when Grandma wakes
@@ -223,6 +228,7 @@ export const TUNING = {
     color: 0x2a2a2c, plugColor: 0x141414,
     // Swipe the outlet he's plugged into: the cord whips back, he's dead for a moment, then he plugs into the nearest outlet.
     retract: 1.0, off: 5.0, extend: 1.2, // s: the cord reeling back, powered off, the cord going out to the new outlet
+    unplugAnger: 3, // the anger stage unplugging him leaves him at, up or down
     lock: 18, // s after plugging back in before that outlet can be hit again (so nobody can stand there and keep him off forever)
   },
 

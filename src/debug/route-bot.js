@@ -85,7 +85,7 @@ function freshVac(kit, id, anger = 1) {
   for (const m of kit.debris.messes) m.cleaned = true;
   if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
   v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
-  v._endReach(); v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false;
+  v._endReach(); v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
   v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
   v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
   return v;
@@ -103,27 +103,47 @@ function huntChecks(kit) {
   const run = (s) => { for (let i = 0; i < Math.round(s * 60); i++) kit.tick(dt); };
 
   // L2 faces +z from heading 0: the open floor of the living room at z 1.0
-  reset('L2', 2); v.heading = -0.3; cat(3.05, 3.9); v.path = [v.nav.nodes.get('L4')]; v.pathI = 0; // walking toward the cat
+  reset('L2', 3); v.heading = -0.3; cat(3.05, 3.9); v.path = [v.nav.nodes.get('L4')]; v.pathI = 0; // walking toward the cat
   run(0.05);
   report('he notices after a moment, not instantly', v.state !== 'CHASE');
   run(V.noticeTime[1] + 0.2);
   report('sees the cat in front of him and gives chase', v.state === 'CHASE', v.state);
 
-  reset('L2', 3); v.heading = Math.PI; cat(3.05, 3.9); // facing away
+  reset('L2', 4); v.heading = Math.PI; cat(3.05, 3.9); // facing away
   run(0.6);
   report('does not see behind him', v.state !== 'CHASE', v.state);
 
-  reset('Hl', 3); v.heading = 1.57; cat(8.5, 1.4); // facing along the hall, the cat is round the corner in the kitchen
+  reset('Hl', 4); v.heading = 1.57; cat(8.5, 1.4); // facing along the hall, the cat is round the corner in the kitchen
   run(0.6);
   report('does not see through walls', v.state !== 'CHASE', v.state);
 
-  reset('L2', 2); v.heading = 0; cat(3.05, 4.7); I.keys.add('KeyC'); // about 3.7 m: inside his sight walking, outside it slinking
+  reset('L2', 3); v.heading = 0; cat(3.05, 4.7); I.keys.add('KeyC'); // about 3.7 m: inside his sight walking, outside it slinking
   for (let i = 0; i < 10; i++) P.tick(dt);
   run(0.8); I.keys.clear();
   report('slinking halves how far he can see you', v.state !== 'CHASE', v.state);
 
+  // crouched behind a low table, close enough to see: hidden. Standing in the same place: seen.
+  reset('L2', 4); v.heading = 0.18; cat(3.45, 3.2); I.keys.add('KeyC');
+  for (let i = 0; i < 12; i++) P.tick(dt);
+  const hid = !v._canSee(); I.keys.clear(); for (let i = 0; i < 12; i++) P.tick(dt);
+  report('crouched behind a low table you are hidden, standing you are not', hid && v._canSee());
+
+  // crouched behind him, out of his sight: he doesn't know you're there, even touching him. Not once he's furious.
+  reset('H2', 3); v.heading = 1.57; cat(v.x - 0.3, v.z); I.keys.add('KeyC');
+  for (let i = 0; i < 12; i++) P.tick(dt);
+  v.frozen = false; v.path = [v.nav.nodes.get('Hk')]; v.pathI = 0;
+  kit.tick(dt); kit.tick(dt);
+  const sneaked = !caughtBy; caughtBy = null;
+  v.setAnger(4); v.caught = false; kit.tick(dt); I.keys.clear();
+  report('crouched behind him you are undetected at stage 3, not at stage 4', sneaked && caughtBy !== null, `${caughtBy}`);
+
+  // something he can't reach: he gives up after a while, and leaves it alone for a bit
+  reset('L5', 4); cat(3.0, 5.11, 2.051); v.x = v.px = 3.0; v.z = v.pz = 4.1; v.heading = 0; v.path = [v.nav.nodes.get('L4')]; v.pathI = 0;
+  v._startChase(); run(0.5); const up = v.state === 'CHASE'; run(TUNING.vac.campTime + 0.5); const gave = v.state !== 'CHASE'; run(1);
+  report('gives up on a cat out of reach', up && gave && v.state !== 'CHASE', v.state);
+
   // the chase, and the cat outrunning him at his angriest
-  reset('Hk', 3); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57);
+  reset('Hk', 4); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57);
   for (let i = 0; i < 30 && v.state !== 'CHASE'; i++) kit.tick(dt);
   const chasing = v.state === 'CHASE'; I.keys.add('KeyW'); I.keys.add('ShiftLeft');
   const d0 = Math.abs(v.x - P.pos.x);
@@ -132,18 +152,28 @@ function huntChecks(kit) {
   report('a running cat outpaces him at anger 3', chasing && d1 > d0 && !caughtBy, `gap ${d0.toFixed(2)} to ${d1.toFixed(2)} m`);
 
   // the chase ends: out of sight, he searches, then goes back to patrol
-  reset('Hk', 3); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57);
+  reset('Hk', 4); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57);
   for (let i = 0; i < 30 && v.state !== 'CHASE'; i++) kit.tick(dt);
   P.noclip = true; let t = 0, sawSearch = false, sawSweep = false;
   while (t < 40 && v.state !== 'PATROL') { kit.tick(dt); t += dt; if (v.state === 'SEARCH') sawSearch = true; if (v.sweep) sawSweep = true; }
   P.noclip = false;
   report('loses you, searches, returns to patrol', sawSearch && sawSweep && v.state === 'PATROL', `${t.toFixed(1)} s`);
 
+  // busy cleaning, he only notices you closer; seeing you still beats the mess
+  reset('H2', 3); v.heading = 1.57; cat(9.8, -0.45);
+  const patrolSees = v._canSee(); v.state = 'CLEAN'; const cleanSees = v._canSee(); v.state = 'PATROL';
+  report('a clean narrows his sight', patrolSees && !cleanSees);
+  reset('H2', 3); v.heading = 1.57; cat(7.2, -0.45);
+  { const m = { id: 't', x: 5.6, z: -0.2, room: 'x', decal: -1, cubes: [], cleaned: false }; kit.debris.messes.push(m); v._startClean(m); }
+  run(0.8);
+  const dropped = v.state === 'CHASE' && !kit.debris.messes[kit.debris.messes.length - 1].cleaned; const m0 = kit.debris.messes.pop(); m0.cleaned = true;
+  report('catching beats cleaning', dropped, v.state);
+
   // caught by his body, on the floor only
-  reset('H2', 1); v.heading = 0; cat(v.x + 0.2, v.z);
+  reset('H2', 2); v.heading = 0; cat(v.x + 0.2, v.z);
   kit.tick(dt);
   report('his body catches a cat on the floor', caughtBy === 'body' && v.caught);
-  reset('K2', 1); cat(v.x, v.z, 1.0); P.vy = 0; P.feetY = 1.0; P.eyeFeet = 1; P.prevEyeFeet = 1; P.frozen = true;
+  reset('K2', 2); cat(v.x, v.z, 1.0); P.vy = 0; P.feetY = 1.0; P.eyeFeet = 1; P.prevEyeFeet = 1; P.frozen = true;
   { const f = P.tick; P.tick = () => {}; kit.tick(dt); P.tick = f; }
   report('but not one above him', !caughtBy);
   P.frozen = false;
@@ -165,7 +195,7 @@ function hoseChecks(kit) {
   const hold = (s, fn) => { for (let i = 0; i < Math.round(s * 60); i++) { kit.tick(dt); if (fn && fn()) return true; } return false; };
 
   // a cat on the kitchen island, in range, sits still: a full telegraph, then it's caught
-  put('K4', 2, 0, 8.5, 0.75, 2.9);
+  put('K4', 3, 0, 8.5, 0.75, 2.9);
   hold(0.5, () => v.state === 'HOSE_REACH');
   const reaching = v.state === 'HOSE_REACH'; let telegraph = 0;
   while (telegraph < 3 && v.reachPhase === 'rise') { kit.tick(dt); telegraph += dt; }
@@ -174,26 +204,26 @@ function hoseChecks(kit) {
   report('reaches for a cat in range, after a telegraph', reaching && Math.abs(telegraph - H.windup) < 0.1, `${telegraph.toFixed(2)} s, tip up at ${raised.toFixed(2)} m`);
   report('and catches a cat that sits still', caughtBy === 'hose');
 
-  put('K4', 1, 0, 8.5, 0.75, 2.9); hold(0.5);
+  put('K4', 2, 0, 8.5, 0.75, 2.9); hold(0.5);
   report('never at anger 1', v.state !== 'HOSE_REACH', v.state);
 
   // the route's safe spots and its two in-reach spots
-  put('L5', 2, 0, 3.0, 2.05, 5.11); v.x = v.px = 3.0; v.z = v.pz = 4.1; // on the curtain rod, right above him
+  put('L5', 3, 0, 3.0, 2.05, 5.11); v.x = v.px = 3.0; v.z = v.pz = 4.1; // on the curtain rod, right above him
   hold(0.5);
   report('a perch above 1.8 m is safe', v.state !== 'HOSE_REACH' && P.feetY > H.reachTop, `${v.state}, cat at ${P.feetY.toFixed(2)} m`);
-  put('L5', 2, -0.3, 4.05, 1.7, 5.1); hold(0.5);
+  put('L5', 3, -0.3, 4.05, 1.7, 5.1); hold(0.5);
   report('the bracket on the high route is in reach', v.state === 'HOSE_REACH', v.state);
-  put('K2', 2, 1.2, 10.35, 1.72, 4.95); hold(0.5);
+  put('K2', 3, 1.2, 10.35, 1.72, 4.95); hold(0.5);
   report('so is the top of the fridge', v.state === 'HOSE_REACH', v.state);
 
   // moving off during the wind-up: it doesn't even try
-  put('K4', 2, 0, 8.5, 0.75, 2.9);
+  put('K4', 3, 0, 8.5, 0.75, 2.9);
   hold(0.5, () => v.reachPhase === 'rise'); hold(0.6);
   { const f = P.tick; P.pos.x = 8.5; P.pos.z = -0.5; P.feetY = 0.75; P.tick = () => {}; hold(0.6, () => v.reachPhase !== 'rise'); P.tick = f; }
   report('dodging during the wind-up: no lunge', !caughtBy && v.reachPhase !== 'lunge', `${v.reachPhase}`);
 
   // a dodge at the last moment: it lunges, misses, slaps the surface, stalls
-  put('K4', 2, 0, 8.5, 0.75, 2.9);
+  put('K4', 3, 0, 8.5, 0.75, 2.9);
   const mug = K.byId.get('mug3'); mug.x = mug.px = 8.55; mug.y = mug.py = 0.75; mug.z = mug.pz = 2.8; mug.state = 'rest'; mug.vx = mug.vy = mug.vz = 0;
   hold(0.5, () => v.state === 'HOSE_REACH');
   while (v.reachPhase === 'rise') kit.tick(dt);
@@ -218,7 +248,7 @@ function catchChecks(kit) {
   const v = kit.vac, P = kit.player, Q = kit.catchSeq, cam = kit.camera, K = TUNING.catch, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} CATCH ${name}${note ? ' (' + note + ')' : ''}`);
   const end0 = kit.endScreen.el.hidden;
-  freshVac(kit, 'K4', 2); v.heading = v.prevHeading = 0; P.noclip = false; P.resetMotion(); P.teleport(8.5, 0.751, 2.9, 0); P.tick(dt);
+  freshVac(kit, 'K4', 3); v.heading = v.prevHeading = 0; P.noclip = false; P.resetMotion(); P.teleport(8.5, 0.751, 2.9, 0); P.tick(dt);
   v._updateHose(dt); P.render(1); cam.updateMatrixWorld(true);
   v.frame(1);
   // the hose reaches out to the cat first, so the path is the real thing
@@ -238,14 +268,14 @@ function catchChecks(kit) {
     if (Math.abs(cam.rotation.z) > 0.3) rolled = true;
   }
   report('dragged along the real hose path in about 0.7 s', Math.abs(dragT - K.drag) < 0.05 && nearHose < 0.1 && away <= 1, `${dragT.toFixed(2)} s, passes ${nearHose.toFixed(3)} m from the hose`);
-  report('the camera rolls on the way', rolled);
+  report('no spinning on the way', !rolled);
   let holdT = 0; while (Q.phase === 'hold' && holdT < 4) { Q.update(dt); holdT += dt; }
   report('holds on his face for 1.2 s', Math.abs(holdT - K.hold) < 0.05, `${holdT.toFixed(2)} s`);
   const dir = new (cam.position.constructor)(); cam.getWorldDirection(dir);
   v.model.root.updateMatrixWorld(true);
   const toVac = new (cam.position.constructor)().setFromMatrixPosition(v.model.root.matrixWorld).setY((TUNING.vac.model.faceY + TUNING.vac.model.holeY) / 2).sub(cam.position).normalize();
   report('and it is looking straight at him', dir.dot(toVac) > 0.98, dir.dot(toVac).toFixed(3));
-  report('face furious, in front of the hole', v.model.face.material.map === v.model.faces[3] && cam.position.distanceTo(Q.end) < 0.001);
+  report('face furious, in front of the hole', v.model.face.material.map === v.model.faces[4] && cam.position.distanceTo(Q.end) < 0.001);
   report('hard cut to black', !Q.cut.hidden && Q.phase === 'black');
   let beat = 0; while (Q.phase === 'black' && beat < 3) { Q.update(dt); beat += dt; }
   report('a beat, then Try again', Math.abs(beat - K.beat) < 0.05 && !kit.endScreen.el.hidden && Q.phase === 'done');
@@ -261,27 +291,30 @@ function hearingChecks(kit) {
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} HEAR ${name}${note ? ' (' + note + ')' : ''}`);
   const crash = (x, z) => N.emit({ kind: 'crash', x, y: 0, z, loud: 0, room: 'test' });
   const count = K.count; K.count = 0;
-  freshVac(kit, 'L1', 1); crash(v.x + 3, v.z);
+  freshVac(kit, 'L1', 2); crash(v.x + 3, v.z);
   report('anger 1: goes to a crash nearby', v.state === 'INVESTIGATE');
-  freshVac(kit, 'L1', 1); crash(16, -0.5);
-  report('anger 1: ignores one far away', v.state === 'PATROL');
   freshVac(kit, 'L1', 2); crash(16, -0.5);
+  report('anger 1: ignores one far away', v.state === 'PATROL');
+  freshVac(kit, 'L1', 3); crash(16, -0.5);
   report('anger 2: hears crashes anywhere', v.state === 'INVESTIGATE');
-  freshVac(kit, 'H2', 2); N.emit({ kind: 'step', x: v.x + 2, y: 0, z: v.z });
-  report('anger 2: ignores footsteps', v.state === 'PATROL');
   freshVac(kit, 'H2', 3); N.emit({ kind: 'step', x: v.x + 2, y: 0, z: v.z });
+  report('angry: ignores footsteps', v.state === 'PATROL');
+  freshVac(kit, 'H2', 4); N.emit({ kind: 'step', x: v.x + 2, y: 0, z: v.z });
   report('anger 3: hears running close by', v.state === 'INVESTIGATE');
-  freshVac(kit, 'H2', 3); N.emit({ kind: 'step', x: v.x + 6, y: 0, z: v.z });
+  freshVac(kit, 'H2', 4); N.emit({ kind: 'step', x: v.x + 6, y: 0, z: v.z });
   report('anger 3: but not far off', v.state === 'PATROL');
-  freshVac(kit, 'H2', 3); N.emit({ kind: 'thud', x: v.x + 2, y: 0, z: v.z });
+  freshVac(kit, 'H2', 4); N.emit({ kind: 'thud', x: v.x + 2, y: 0, z: v.z });
   report('anger 3: hears heavy landings', v.state === 'INVESTIGATE');
   freshVac(kit, 'L1', 1); K.count = TUNING.vac.angerAt[0]; crash(16, -0.5);
-  const a2 = v.anger; K.count = TUNING.vac.angerAt[1]; crash(16, -0.5);
-  report('anger rises with knock-overs', a2 === 2 && v.anger === 3, `${a2} then ${v.anger}`);
+  const a1 = v.anger; K.count = TUNING.vac.angerAt[1]; crash(16, -0.5);
+  const a2 = v.anger; K.count = TUNING.vac.angerAt[2]; crash(16, -0.5);
+  report('neutral until the first break, then rising', a1 === 2 && a2 === 3 && v.anger === 4, `${a1}, ${a2}, ${v.anger}`);
+  freshVac(kit, 'L1', 1); K.count = 0; N.emit({ kind: 'step', x: v.x + 1, y: 0, z: v.z }); crash(v.x + 2, v.z);
+  report('neutral: ignores everything', v.state === 'PATROL');
   K.count = count;
 
   // a real break, found and cleaned: progress stays
-  freshVac(kit, 'K1', 1);
+  freshVac(kit, 'K1', 2);
   const o = K.byId.get('k2Vase'), before = K.count;
   K._knockOver(o);
   const mess = kit.debris.messes.find((m) => m.id === 'k2Vase'), wake = kit.grandma.wake;
@@ -348,8 +381,9 @@ function vacChecks(kit) {
     look(other.pos[0], 0.25, other.pos[2] - 0.35, other.pos[0], other.pos[1], other.pos[2]);
     report('nor an outlet he is not plugged into', v.swipeOutlet(cam) === false && v.plugState === 'in');
     look(p.x, 0.25, p.z - 0.35, p.x, p.y, p.z);
-    const hit = v.swipeOutlet(cam);
+    v.setAnger(4); const hit = v.swipeOutlet(cam);
     report('swiping his outlet unplugs him', hit && v.state === 'UNPLUGGED' && !v.model.face.visible);
+    report('and leaves him at stage 3', v.anger === TUNING.cord.unplugAnger, `${v.anger}`);
     const ux = v.x, C = TUNING.cord;
     for (let t = 0; t < Math.ceil(C.retract * 60) + 2; t++) kit.tick(dt);
     report('the cord goes back to him', v.cord.trim === 1 && v.plugState === 'dead');
@@ -370,7 +404,7 @@ function vacChecks(kit) {
   report('the drone rises steeply as he nears, and is never silent', lv.every((x, i) => i === 0 || x < lv[i - 1]) && lv[1] > lv[3] * 3 && lv[5] >= TUNING.drone.floor, lv.map((x) => x.toFixed(2)).join(' '));
   const rates = TUNING.drone.rate;
   report('its pitch rises with anger', rates[0] < rates[1] && rates[1] < rates[2]);
-  v.setAnger(3); const furious = v.model.face.material.map === v.model.faces[3]; v.setAnger(1);
+  v.setAnger(4); const furious = v.model.face.material.map === v.model.faces[4]; v.setAnger(1);
   report('his face follows his anger', furious && v.model.face.material.map === v.model.faces[1]);
   // F8
   const fx = v.x; v.frozen = true; for (let t = 0; t < 30; t++) kit.tick(dt);

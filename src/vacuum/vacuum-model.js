@@ -8,22 +8,26 @@ import { loadGLB } from '../render/geometry.js';
 
 const V = TUNING.vac, M = V.model;
 
-/** One of the faces, drawn at pixel size. level: 1 neutral, 2 angry, 3 furious. */
+/** One of the faces, drawn at pixel size. level: 1 neutral, 2 annoyed, 3 angry, 4 furious. */
 function drawFace(level) {
   const c = document.createElement('canvas'); c.width = 64; c.height = 48;
   const g = c.getContext('2d');
   const disc = (cx, cy, r, color) => { g.fillStyle = color; for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + 1) g.fillRect(cx + x, cy + y, 1, 1); };
   const brow = (x0, x1, y0, y1, thick) => { g.fillStyle = '#e8e4d8'; const n = Math.abs(x1 - x0); for (let i = 0; i <= n; i++) g.fillRect(x0 + Math.sign(x1 - x0) * i, Math.round(y0 + ((y1 - y0) * i) / n), 1, thick); };
-  const eyeR = level === 3 ? 7 : 8, pupilR = level === 3 ? 1 : 3, pupil = level === 3 ? '#a01010' : '#000000';
+  const eyeR = level === 4 ? 7 : 8, pupilR = level === 4 ? 1 : 3, pupil = level === 4 ? '#a01010' : '#000000';
   for (const x of [20, 44]) { disc(x, 20, eyeR, '#e8e4d8'); disc(x, 21, pupilR, pupil); }
-  if (level >= 2) { // the lids come down at a slant, and the brows with them
-    g.globalCompositeOperation = 'destination-out';
-    for (let i = 0; i < 18; i++) { g.fillRect(11 + i, 8, 1, 5 + (i * (level === 3 ? 7 : 5)) / 18); g.fillRect(53 - i, 8, 1, 5 + (i * (level === 3 ? 7 : 5)) / 18); }
-    g.globalCompositeOperation = 'source-over';
-    const t = level === 3 ? 3 : 2;
-    brow(9, 29, 7, 15 + level, t); brow(55, 35, 7, 15 + level, t);
+  if (level === 2) { // annoyed: flat brows sitting low on the eyes
+    g.globalCompositeOperation = 'destination-out'; g.fillRect(11, 8, 42, 7); g.globalCompositeOperation = 'source-over';
+    brow(11, 29, 12, 12, 2); brow(53, 35, 12, 12, 2);
   }
-  if (level === 3) { // bared teeth along the top of the hole
+  if (level >= 3) { // the lids come down at a slant, and the brows with them
+    g.globalCompositeOperation = 'destination-out';
+    for (let i = 0; i < 18; i++) { g.fillRect(11 + i, 8, 1, 5 + (i * (level === 4 ? 7 : 5)) / 18); g.fillRect(53 - i, 8, 1, 5 + (i * (level === 4 ? 7 : 5)) / 18); }
+    g.globalCompositeOperation = 'source-over';
+    const t = level === 4 ? 3 : 2;
+    brow(9, 29, 7, 14 + level, t); brow(55, 35, 7, 14 + level, t);
+  }
+  if (level === 4) { // bared teeth along the top of the hole
     g.fillStyle = '#e8e4d8';
     for (let x = 14; x < 50; x += 6) for (let i = 0; i < 6; i++) g.fillRect(x + i, 38 + (i < 3 ? i * 2 : (5 - i) * 2), 1, 10 - (i < 3 ? i * 2 : (5 - i) * 2));
   }
@@ -46,7 +50,7 @@ export function buildVacuum() {
   const body = new THREE.Group();
   body.scale.set(M.scaleXZ, M.scaleY, M.scaleXZ);
   root.add(body);
-  const out = { root, body, ready: false, faces: { 1: drawFace(1), 2: drawFace(2), 3: drawFace(3) } };
+  const out = { root, body, ready: false, faces: { 1: drawFace(1), 2: drawFace(2), 3: drawFace(3), 4: drawFace(4) } };
 
   // the hole: a real gaping black mouth, much wider than the model's own opening so it reads from cat height
   const hole = new THREE.Mesh(new THREE.CircleGeometry(M.holeR, 16), makePS1(new THREE.MeshBasicMaterial({ color: 0x000000, fog: false })));

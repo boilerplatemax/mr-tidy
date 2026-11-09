@@ -55,7 +55,7 @@ PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
 const debris = new Debris(scene, world);
 const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
-player.onStep = (gait) => { if (gait === 'run') noise.emit({ kind: 'step', x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // slink and walk are quiet
+player.onStep = (gait) => { if (gait === 'run' && !player.groundCollider) noise.emit({ kind: 'step', x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only a cat running on the floor can be heard: walking, slinking and furniture are quiet
 player.onLand = (impact, heavy) => { if (heavy) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z }); };
 const grandma = new Grandma({ noise, house });
 const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });

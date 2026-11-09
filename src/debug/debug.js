@@ -71,7 +71,7 @@ export class Debug {
   _drawNav() {
     const on = this.overlay.visible, v = this.vac;
     this.navLines.visible = this.pathLine.visible = on;
-    const V = TUNING.vac, r = v.anger === 1 ? V.hearNear : v.anger === 3 ? V.hearSteps : 0; // (at anger 2 he hears crashes anywhere: no ring)
+    const V = TUNING.vac, r = v.anger === 2 ? V.hearNear : v.anger === 4 ? V.hearSteps : 0; // (the rings are the limits he has at those stages)
     this.hearRing.visible = on && r > 0;
     this.visionCone.visible = on;
     this.reachShape.visible = on;
@@ -130,7 +130,7 @@ export class Debug {
       `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
       `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'} · stamina ${P.stamina.toFixed(2)}`,
       `knocked ${this.knock.count}/${this.knock.list.length} · messes ${this.debris.messes.length} · last noise ${this.noise.last ? this.noise.last.kind + (this.noise.last.objectId ? ' ' + this.noise.last.objectId : '') : 'none'}`,
-      `vac ${this.vac.state}${this.vac.reachPhase ? ' ' + this.vac.reachPhase : ''}${this.vac.frozen ? ' (frozen)' : ''} · anger ${this.vac.anger} · hears ${this.vac.anger === 1 ? 'near crashes' : this.vac.anger === 2 ? 'all crashes' : 'all crashes + steps'} · cord ${this.vac._paid().toFixed(1)}/${TUNING.cord.length} m`,
+      `vac ${this.vac.state}${this.vac.reachPhase ? ' ' + this.vac.reachPhase : ''}${this.vac.frozen ? ' (frozen)' : ''} · anger ${this.vac.anger} · hears ${['nothing', 'near crashes', 'all crashes', 'all crashes + floor steps'][this.vac.anger - 1]} · cord ${this.vac._paid().toFixed(1)}/${TUNING.cord.length} m`,
       `grandmaWake ${this.grandma.wake.toFixed(1)} · stage ${this.grandma.stage}`,
       `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
     ];
