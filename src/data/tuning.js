@@ -175,6 +175,23 @@ export const TUNING = {
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
     },
   },
+  hose: { // the snake out of the hole (src/vacuum/hose.js)
+    length: 2.4, segments: 12, radius: 0.028, tubeSegments: 28, tubeSides: 6, // m, chain links, m, how smooth the tube is
+    color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
+    restReach: 0.6, restSway: 0.07, follow: 14, floorY: 0.03, ikPasses: 3, // how it lies at rest; how fast it catches up; IK iterations
+    reachH: 1.6, reachTop: 1.8, // m: how far out from the hole, and how high a perch it can get to. Tier-2 spots above this are safe
+    minPerch: 0.3, // m: a cat higher than this counts as perched (lower, his body gets it instead)
+    standoff: 1.1, // m: how close to a perched cat he tries to park
+    minAnger: 2, // he doesn't use the hose at anger 1
+    cooldown: [0, 5, 2.5], // s between reaches, by anger level
+    windup: 1.0, // s of telegraph: the hose rises, sways and sniffs, with the rattle playing. The player's chance
+    hover: 0.42, sway: 0.09, swayRate: 7, riseSpeed: 3, // m short of the cat that it hovers; m it sways; rad/s; m/s rising
+    lungeSpeed: 10, hit: 0.2, // m/s; m from the cat's chest that counts as caught
+    giveUp: 0.3, // m past its range that the cat can be when the lunge starts before he doesn't bother
+    slapRadius: 0.5, slapSpeed: 2.2, // m around the tip that a missed lunge knocks things; m/s
+    stall: 1.0, // s he stands there after a miss
+    cleanSpeed: 3, // m/s the nozzle goes out to a mess
+  },
   drone: { // the motor. The player must be able to find him by ear (src/vacuum/vacuum.js)
     closeness: 2.2, // m: at this distance the drone is at half volume. Smaller: it rises more steeply as he nears
     floor: 0.05, // the quietest it ever gets, anywhere in the house, so he can always be heard

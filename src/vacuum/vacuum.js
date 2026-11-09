@@ -6,15 +6,17 @@ import { LEVEL } from '../data/level.js';
 import { buildVacuum } from './vacuum-model.js';
 import { Nav } from './nav.js';
 import { Cord } from './cord.js';
+import { Hose } from './hose.js';
 import { audio } from '../audio/audio.js';
 
-const V = TUNING.vac, D = TUNING.drone, C = TUNING.cord;
+const V = TUNING.vac, D = TUNING.drone, C = TUNING.cord, H = TUNING.hose;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const _s = new THREE.Vector3();
 
 export class Vacuum {
   constructor({ scene, world, camera, noise, knock, debris, player }) {
     this.world = world; this.knock = knock; this.debris = debris; this.camera = camera; this.player = player;
+    this.hose = new Hose(scene); this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
     this.seeT = 0; this.seesCat = false; this.lastX = 0; this.lastZ = 0; this.loseT = 0; this.replanT = 0; this.direct = false; this.directOK = false; this.chaseNode = null; this.sweep = false; this.sweepT = 0;
     noise.on((ev) => this._hear(ev));
@@ -83,13 +85,16 @@ export class Vacuum {
    * back, he dies for a moment, then plugs into the nearest outlet. Returns true if it unplugged him.
    */
   swipeOutlet(camera) {
-    if (this.off || this.plugState !== 'in') return false;
+    if (this.off || this.plugState !== 'in' || this.caught) return false;
     const S = TUNING.swipe, p = this.cord.plugPos, eye = camera.position, o = this.cord.outlet;
     const dx = p.x - eye.x, dy = p.y - eye.y, dz = p.z - eye.z, d = Math.hypot(dx, dy, dz);
     if (d > S.reach || d < 1e-3 || (eye.x - p.x) * o.n[0] + (eye.z - p.z) * o.n[2] <= 0) return false; // too far, or the other side of the wall
     camera.getWorldDirection(_s);
     if ((dx * _s.x + dy * _s.y + dz * _s.z) / d < S.cone) return false;
     if (this.plugLock > 0) { audio.play('knock.clink', { pos: p }); return false; } // jammed in for now
+    if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
+    this._endReach();
+    this.direct = false;
     this.plugState = 'retract'; this.plugT = 0; this.state = 'UNPLUGGED';
     this.model.face.visible = false;
     audio.play('vac.unplug', { pos: p });
@@ -187,6 +192,7 @@ export class Vacuum {
 
   _investigate(x, z) {
     if (this.state === 'CHASE') { if (!this.seesCat) { this.lastX = x; this.lastZ = z; } return; } // something to go on while he has lost sight of you
+    if (this.state === 'HOSE_REACH') return; // busy: a crash doesn't pull him off a reach (his own slap can cause one)
     if (this.state === 'CLEAN') { this.pending = { x, z }; return; } // he finishes the job in hand first
     this.state = 'INVESTIGATE';
     this.routeTo(this.nav.nearest(x, z));
@@ -226,7 +232,7 @@ export class Vacuum {
 
   _tickClean(dt) {
     this.cleanT += dt / V.cleanTime;
-    const u = Math.min(1, this.cleanT), h = this._hole();
+    const u = Math.min(1, this.cleanT), h = this.hose.tip; // the debris flies into the nozzle
     this.debris.cleanStep(this.mess, u, h.x, h.y, h.z);
     if (u < 1) return;
     this.mess.cleaned = true; this.mess = null;
@@ -248,13 +254,18 @@ export class Vacuum {
     if ((dx * Math.sin(this.heading) + dz * Math.cos(this.heading)) / d < V.sightCos) return false;
     const a = this._a, b = this._b;
     a.x = this.x; a.y = 0.35; a.z = this.z; b.x = P.pos.x; b.y = P.feetY + 0.15; b.z = P.pos.z;
-    return this.world.countOccluders(a, b, 1, true) === 0;
+    // what the cat is standing on doesn't hide it: from the floor, a cat on a fridge is just on top of the fridge
+    const under = P.groundCollider, was = under ? under.occludes : false;
+    if (under) under.occludes = false;
+    const clear = this.world.countOccluders(a, b, 1, true) === 0;
+    if (under) under.occludes = was;
+    return clear;
   }
 
   _perceive(dt) {
     this.seesCat = this._canSee();
     if (this.seesCat) { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; }
-    if (this.state === 'CHASE') return;
+    if (this.state === 'CHASE' || this.state === 'HOSE_REACH') return;
     this.seeT = this.seesCat ? this.seeT + dt : Math.max(0, this.seeT - dt);
     if (this.seeT >= V.noticeTime[this.anger - 1]) this._startChase();
   }
@@ -285,13 +296,87 @@ export class Vacuum {
     this.path = [best]; this.pathI = 0;
   }
 
+  // ---- the hose
+  _catChest(out) { out.set(this.player.pos.x, this.player.feetY + 0.12, this.player.pos.z); return out; }
+
+  _inReach(margin) {
+    const P = this.player, h = this._hole();
+    return P.feetY >= H.minPerch && P.feetY <= H.reachTop + margin && Math.hypot(P.pos.x - h.x, P.pos.z - h.z) <= H.reachH + margin;
+  }
+
+  _canReach() { return this.anger >= H.minAnger && this.reachCd <= 0 && this.seesCat && this._inReach(0); }
+
+  _startReach() {
+    if (this.direct) this._rejoin();
+    this.state = 'HOSE_REACH'; this.reachPhase = 'rise'; this.reachT = 0;
+    this.rattle = audio.play('vac.rattle', { follow: this.model.hoseSocket, refDistance: 1, rolloff: 1.1 });
+  }
+
+  _endReach() {
+    this.reachPhase = null;
+    this.rattle?.stop(0.1); this.rattle = null;
+  }
+
+  _reachDone() {
+    this._endReach();
+    this.reachCd = H.cooldown[this.anger - 1];
+    if (this.seesCat) this._startChase(); else { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; this._startSearch(); }
+  }
+
+  _tickReach(dt) {
+    this.reachT += dt;
+    if (this.reachPhase === 'rise') {
+      const want = Math.atan2(this.player.pos.x - this.x, this.player.pos.z - this.z), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
+      this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
+      if (this.reachT >= H.windup) {
+        if (!this._inReach(H.giveUp)) { this.reachPhase = 'stall'; this.reachT = H.stall * 0.6; this.rattle?.stop(0.1); this.rattle = null; return; } // gone: it doesn't bother
+        this._catChest(this._snap);
+        this.reachPhase = 'lunge'; this.reachT = 0;
+      }
+    } else if (this.reachPhase === 'lunge') {
+      if (this.hose.tip.distanceTo(this._catChest(this._goal)) <= H.hit) { this._endReach(); this._catch('hose'); return; }
+      if (this.hose.tip.distanceTo(this._snap) < 0.03) this._slap();
+    } else if (this.reachT >= H.stall) this._reachDone();
+  }
+
+  _slap() { // a miss: the nozzle comes down on whatever is there, and anything it sends over the edge still counts
+    const t = this.hose.tip;
+    audio.play('vac.slap', { pos: t });
+    for (const o of this.knock.list) {
+      if (o.state === 'gone') continue;
+      const dx = o.x - t.x, dz = o.z - t.z, d = Math.hypot(dx, dz) || 1;
+      if (d <= H.slapRadius && Math.abs(o.y - t.y) < 0.4) this.knock.shove(o, dx / d, dz / d, H.slapSpeed);
+    }
+    this.rattle?.stop(0.1); this.rattle = null;
+    this.reachPhase = 'stall'; this.reachT = 0;
+  }
+
+  _updateHose(dt) {
+    const h = this._hole(), g = this._goal;
+    let goal = null, speed = 0;
+    if (this.reachPhase === 'rise') { // up out of the hole, hovering short of the cat and sniffing at it
+      this._catChest(g);
+      const dx = g.x - h.x, dy = g.y - h.y, dz = g.z - h.z, l = Math.hypot(dx, dy, dz) || 1, t = this.hose.t;
+      g.x -= (dx / l) * H.hover; g.y -= (dy / l) * H.hover; g.z -= (dz / l) * H.hover;
+      g.x += Math.sin(t * H.swayRate) * H.sway * (dz / l); g.z -= Math.sin(t * H.swayRate) * H.sway * (dx / l); g.y += Math.sin(t * H.swayRate * 1.4) * H.sway * 0.6;
+      goal = g; speed = H.riseSpeed;
+    } else if (this.reachPhase === 'lunge') { goal = this._snap; speed = H.lungeSpeed; }
+    else if (this.state === 'CLEAN' && this.mess) { g.set(this.mess.x, 0.06, this.mess.z); goal = g; speed = H.cleanSpeed; } // the nozzle comes down on the mess
+    this.hose.tick(dt, h, this.heading, goal, speed);
+  }
+
   _tickChase(dt) {
+    if (this._canReach()) { this._startReach(); return; }
     if (this.seesCat) this.loseT = 0; else this.loseT += dt;
     if (this.loseT >= V.loseTime) { this._startSearch(); return; }
     this.replanT -= dt;
     if (this.replanT <= 0) {
       this.replanT = V.replan;
-      this.directOK = this.seesCat && this._clear(this.lastX, this.lastZ);
+      // a cat up on something can't be driven at: he parks within hose range of it instead
+      const perched = this.player.feetY >= H.minPerch, dx = this.x - this.lastX, dz = this.z - this.lastZ, d = Math.hypot(dx, dz) || 1;
+      this.directX = perched ? this.lastX + (dx / d) * H.standoff : this.lastX;
+      this.directZ = perched ? this.lastZ + (dz / d) * H.standoff : this.lastZ;
+      this.directOK = this.seesCat && this._clear(this.directX, this.directZ);
       if (this.directOK) this.direct = true;
       else {
         if (this.direct) this._rejoin();
@@ -301,7 +386,7 @@ export class Vacuum {
     }
     const speed = V.chaseSpeed[this.anger - 1];
     if (this.direct) { // the cord still only goes so far
-      if (this._paid() < C.length - 0.05) this._steer(dt, this.lastX, this.lastZ, speed);
+      if (this._paid() < C.length - 0.05 && Math.hypot(this.directX - this.x, this.directZ - this.z) > V.arrive) this._steer(dt, this.directX, this.directZ, speed);
       return;
     }
     this._followPath(dt, speed);
@@ -376,11 +461,14 @@ export class Vacuum {
   tick(dt) {
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading;
     this._updateDrone(dt);
+    this._updateHose(dt);
+    if (this.reachCd > 0) this.reachCd -= dt;
     if (this.plugLock > 0) this.plugLock -= dt;
     if (this.plugState !== 'in' && !this.off) { this._tickPlug(dt); return; }
     if (this.frozen || this.off || this.caught) return;
     this._perceive(dt);
     if (this._touching()) { this._catch('body'); return; }
+    if (this.state === 'HOSE_REACH') { this._tickReach(dt); return; }
     if (this.state === 'CHASE') { this._tickChase(dt); return; }
     if (this.state === 'CLEAN') { this._tickClean(dt); return; }
     if (this.state === 'SEARCH' && this.sweep) { this._tickSweep(dt); return; }
@@ -398,6 +486,7 @@ export class Vacuum {
     const r = this.model.root;
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;
+    this.hose.frame(alpha);
     const paid = this._paid();
     this.spin += (paid - this.lastPaid) / 0.07; this.lastPaid = paid; // the reel turns as cord goes out or comes in
     this.model.setReel(Math.min(1, (paid / C.length) * (1 - this.cord.trim)), this.spin + this.cord.trim * 40);

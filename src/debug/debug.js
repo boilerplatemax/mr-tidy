@@ -55,6 +55,15 @@ export class Debug {
     const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(cone, 3));
     this.visionCone = new THREE.Line(cg, mat(0xff6060)); this.visionCone.renderOrder = 9; this.visionCone.visible = false; this.visionCone.frustumCulled = false;
     this.scene.add(this.visionCone);
+    { // the hose's reach: a cylinder out from the hole, up to the height it can get to
+      const R = TUNING.hose, seg = [], c = (a) => [Math.cos(a), Math.sin(a)];
+      for (const y of [0, 1]) for (let i = 0; i < 28; i++) { const [x0, z0] = c((i / 28) * Math.PI * 2), [x1, z1] = c(((i + 1) / 28) * Math.PI * 2); seg.push(x0, y, z0, x1, y, z1); }
+      for (let i = 0; i < 6; i++) { const [x, z] = c((i / 6) * Math.PI * 2); seg.push(x, 0, z, x, 1, z); }
+      const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3));
+      this.reachShape = new THREE.LineSegments(g2, mat(0xff60e0)); this.reachShape.renderOrder = 9; this.reachShape.visible = false; this.reachShape.frustumCulled = false;
+      this.reachShape.scale.set(R.reachH, R.reachTop, R.reachH);
+      this.scene.add(this.reachShape);
+    }
     this.hearRing = new THREE.Line(rg, mat(0x70c0ff)); this.hearRing.renderOrder = 9; this.hearRing.visible = false; this.hearRing.frustumCulled = false;
     this.scene.add(this.hearRing);
   }
@@ -65,7 +74,9 @@ export class Debug {
     const V = TUNING.vac, r = v.anger === 1 ? V.hearNear : v.anger === 3 ? V.hearSteps : 0; // (at anger 2 he hears crashes anywhere: no ring)
     this.hearRing.visible = on && r > 0;
     this.visionCone.visible = on;
+    this.reachShape.visible = on;
     if (!on) return;
+    { const h = v._hole(); this.reachShape.position.set(h.x, 0, h.z); }
     this.hearRing.position.set(v.x, 0.06, v.z); this.hearRing.scale.set(r, 1, r);
     const range = V.sightRange[v.anger - 1];
     this.visionCone.visible = true; this.visionCone.position.set(v.x, 0.07, v.z); this.visionCone.rotation.y = v.heading; this.visionCone.scale.set(range, 1, range);
@@ -118,7 +129,7 @@ export class Debug {
       `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
       `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'} · stamina ${P.stamina.toFixed(2)}`,
       `knocked ${this.knock.count}/${this.knock.list.length} · messes ${this.debris.messes.length} · last noise ${this.noise.last ? this.noise.last.kind + (this.noise.last.objectId ? ' ' + this.noise.last.objectId : '') : 'none'}`,
-      `vac ${this.vac.state}${this.vac.frozen ? ' (frozen)' : ''} · anger ${this.vac.anger} · hears ${this.vac.anger === 1 ? 'near crashes' : this.vac.anger === 2 ? 'all crashes' : 'all crashes + steps'} · cord ${this.vac._paid().toFixed(1)}/${TUNING.cord.length} m`,
+      `vac ${this.vac.state}${this.vac.reachPhase ? ' ' + this.vac.reachPhase : ''}${this.vac.frozen ? ' (frozen)' : ''} · anger ${this.vac.anger} · hears ${this.vac.anger === 1 ? 'near crashes' : this.vac.anger === 2 ? 'all crashes' : 'all crashes + steps'} · cord ${this.vac._paid().toFixed(1)}/${TUNING.cord.length} m`,
       `grandmaWake ${this.grandma.wake.toFixed(1)} · stage ${this.grandma.stage}`,
       `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
     ];

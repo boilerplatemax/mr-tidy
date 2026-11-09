@@ -85,6 +85,7 @@ function freshVac(kit, id, anger = 1) {
   for (const m of kit.debris.messes) m.cleaned = true;
   if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
   v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
+  v._endReach(); v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false;
   v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
   v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
   return v;
@@ -148,6 +149,66 @@ function huntChecks(kit) {
   P.frozen = false;
 
   v.onCatch = onCatch0; v.caught = false; freshVac(kit, 'L1', 1); P.noclip = true;
+  return rows;
+}
+
+/** The hose: telegraph, lunge, dodge, slap, and what it can and can't reach. */
+function hoseChecks(kit) {
+  const v = kit.vac, P = kit.player, I = kit.input, K = kit.knock, H = TUNING.hose, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} HOSE ${name}${note ? ' (' + note + ')' : ''}`);
+  P.noclip = false; let caughtBy = null; const onCatch0 = v.onCatch; v.onCatch = (how) => { caughtBy = how; };
+  const put = (id, anger, heading, x, y, z) => {
+    freshVac(kit, id, anger); caughtBy = null; v.heading = heading; v.prevHeading = heading; I.keys.clear(); P.frozen = false; P.resetMotion();
+    P.teleport(x, y + 0.001, z, 0); for (let i = 0; i < 4 && !P.grounded; i++) P.tick(dt);
+    v.seesCat = true; v.lastX = x; v.lastZ = z; v._startChase(); v.state = 'CHASE';
+  };
+  const hold = (s, fn) => { for (let i = 0; i < Math.round(s * 60); i++) { kit.tick(dt); if (fn && fn()) return true; } return false; };
+
+  // a cat on the kitchen island, in range, sits still: a full telegraph, then it's caught
+  put('K4', 2, 0, 8.5, 0.75, 2.9);
+  hold(0.5, () => v.state === 'HOSE_REACH');
+  const reaching = v.state === 'HOSE_REACH'; let telegraph = 0;
+  while (telegraph < 3 && v.reachPhase === 'rise') { kit.tick(dt); telegraph += dt; }
+  const raised = v.hose.tip.y;
+  hold(0.5, () => caughtBy);
+  report('reaches for a cat in range, after a telegraph', reaching && Math.abs(telegraph - H.windup) < 0.1, `${telegraph.toFixed(2)} s, tip up at ${raised.toFixed(2)} m`);
+  report('and catches a cat that sits still', caughtBy === 'hose');
+
+  put('K4', 1, 0, 8.5, 0.75, 2.9); hold(0.5);
+  report('never at anger 1', v.state !== 'HOSE_REACH', v.state);
+
+  // the route's safe spots and its two in-reach spots
+  put('L5', 2, 0, 3.0, 2.05, 5.11); v.x = v.px = 3.0; v.z = v.pz = 4.1; // on the curtain rod, right above him
+  hold(0.5);
+  report('a perch above 1.8 m is safe', v.state !== 'HOSE_REACH' && P.feetY > H.reachTop, `${v.state}, cat at ${P.feetY.toFixed(2)} m`);
+  put('L5', 2, -0.3, 4.05, 1.7, 5.1); hold(0.5);
+  report('the bracket on the high route is in reach', v.state === 'HOSE_REACH', v.state);
+  put('K2', 2, 1.2, 10.35, 1.72, 4.95); hold(0.5);
+  report('so is the top of the fridge', v.state === 'HOSE_REACH', v.state);
+
+  // moving off during the wind-up: it doesn't even try
+  put('K4', 2, 0, 8.5, 0.75, 2.9);
+  hold(0.5, () => v.reachPhase === 'rise'); hold(0.6);
+  { const f = P.tick; P.pos.x = 8.5; P.pos.z = -0.5; P.feetY = 0.75; P.tick = () => {}; hold(0.6, () => v.reachPhase !== 'rise'); P.tick = f; }
+  report('dodging during the wind-up: no lunge', !caughtBy && v.reachPhase !== 'lunge', `${v.reachPhase}`);
+
+  // a dodge at the last moment: it lunges, misses, slaps the surface, stalls
+  put('K4', 2, 0, 8.5, 0.75, 2.9);
+  const mug = K.byId.get('mug3'); mug.x = mug.px = 8.55; mug.y = mug.py = 0.75; mug.z = mug.pz = 2.8; mug.state = 'rest'; mug.vx = mug.vy = mug.vz = 0;
+  hold(0.5, () => v.state === 'HOSE_REACH');
+  while (v.reachPhase === 'rise') kit.tick(dt);
+  { const f = P.tick; P.pos.x = 8.9; P.pos.z = 3.3; P.feetY = 0.75; P.tick = () => {}; hold(0.4, () => v.reachPhase === 'stall'); P.tick = f; }
+  const slapped = mug.state !== 'rest' || Math.hypot(mug.vx, mug.vz) > 0.01, stalled = v.reachPhase === 'stall';
+  const sx = v.x; let stallT = 0; while (v.reachPhase === 'stall' && stallT < 3) { kit.tick(dt); stallT += dt; }
+  report('a missed lunge slaps what is there and stalls him', !caughtBy && stalled && slapped && Math.abs(stallT - H.stall) < 0.1 && v.x === sx, `stall ${stallT.toFixed(2)} s, caught ${caughtBy}, stalled ${stalled}, slapped ${slapped}, moved ${v.x - sx}`);
+
+  // the tube
+  const ok = v.hose.pts.every((p) => Number.isFinite(p.x + p.y + p.z)) && v.hose.mesh.geometry.attributes.position?.count > 0;
+  v.frame(1);
+  report('the hose stays a finite tube, nozzle at the tip', ok && v.hose.mesh.geometry.attributes.position.count > 0);
+  report('the hose has its length, radius and segments in the tuning file', H.length > 0 && H.radius > 0 && H.segments >= 10 && H.segments <= 14);
+
+  v.onCatch = onCatch0; freshVac(kit, 'L1', 1); P.noclip = true;
   return rows;
 }
 
@@ -617,6 +678,7 @@ export function runRouteBot(kit) {
   rows.push(...vacChecks(kit));
   rows.push(...hearingChecks(kit));
   rows.push(...huntChecks(kit));
+  rows.push(...hoseChecks(kit));
   rows.push(...grandmaChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
