@@ -1,6 +1,6 @@
-// The first-person controller. Fixed-timestep movement with render interpolation, mouselook applied every rendered
-// frame (no input lag), circle-vs-proxy collision with step-up and wall sliding, crouch (toggle or hold), jog, short
-// accel/decel, surface footsteps and a subtle head-bob locked to the footsteps.
+// The cat controller, adapted from the kit's first-person controller. Fixed-timestep movement with render interpolation,
+// mouselook every rendered frame, circle-vs-proxy collision with step-up and wall sliding, walk / run / slink, surface
+// footsteps and a subtle head-bob locked to the footsteps. Every number is in TUNING.player.
 import { TUNING } from '../data/tuning.js';
 import { settings } from '../data/settings.js';
 import { audio } from '../audio/audio.js';
@@ -17,9 +17,9 @@ export class Player {
     this.vel = { x: 0, z: 0 }; this.vy = 0;
     this.yaw = 0; this.pitch = 0;
     this.grounded = true;
-    this.crouching = false; this.crouch = 0; this.prevCrouch = 0;
+    this.slink = 0; this.prevSlink = 0; // 0 = standing, 1 = fully down
     this.gait = 'walk'; this.speed = 0;
-    this.surface = TUNING.surfaces.concrete ? 'concrete' : Object.keys(TUNING.surfaces)[0];
+    this.surface = Object.keys(TUNING.surfaces)[0];
     this.stepDist = 0; this.stepParity = 0;
     // The bob's own phase, 0..2 (one footstep = 1; two = the full sway left and right), weight and gait depth. Per-tick
     // values the camera draws INTERPOLATED (bobPh / bobW / bobA are this frame's: a viewmodel can read them too).
@@ -28,9 +28,10 @@ export class Player {
     // View offsets anything may set per tick (rad / m). snapView() keeps last tick's copy so render() can lerp them.
     this.viewDip = 0; this.landDip = 0;
     this._pv = { viewDip: 0, landDip: 0 };
-    this.speedMul = 1; // set by other systems (carrying something heavy, a slow surface event)
-    this.frozen = false; // look, but don't walk (a cutscene, a hold that roots you)
-    this.onStep = null; // (gait, surface) after every footstep: hook noise / AI hearing here
+    this.frozen = false; // look, but don't move (a cutscene)
+    this.noclip = false; // debug fly (F3)
+    this.onStep = null; // (gait, surface) after every audible footstep: the vac's ears hook in here
+    this.onLand = null; // (impact m/s, heavy bool) on landing
     this._g = { y: 0, surface: '', collider: null };
     // velocity clipping against contact normals (made once: no per-tick closures)
     this._clip = (nx, nz) => { const vn = this.vel.x * nx + this.vel.z * nz; if (vn < 0) { this.vel.x -= nx * vn; this.vel.z -= nz * vn; } };
@@ -41,11 +42,10 @@ export class Player {
     this.pos.x = this.prev.x = x; this.pos.z = this.prev.z = z;
     this.feetY = this.eyeFeet = this.prevEyeFeet = y;
     this.vel.x = this.vel.z = this.vy = 0;
-    this.yaw = yaw;
+    this.yaw = yaw; this.grounded = false;
   }
 
-  get height() { return P.height + (P.crouchHeight - P.height) * this.crouch; }
-  get eyeHeight() { return P.eyeHeight + (P.crouchEyeHeight - P.eyeHeight) * this.crouch; }
+  get height() { return P.height + (P.slinkHeight - P.height) * this.slink; }
 
   /** Mouselook: every rendered frame, not per tick (no input lag). */
   look() {
@@ -60,20 +60,18 @@ export class Player {
   snapView() { this._pv.viewDip = this.viewDip; this._pv.landDip = this.landDip; }
 
   tick(dt) {
-    const I = this.input;
     this.prev.x = this.pos.x; this.prev.z = this.pos.z; this.prevEyeFeet = this.eyeFeet;
-    this.prevCrouch = this.crouch; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
+    this.prevSlink = this.slink; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
+    if (this.noclip) { this._fly(dt); return; }
+    this._wish();
+    this._slinkUpdate(dt);
+    this._groundAndAir(dt);
+    this._eyeAndSteps(dt);
+  }
 
-    // ---- crouch (toggle or hold), held down while something low is overhead. C only: Ctrl+W would close the tab
-    if (settings.crouchToggle) { if (I.pressed('KeyC')) this.crouching = !this.crouching; }
-    else this.crouching = I.down('KeyC');
-    let wantCrouch = this.crouching;
-    if (!wantCrouch && this.crouch > 0 && this.world.penetration(this.pos.x, this.pos.z, P.radius * 0.95, this.feetY + P.crouchHeight - 0.05, this.feetY + P.height) > 0) wantCrouch = true;
-    const cTarget = wantCrouch ? 1 : 0, cStep = dt / P.crouchTime;
-    if (cTarget > this.crouch) this.crouch = Math.min(1, this.crouch + cStep);
-    else if (cTarget < this.crouch) this.crouch = Math.max(0, this.crouch - cStep);
-
-    // ---- wish direction
+  /** The keys, as a move direction relative to the view (wfwd, wside) and a world-space unit wish (wx, wz). */
+  _wish() {
+    const I = this.input;
     let fwd = 0, side = 0;
     if (!this.frozen) {
       if (I.down('KeyW') || I.down('ArrowUp')) fwd += 1;
@@ -83,26 +81,68 @@ export class Player {
     }
     const len = Math.hypot(fwd, side);
     if (len > 1) { fwd /= len; side /= len; }
-
-    // ---- gait and speed
-    const jogging = (I.down('ShiftLeft') || I.down('ShiftRight')) && this.crouch < 0.5 && fwd > 0;
-    this.gait = this.crouch > 0.5 ? 'crouch' : jogging ? 'jog' : 'walk';
-    const surf = TUNING.surfaces[this.surface] || {};
-    let speed = (this.gait === 'jog' ? P.jogSpeed : this.gait === 'crouch' ? P.crouchSpeed : P.walkSpeed) * (surf.speed ?? 1) * this.speedMul;
-    if (fwd < 0) speed *= P.backwardMul;
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
+    this.wfwd = fwd; this.wside = side; this.wlen = Math.min(1, len);
     // forward = (−sin, −cos), right = (cos, −sin)
-    const tx = (-s * fwd + c * side) * speed, tz = (-c * fwd - s * side) * speed;
-    const rate = (len > 0 ? P.accel : P.decel) * (this.grounded ? 1 : P.airControl);
+    this.wx = -s * fwd + c * side; this.wz = -c * fwd - s * side;
+    this.fx = -s; this.fz = -c; // the view's flat forward
+  }
+
+  // Slink: hold C. Slow, low, silent. Held down while something low is overhead. Never Ctrl: Ctrl+W closes the tab.
+  _slinkUpdate(dt) {
+    let want = this.input.down('KeyC') && !this.frozen;
+    if (!want && this.slink > 0 && this.world.penetration(this.pos.x, this.pos.z, P.radius * 0.95, this.feetY + P.slinkHeight - 0.02, this.feetY + P.height) > 0) want = true;
+    const step = dt / P.slinkTime;
+    this.slink = want ? Math.min(1, this.slink + step) : Math.max(0, this.slink - step);
+  }
+
+  _groundAndAir(dt) {
+    const I = this.input;
+    const running = (I.down('ShiftLeft') || I.down('ShiftRight')) && this.slink < 0.5 && this.wfwd >= 0 && this.wlen > 0;
+    this.gait = this.slink > 0.5 ? 'slink' : running ? 'run' : 'walk';
+    const surf = TUNING.surfaces[this.surface] || {};
+    let speed = (this.gait === 'run' ? P.runSpeed : this.gait === 'slink' ? P.slinkSpeed : P.walkSpeed) * (surf.speed ?? 1);
+    if (this.wfwd < 0) speed *= P.backwardMul;
+    let tx = this.wx * speed, tz = this.wz * speed;
+    let rate = this.wlen > 0 ? P.accel : P.decel;
+    if (!this.grounded) { rate = this.wlen > 0 ? P.airAccel : P.airDecel; }
     this.vel.x += (tx - this.vel.x) * expK(rate, dt);
     this.vel.z += (tz - this.vel.z) * expK(rate, dt);
-    if (Math.abs(this.vel.x) < 1e-3 && !len) this.vel.x = 0;
-    if (Math.abs(this.vel.z) < 1e-3 && !len) this.vel.z = 0;
+    if (Math.abs(this.vel.x) < 1e-3 && !this.wlen) this.vel.x = 0;
+    if (Math.abs(this.vel.z) < 1e-3 && !this.wlen) this.vel.z = 0;
 
-    // ---- horizontal move with collision (substeps so nothing tunnels)
+    // ---- vertical first when rising: a shelf overhead stops the head (the kit had no ceiling check; without one a jump
+    // under a shelf would shove the cat sideways out of it)
+    if (!this.grounded && this.vy > 0) {
+      const top = this.feetY + this.height;
+      const ceil = this.world.ceiling(this.pos.x, this.pos.z, P.radius * 0.8, top - 0.02);
+      if (top + this.vy * dt > ceil) { this.feetY = Math.max(this.feetY, ceil - this.height - 1e-3); this.vy = 0; }
+    }
+
+    this._moveXZ(dt);
+
+    // ---- vertical: step up / down, gravity, landing
+    const g = this.world.ground(this.pos.x, this.pos.z, P.radius * P.edgeSupport, this.feetY + P.stepHeight, this._g);
+    if (this.grounded && g.y >= this.feetY - P.stepHeight && g.y <= this.feetY + P.stepHeight) {
+      this.feetY = g.y; this.vy = 0;
+    } else {
+      this.grounded = false;
+      this.vy -= P.gravity * dt;
+      this.feetY += this.vy * dt;
+      if (this.feetY <= g.y && this.vy <= 0) {
+        const impact = -this.vy;
+        this.feetY = g.y; this.vy = 0; this.grounded = true;
+        this._land(impact);
+      }
+    }
+    this.surface = g.surface;
+  }
+
+  /** Horizontal move with collision (substeps so nothing tunnels). */
+  _moveXZ(dt) {
     const r = P.radius, lowY = this.feetY + P.stepHeight, highY = this.feetY + this.height;
     const dx = this.vel.x * dt, dz = this.vel.z * dt;
-    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.08));
+    const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.04));
     const startX = this.pos.x, startZ = this.pos.z;
     for (let i = 0; i < steps; i++) {
       this.pos.x += dx / steps; this.pos.z += dz / steps;
@@ -112,25 +152,12 @@ export class Player {
     if (this.world.penetration(this.pos.x, this.pos.z, r, lowY, highY, null, this.feetY) > 0.02) {
       this.pos.x = startX; this.pos.z = startZ; this.vel.x = this.vel.z = 0;
     }
+  }
 
-    // ---- vertical: step up / down, gravity, landing
-    const g = this.world.ground(this.pos.x, this.pos.z, r * 0.6, this.feetY + P.stepHeight, this._g);
-    if (this.grounded && g.y >= this.feetY - P.stepHeight && g.y <= this.feetY + P.stepHeight) {
-      this.feetY = g.y; this.vy = 0;
-    } else {
-      this.grounded = false;
-      this.vy -= P.gravity * dt;
-      this.feetY += this.vy * dt;
-      if (this.feetY <= g.y) {
-        const impact = -this.vy;
-        this.feetY = g.y; this.vy = 0; this.grounded = true;
-        if (impact > 2.5) this._land(impact);
-      }
-    }
-    this.surface = g.surface;
+  _eyeAndSteps(dt) {
     // the eye follows the feet smoothly on steps, directly when falling
     const diff = this.feetY - this.eyeFeet;
-    if (!this.grounded || Math.abs(diff) > 0.6) this.eyeFeet = this.feetY;
+    if (!this.grounded || Math.abs(diff) > 0.3) this.eyeFeet = this.feetY;
     else this.eyeFeet += diff * expK(P.stepSmooth, dt);
     this.landDip *= 1 - expK(9, dt);
 
@@ -138,13 +165,11 @@ export class Player {
     const moved = Math.hypot(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     this.speed = moved / dt;
     const stride = P.stride[this.gait];
-    const moving = this.grounded && this.speed > 0.25;
+    const moving = this.grounded && this.speed > 0.15;
     this.bobWeight += ((this.grounded ? Math.min(1, this.speed / (P.walkSpeed * 0.8)) : 0) - this.bobWeight) * expK(8, dt);
     if (moving) {
       this.stepDist += moved;
       if (this.stepDist >= stride) { this.stepDist -= stride; this.stepParity ^= 1; this._footstep(); }
-    } else if (this.stepDist > stride * 0.35 && this.speed < 0.05) {
-      this.stepDist = 0; this._footstep(0.6); // the foot that settles when you stop
     }
     // The bob's phase advances with distance like the footsteps and is pulled gently onto their phase, so the dip lands
     // on the step. A gait change moves the footsteps' phase at once; the bob follows smoothly. It never jumps.
@@ -158,16 +183,29 @@ export class Player {
     this.bobGait += (P.bob[this.gait] - this.bobGait) * expK(P.bobGaitEase, dt);
   }
 
-  _footstep(scale = 1) {
+  _footstep() {
+    if (this.gait === 'slink') return; // slink is silent: no sound, nothing for the vac to hear
     const surf = TUNING.surfaces[this.surface] || {};
-    const gaitGain = this.gait === 'jog' ? 1.35 : this.gait === 'crouch' ? 0.4 : 0.8;
-    audio.play('foot.' + (surf.sound || this.surface), { gain: gaitGain * scale * (surf.gain ?? 1), rate: 0.93 + Math.random() * 0.12, fallback: 'foot.concrete' });
+    audio.play('foot.' + (surf.sound || this.surface), { gain: (this.gait === 'run' ? P.stepGain.run : P.stepGain.walk) * (surf.gain ?? 1), rate: 0.93 + Math.random() * 0.14, fallback: 'foot.wood' });
     this.onStep?.(this.gait, this.surface);
   }
 
   _land(impact) {
+    if (impact < P.landSoft) return;
+    const heavy = impact >= P.landHeavy;
     this.landDip = Math.min(P.landDip * 2, P.landDip * impact / 4);
-    audio.play('foot.land', { gain: Math.min(1.2, impact / 5) });
+    audio.play(heavy ? 'foot.thud' : 'foot.land', { gain: Math.min(1.2, impact / 6) });
+    this.onLand?.(impact, heavy);
+  }
+
+  _fly(dt) { // debug noclip: WASD along the view, Space up, C down, Shift fast
+    const I = this.input, N = TUNING.debug.noclipSpeed, sp = (I.down('ShiftLeft') ? N * 3 : N) * dt;
+    this._wish();
+    const cp = Math.cos(this.pitch), sy = Math.sin(this.pitch);
+    this.pos.x += (this.fx * this.wfwd * cp + (this.wx - this.fx * this.wfwd)) * sp;
+    this.pos.z += (this.fz * this.wfwd * cp + (this.wz - this.fz * this.wfwd)) * sp;
+    this.feetY += (this.wfwd * sy + (I.down('Space') ? 1 : 0) - (I.down('KeyC') ? 1 : 0)) * sp;
+    this.eyeFeet = this.feetY; this.vy = 0; this.vel.x = this.vel.z = 0; this.grounded = false;
   }
 
   /** Place the camera, interpolated between fixed ticks (alpha 0..1), with head-bob. Every rendered frame. */
@@ -176,8 +214,8 @@ export class Player {
     const x = this.prev.x + (this.pos.x - this.prev.x) * alpha;
     const z = this.prev.z + (this.pos.z - this.prev.z) * alpha;
     const feet = lerp(this.prevEyeFeet, this.eyeFeet, alpha);
-    const crouch = lerp(this.prevCrouch, this.crouch, alpha);
-    const eye = P.eyeHeight + (P.crouchEyeHeight - P.eyeHeight) * easeInOut(crouch);
+    const slink = lerp(this.prevSlink, this.slink, alpha);
+    const eye = P.eyeHeight + (P.slinkEyeHeight - P.eyeHeight) * easeInOut(slink);
     let dph = this.bobPhase - this.prevBobPhase; dph -= 2 * Math.round(dph / 2); // (across the 2 → 0 wrap)
     this.bobPh = this.prevBobPhase + dph * alpha;
     this.bobW = lerp(this.prevBobWeight, this.bobWeight, alpha);

@@ -40,7 +40,14 @@ export const TUNING = {
   // silhouettes fade into the sky with no seam. indoor*: how much sun / sky reaches inside the indoor boxes, plus a
   // flat fill (nothing casts shadows, so without this a roofed room would be lit by the sun).
   lighting: {
-    order: ['day', 'dusk', 'night'], // the dev key L cycles these
+    order: ['greybox', 'day', 'dusk', 'night'], // the dev key L cycles these
+    // Phase 1: readable flat colours and distance fog (build prompt 0.2), not the final dim lighting (section 3).
+    greybox: {
+      fog: 0x17181c, fogNear: 3.5, fogFar: 14, skyTop: 0x17181c,
+      hemiSky: 0xfff4e6, hemiGround: 0x4a4744, hemi: 1.9,
+      sun: 0xdfe6f2, sunIntensity: 0.9, sunDir: [0.35, 0.8, 0.5], ambient: 0x101010, // gives the box faces different shades
+      indoorSun: 1.0, indoorSky: 1.0, indoorFill: 0x000000,
+    },
     day: {
       fog: 0xa9aea0, fogNear: 14, fogFar: 70, skyTop: 0x8796a3,
       hemiSky: 0xc8cfd2, hemiGround: 0x5a5440, hemi: 1.15,
@@ -103,11 +110,9 @@ export const TUNING = {
   // Surfaces: footstep sound family (foot.<sound> in the sound bank; defaults to the surface's own name),
   // speed multiplier, loudness multiplier. Tag colliders and ground regions with these names.
   surfaces: {
-    concrete: { speed: 1.0 },
+    carpet: { speed: 1.0 },
+    lino: { speed: 1.0 },
     wood: { speed: 1.0 },
-    gravel: { speed: 1.0, gain: 1.1 },
-    grass: { speed: 1.0 },
-    mud: { speed: 0.7, gain: 1.3 },
   },
 
   hud: {
@@ -134,7 +139,14 @@ export const TUNING = {
 
   // ---------------------------------------------------------------- the house (src/world/house.js)
   house: {
-    preset: 'dusk', // starting light preset
+    colors: { // the readable grey-box code (build prompt 0.2). Room floors and walls are in src/data/level.js
+      landTop: 0xc98a4a, // the top of anything you can land on
+      furniture: 0x8a857c, // sides of furniture
+      ceiling: 0x3a3a3e, outside: 0x202024,
+      grandmaDoor: 0x7a1414, doorStrip: 0xffd28a, outlet: 0xb8b4a8,
+    },
+    doorLight: { color: 0xffc27a, intensity: 2.2, distance: 4.5, decay: 1.6 }, // the glow from under Grandma's door
+    preset: 'greybox', // starting light preset
     spawn: { x: 2.2, y: 0, z: 1.6, yaw: 0.78 }, // feet position (m), facing (rad, 0 = toward -z): at the cat tree
     titleCamera: { x: 3.0, y: 0.25, z: 4.2, yaw: 0.5, pitch: 0.12, sway: 0.01 }, // the title screen's slow view
   },

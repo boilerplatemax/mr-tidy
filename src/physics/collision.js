@@ -13,6 +13,7 @@ export class CollisionWorld {
     this.regions = []; // ground surface regions: { minX, maxX, minZ, maxZ, surface, y }
     this.defaultSurface = 'concrete'; // the ground's surface where no region says otherwise
     this.groundY = 0;
+    this.ceilingY = Infinity; // the top of the world (the house ceiling): set by the level
     this.heightAt = null; // optional terrain: (x, z) → ground height. null = flat at groundY
     this._hit = { t: 0, nx: 0, ny: 0, nz: 0, collider: null };
   }

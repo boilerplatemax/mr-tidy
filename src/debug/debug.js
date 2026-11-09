@@ -1,0 +1,78 @@
+// Debug tools (build prompt 0.9). F1 overlay · F2 third-person camera · F3 noclip · F9 key list. More keys join as their
+// systems arrive. The kit's look keys (L, 1–4) work while the overlay is open.
+import * as THREE from 'three';
+import { TUNING } from '../data/tuning.js';
+import { settings, setSetting, applyLookPreset } from '../data/settings.js';
+import { makePS1 } from '../render/ps1-material.js';
+
+const D = TUNING.debug;
+const LOOKS = ['authored', 'clean'];
+const HELP = () => [
+  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F9 this list',
+  'With the overlay open:', 'L light preset', '1 / 2 / 3 jitter / warp / dither', '4 look: authored <-> clean',
+  'URL: ?dev ?play',
+].join('\n');
+
+function buildCatProxy() { // what you see in third person: a grey-box cat
+  const mat = makePS1(new THREE.MeshLambertMaterial({ color: 0xd08a3c }));
+  const g = new THREE.Group();
+  const part = (w, h, d, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); g.add(m); };
+  part(0.16, 0.15, 0.36, 0, 0.17, 0.04); // body
+  part(0.13, 0.12, 0.13, 0, 0.27, -0.2); // head
+  part(0.03, 0.03, 0.26, 0, 0.26, 0.31); // tail
+  for (const [x, z] of [[-0.05, -0.1], [0.05, -0.1], [-0.05, 0.18], [0.05, 0.18]]) part(0.04, 0.1, 0.04, x, 0.05, z);
+  g.visible = false;
+  return g;
+}
+
+export class Debug {
+  constructor({ input, player, world, scene, camera, overlay, env, ps1, audio }) {
+    Object.assign(this, { input, player, world, scene, camera, overlay, env, ps1, audio });
+    this.thirdPerson = false;
+    this.cat = buildCatProxy();
+    scene.add(this.cat);
+    this._o = new THREE.Vector3(); this._d = new THREE.Vector3(); this._look = new THREE.Vector3();
+    this._ro = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 };
+    overlay.lines = () => this.lines();
+  }
+
+  /** Per fixed tick, also while paused. */
+  tick() {
+    const I = this.input, O = this.overlay;
+    if (I.pressed('F1') || I.pressed('Backquote')) O.toggle();
+    if (I.pressed('F9')) O.toggleHelp(HELP());
+    if (!I.live) return;
+    if (I.pressed('F2')) { this.thirdPerson = !this.thirdPerson; O.note(`third person ${this.thirdPerson ? 'on' : 'off'}`); }
+    if (I.pressed('F3')) { this.player.noclip = !this.player.noclip; O.note(`noclip ${this.player.noclip ? 'on' : 'off'}`); }
+    if (!O.visible) return;
+    if (I.pressed('KeyL')) { const o = TUNING.lighting.order; const next = o[(o.indexOf(this.env.preset) + 1) % o.length]; this.env.apply(next); O.note('light: ' + next); }
+    for (const [code, key] of [['Digit1', 'jitter'], ['Digit2', 'warp'], ['Digit3', 'dither']]) if (I.pressed(code)) { setSetting(key, !settings[key]); O.note(`${key} ${settings[key] ? 'on' : 'off'}`); }
+    if (I.pressed('Digit4')) { const next = LOOKS[(LOOKS.indexOf(settings.look) + 1) % LOOKS.length]; applyLookPreset(next); O.note('look: ' + next); }
+  }
+
+  /** Per rendered frame, after player.render(): moves the camera for third person. */
+  frame() {
+    const P = this.player, cam = this.camera;
+    this.cat.visible = this.thirdPerson;
+    if (!this.thirdPerson) return;
+    this.cat.position.set(P.pos.x, P.feetY, P.pos.z);
+    this.cat.rotation.y = P.yaw;
+    const o = this._ro, d = this._rd;
+    o.x = P.pos.x; o.y = P.feetY + 0.3; o.z = P.pos.z;
+    this._d.set(0, 0, 1).applyEuler(cam.rotation).normalize();
+    d.x = this._d.x; d.y = this._d.y; d.z = this._d.z;
+    const hit = this.world.raycast(o, d, D.thirdPersonDist, (c) => c.solid, true);
+    const dist = hit ? Math.max(0.15, hit.t - 0.08) : D.thirdPersonDist;
+    cam.position.set(o.x + d.x * dist, o.y + d.y * dist, o.z + d.z * dist);
+    cam.updateMatrixWorld();
+  }
+
+  lines() {
+    const P = this.player, ps1 = this.ps1;
+    return [
+      `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
+      `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'}`,
+      `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
+    ];
+  }
+}
