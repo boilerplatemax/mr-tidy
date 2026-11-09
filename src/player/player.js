@@ -26,12 +26,13 @@ export class Player {
     this.bobPhase = 0; this.prevBobPhase = 0; this.bobWeight = 0; this.prevBobWeight = 0; this.bobGait = P.bob.walk; this.prevBobGait = P.bob.walk;
     this.bobPh = 0; this.bobW = 0; this.bobA = P.bob.walk;
     // View offsets anything may set per tick (rad / m). snapView() keeps last tick's copy so render() can lerp them.
-    this.viewDip = 0; this.landDip = 0; this.chargeDip = 0; this.wiggle = 0;
-    this._pv = { viewDip: 0, landDip: 0, chargeDip: 0, wiggle: 0 };
+    this.viewDip = 0; this.landDip = 0; this.chargeDip = 0;
+    this._pv = { viewDip: 0, landDip: 0, chargeDip: 0 };
     // the jump
     this.charging = false; this.chargeT = 0; this.coyoteT = 0; this.bufferT = 0; this.time = 0;
     this.launched = false; this.launchSpeed = 0; this.launchX = 0; this.launchZ = 0;
-    this.aim = { ok: false, x: 0, y: 0, z: 0 }; // where a jump released now would land (the landing-spot marker reads this)
+    this.aim = { ok: false, kind: 'land', x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, col: null }; // where a jump released now would end (the target marker and shimmer read this)
+    this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
     this.stamina = 1; this.clawLock = 0;
     this.climb = { col: null, x: 0, z: 0 };
@@ -66,14 +67,22 @@ export class Player {
   /** Mouselook: every rendered frame, not per tick (no input lag). */
   look() {
     const m = this.input.takeMouse();
-    const k = P.lookRadPerPx * settings.sensitivity;
+    const k = P.lookRadPerPx * settings.sensitivity, py = this.yaw, pp = this.pitch;
     this.yaw -= m.x * k;
     this.pitch -= m.y * k * (settings.invertY ? -1 : 1);
     this.pitch = Math.max(-P.pitchLimit, Math.min(P.pitchLimit, this.pitch));
+    if (this.mode === 'hang' || this.mode === 'mantle') { // clinging on: the mouse can't push the head past the limits
+      const c = this._hangYaw();
+      if (Math.abs(wrapAngle(this.yaw - c)) > L.yawLimit && Math.abs(wrapAngle(this.yaw - c)) > Math.abs(wrapAngle(py - c))) this.yaw = py;
+      if ((this.pitch > L.pitchMax && this.pitch > pp) || (this.pitch < L.pitchMin && this.pitch < pp)) this.pitch = pp;
+    }
   }
 
+  /** The yaw that faces the ledge being held. */
+  _hangYaw() { return Math.atan2(this.hang.nx, this.hang.nz); }
+
   /** Call at the start of every fixed tick, before anything sets a view offset (see src/core/loop.js). */
-  snapView() { const V = this._pv; V.viewDip = this.viewDip; V.landDip = this.landDip; V.chargeDip = this.chargeDip; V.wiggle = this.wiggle; }
+  snapView() { const V = this._pv; V.viewDip = this.viewDip; V.landDip = this.landDip; V.chargeDip = this.chargeDip; }
 
   tick(dt) {
     this.prev.x = this.pos.x; this.prev.z = this.pos.z; this.prevEyeFeet = this.eyeFeet;
@@ -124,7 +133,12 @@ export class Player {
     this.slink = want ? Math.min(1, this.slink + step) : Math.max(0, this.slink - step);
   }
 
-  get charge() { return this.charging ? Math.min(1, this.chargeT / J.chargeTime) : 0; }
+  get charge() {
+    if (!this.charging) return 0;
+    const p = this.chargeT / J.chargeTime;
+    if (settings.chargeMode === 'loop') { const q = p % 2; return q <= 1 ? q : 2 - q; } // weak, strong, weak...
+    return Math.min(1, p);
+  }
 
   // Hold Space to charge, release to leap. Coyote time and a press buffer make it forgiving.
   _jump(dt) {
@@ -140,12 +154,17 @@ export class Player {
     if (this.charging) {
       if (this.coyoteT <= 0) this.charging = false; // walked off and held it too long
       else if (!space) this._launch(this.charge);
-      else this.chargeT += dt;
+      else {
+        this.chargeT += dt;
+        if (settings.chargeMode !== 'loop' && this.chargeT >= J.chargeTime + J.holdAtMax) { // held too long: called off
+          this.charging = false; this.chargeT = 0;
+          audio.play('cat.huff');
+        }
+      }
     }
     const c = this.charge;
     this.chargeDip += (c * J.dip - this.chargeDip) * expK(16, dt);
     this.viewDip += (c * J.dipPitch - this.viewDip) * expK(16, dt);
-    this.wiggle = Math.sin(this.time * J.wiggleRate) * J.wiggle * c;
     if (this.charging) this._predict(c); else this.aim.ok = false;
   }
 
@@ -172,7 +191,7 @@ export class Player {
     this.grounded = false; this.coyoteT = 0; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.aim.ok = false;
   }
 
-  /** Fly the arc a release would take, against the real colliders, and note where it lands (this.aim). */
+  /** Fly the arc a release would take, against the real colliders, and note where it ends (this.aim). */
   _predict(c) {
     const a = this.aim, W = this.world, r = P.radius;
     a.ok = false;
@@ -181,13 +200,29 @@ export class Player {
     const speed = this._jumpSpeed(c), step = J.predictDt;
     let x = this.pos.x, z = this.pos.z, y = this.feetY, vy = J.minVy + (J.maxVy - J.minVy) * c;
     for (let t = 0; t < J.predictT; t += step) {
+      const px = x, py = y, pz = z;
       x += d.x * speed * step; z += d.z * speed * step; vy -= P.gravity * step; y += vy * step;
-      if (W.penetration(x, z, r, y + P.stepHeight, y + P.height, null, y) > 0.02) return; // into a face: no clean landing
+      if (vy > 0) { const ceil = W.ceiling(x, z, r * 0.8, y + P.height - 0.02); if (y + P.height > ceil) { y = ceil - P.height; vy = 0; } } // a bonked head
+      if (W.penetration(x, z, r, y + P.stepHeight, y + P.height, null, y) > 0.02) { this._predictFace(px, py, pz, d); return; }
       const g = W.ground(x, z, r * P.edgeSupport, y + P.stepHeight, this._g);
-      if (vy <= 0 && y <= g.y) { // lands here. The bare floor is not a "valid surface": no marker
-        if (g.collider) { a.ok = true; a.x = x; a.y = g.y; a.z = z; }
-        return;
-      }
+      if (vy <= 0 && y <= g.y) { a.ok = true; a.kind = 'land'; a.x = x; a.y = g.y; a.z = z; a.nx = 0; a.ny = 1; a.nz = 0; a.col = g.collider; return; }
+    }
+  }
+
+  /** The arc runs into something upright: put the target on that face. If it's a ledge the cat would catch, say so. */
+  _predictFace(px, py, pz, d) {
+    const a = this.aim, W = this.world, o = this._o, rd = this._rd;
+    rd.x = d.x; rd.y = 0; rd.z = d.z;
+    for (const h of [0.5, 0.2, 0.85]) { // the middle of the body, then low, then high
+      o.x = px; o.y = py + P.height * h; o.z = pz;
+      const hit = W.raycast(o, rd, 0.6, this._solid, false);
+      if (!hit || !hit.collider) continue;
+      const b = hit.collider, rel = b.maxY - py;
+      a.ok = true; a.nx = hit.nx; a.ny = hit.ny; a.nz = hit.nz; a.col = b;
+      a.x = o.x + rd.x * hit.t; a.y = o.y; a.z = o.z + rd.z * hit.t;
+      if (b.land && rel >= L.minAbove && rel <= L.paw + L.reach) { a.kind = 'grab'; a.y = b.maxY - J.markerSize / 2; } // right under the lip
+      else a.kind = 'wall';
+      return;
     }
   }
 
@@ -267,10 +302,10 @@ export class Player {
       if (W._boxDist(b, tx, tz, null) >= 0) continue; // past the far side of a narrow perch
       if (W.penetration(tx, tz, r * 0.9, top + P.stepHeight, top + P.height, null, top) > 0) continue; // no room up there
       const h = this.hang;
-      h.col = b; h.nx = n.x; h.nz = n.z; h.top = top; h.tx = tx; h.tz = tz;
+      h.col = b; h.nx = n.x; h.nz = n.z; h.top = top; h.tx = tx; h.tz = tz; h.ex = ex; h.ez = ez;
       h.x = ex + n.x * (r + 0.005); h.z = ez + n.z * (r + 0.005);
       this.mode = 'hang'; this.vy = 0; this.vel.x = this.vel.z = 0; this.grounded = false; this.launched = false;
-      this.charging = false; this.chargeDip = 0; this.wiggle = 0; this.aim.ok = false; this.bufferT = 0;
+      this.charging = false; this.chargeDip = 0; this.aim.ok = false; this.bufferT = 0;
       audio.play('cat.grab');
       return true;
     }
@@ -282,6 +317,11 @@ export class Player {
     this.pos.x += (h.x - this.pos.x) * k; this.pos.z += (h.z - this.pos.z) * k;
     this.feetY += (h.top - L.hangDrop - this.feetY) * k;
     this.viewDip += (L.hangDip - this.viewDip) * expK(14, dt);
+    { // ease the view inside the limits (you may have caught the edge looking somewhere else)
+      const c = this._hangYaw(), d = wrapAngle(this.yaw - c), t = Math.max(-L.yawLimit, Math.min(L.yawLimit, d)), s = expK(L.lookSettle, dt);
+      this.yaw = c + d + (t - d) * s;
+      this.pitch += (Math.max(L.pitchMin, Math.min(L.pitchMax, this.pitch)) - this.pitch) * s;
+    }
     this.stamina = Math.max(0, this.stamina - ST.hangDrain * dt);
     if (this.stamina <= 0) { this._letGo(); return; }
     if (I.pressed('Space') && !this.frozen) { this._startMantle(); return; }
@@ -329,7 +369,7 @@ export class Player {
       if (-(this.wx * n.x + this.wz * n.z) < C.facing) continue;
       this.climb.col = b; this.climb.x = n.x; this.climb.z = n.z;
       this.mode = 'climb'; this.grounded = false; this.vy = 0; this.vel.x = this.vel.z = 0;
-      this.charging = false; this.chargeDip = 0; this.wiggle = 0; this.aim.ok = false; this.launched = false;
+      this.charging = false; this.chargeDip = 0; this.aim.ok = false; this.launched = false;
       audio.play('cat.grab');
       return;
     }
@@ -363,21 +403,32 @@ export class Player {
     audio.play('cat.grab');
   }
 
+  // On a climbable face (Peak-style): W up, S down, A / D sideways, all on stamina. Hold still and you cling, draining
+  // slowly. Space kicks off; C lets go. When stamina runs out the cat slides down.
   _tickClimb(dt) {
-    const I = this.input, c = this.climb, b = c.col;
+    const I = this.input, c = this.climb, b = c.col, W = this.world;
     if (I.pressed('Space') && !this.frozen) { this._kick(); return; }
+    if (I.down('KeyC')) { this._offWall(); return; }
     this.viewDip += (0 - this.viewDip) * expK(10, dt);
-    this.stamina = Math.max(0, this.stamina - ST.climbDrain * dt);
-    if (this.stamina <= 0 || this.wfwd <= 0) { this.mode = 'slide'; return; }
-    const top = this.feetY + this.height, ceil = this.world.ceiling(this.pos.x, this.pos.z, P.radius * 0.8, top - 0.02);
-    if (top + C.speed * dt < ceil) this.feetY += C.speed * dt;
+    const moving = this.wfwd !== 0 || this.wside !== 0;
+    this.stamina = Math.max(0, this.stamina - (moving ? ST.climbDrain : ST.clingDrain) * dt);
+    if (this.stamina <= 0) { this.mode = 'slide'; return; }
+    if (this.wfwd > 0) {
+      const top = this.feetY + this.height, ceil = W.ceiling(this.pos.x, this.pos.z, P.radius * 0.8, top - 0.02);
+      if (top + C.speed * dt < ceil) this.feetY += C.speed * dt;
+    } else if (this.wfwd < 0) {
+      this.feetY -= C.speed * dt;
+      const g = W.ground(this.pos.x, this.pos.z, P.radius * P.edgeSupport, this.feetY + P.stepHeight, this._g);
+      if (this.feetY <= g.y) { this.feetY = g.y; this.mode = 'move'; this.grounded = true; this.groundCollider = g.collider; this.surface = g.surface; return; }
+    }
     if (this.wside) { // sideways along the wall
       const toRight = -(this.wx * c.z) + this.wz * c.x;
       this.pos.x += -c.z * toRight * C.strafe * dt; this.pos.z += c.x * toRight * C.strafe * dt;
     }
     if (!this._hugFace()) { this._offWall(); return; }
-    if (this.feetY >= b.maxY - C.topOff) { // over the top
-      if (b.land && this._grabSpot(b, c, this.pos.x - c.x * P.radius, this.pos.z - c.z * P.radius)) this._startMantle();
+    if (this.wfwd > 0 && this.feetY >= b.maxY - C.topOff) { // over the top (a curtain hands over to its rod)
+      const target = b.climbTo || b;
+      if (target.land && this._grabSpot(target, c, this.pos.x - c.x * P.radius, this.pos.z - c.z * P.radius)) this._startMantle();
       else this._offWall();
     }
   }
@@ -486,13 +537,14 @@ export class Player {
     let bobY = 0, bobX = 0, roll = 0;
     if (settings.headBob) {
       const amp = this.bobA * this.bobW;
-      bobY = -amp * (0.5 + 0.5 * Math.cos(this.bobPh * Math.PI * 2));
+      // DESIGN NOTE: one dip per TWO footsteps. A cat's stride is short, so a dip per step shook the camera 6–9 times a second.
+      bobY = -amp * (0.5 + 0.5 * Math.cos(this.bobPh * Math.PI));
       bobX = Math.sin(this.bobPh * Math.PI) * amp * P.bob.sway;
       roll = bobX * P.bob.roll / Math.max(1e-4, P.bob.walk);
     }
     const s = Math.sin(this.yaw), c = Math.cos(this.yaw);
     cam.position.set(x + c * bobX, feet + eye + bobY - landDip, z - s * bobX);
-    cam.rotation.set(this.pitch - viewDip, this.yaw, roll + lerp(V.wiggle, this.wiggle, alpha), 'YXZ');
+    cam.rotation.set(this.pitch - viewDip, this.yaw, roll, 'YXZ');
     cam.updateMatrixWorld();
   }
 }

@@ -55,11 +55,18 @@ export function buildHouse({ scene, world }) {
   const B = new Batches();
   const C = H.colors;
   const mats = {
-    tan: lambert(C.landTop), side: lambert(C.furniture), ceiling: lambert(C.ceiling), outside: lambert(C.outside),
+    tan: lambert(C.landTop), side: lambert(C.furniture), wallTop: lambert(C.wallTop), outside: lambert(C.outside),
+    ceiling: (() => {
+      const tiles = canvasTexture(32, (g, n) => {
+        g.fillStyle = '#' + C.ceiling.toString(16).padStart(6, '0'); g.fillRect(0, 0, n, n);
+        g.fillStyle = '#' + C.ceilingLine.toString(16).padStart(6, '0'); g.fillRect(0, 0, n, 3); g.fillRect(0, 0, 3, n); // tile lines: a plane the eye can read, not a void
+      });
+      return makePS1(new THREE.MeshLambertMaterial({ map: tiles, emissive: 0xffffff, emissiveMap: tiles, emissiveIntensity: C.ceilingGlow }));
+    })(),
     door: lambert(C.grandmaDoor), plate: lambert(C.outlet),
     stripes: makePS1(new THREE.MeshLambertMaterial({ map: canvasTexture(32, (g, n) => {
-      g.fillStyle = '#6a4e30'; g.fillRect(0, 0, n, n);
-      g.fillStyle = '#c9a26a'; for (let x = 0; x < n; x += 16) g.fillRect(x, 0, 8, n); // wide enough to survive the mip levels at a distance
+      g.fillStyle = C.climbDark; g.fillRect(0, 0, n, n);
+      g.fillStyle = C.climb; for (let x = 0; x < n; x += 16) g.fillRect(x, 0, 8, n); // wide enough to survive the mip levels at a distance
     }) })),
     strip: makePS1(new THREE.MeshBasicMaterial({ color: C.doorStrip, fog: false })),
     floor: new Map(LEVEL.rooms.map((r) => [r.id, lambert(r.floor)])),
@@ -71,14 +78,14 @@ export function buildHouse({ scene, world }) {
   for (const r of LEVEL.rooms) {
     const [x0, z0] = r.min, [x1, z1] = r.max;
     B.quad(mats.floor.get(r.id), [x0, 0, z1], [x1, 0, z1], [x1, 0, z0], [x0, 0, z0], [0, 1, 0], [x0, z1], [x1, z0]);
-    B.quad(mats.ceiling, [x0, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z1], [x0, LEVEL.ceiling, z1], [0, -1, 0], [x0, z0], [x1, z1]);
+    B.quad(mats.ceiling, [x0, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z1], [x0, LEVEL.ceiling, z1], [0, -1, 0], [x0 / 0.6, z0 / 0.6], [x1 / 0.6, z1 / 0.6]);
     world.addRegion(x0, x1, z0, z1, r.surface);
   }
   world.ceilingY = LEVEL.ceiling;
 
   // ---- walls: full-height pieces between openings, lintels above them
   const wallMat = (name, cx, cy, cz, n) => {
-    if (name === 'top' || name === 'bottom') return mats.ceiling;
+    if (name === 'top' || name === 'bottom') return mats.wallTop;
     const r = roomAt(cx + n[0] * 0.12, cz + n[2] * 0.12); // the room this face looks into
     return r ? mats.wall.get(r.id) : mats.outside;
   };
@@ -115,6 +122,8 @@ export function buildHouse({ scene, world }) {
     c.id = s.id; c.land = !!s.land; c.stripes = s.stripes || null;
     s.collider = c;
   }
+
+  for (const s of LEVEL.solids) if (s.climbTo) s.collider.climbTo = byId.get(s.climbTo).collider; // a curtain hands over to its rod at the top
 
   // ---- Grandma's door: deep red, a strip of light under it
   const D = LEVEL.grandmaDoor;

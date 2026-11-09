@@ -20,6 +20,7 @@ import { buildHouse } from './world/house.js';
 import { Debug } from './debug/debug.js';
 import { LandingMarker } from './player/landing-marker.js';
 import { Paws } from './player/paws.js';
+import { LandingShimmer } from './player/landing-shimmer.js';
 import { StaminaBar } from './ui/stamina-bar.js';
 
 const params = new URLSearchParams(location.search);
@@ -47,6 +48,7 @@ const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
 const marker = new LandingMarker(scene);
+const shimmer = new LandingShimmer(scene);
 const paws = new Paws(camera);
 
 // ---------------------------------------------------------------- audio + captions
@@ -99,7 +101,8 @@ function frame(alpha, dt, frameMs) {
     player.render(alpha);
     debug.frame();
     marker.update(player.aim);
-    paws.frame(player, dt);
+    shimmer.update(player.aim, wallTime);
+    paws.frame(player, dt, debug.thirdPerson);
     staminaBar.frame(player, dt);
   }
   env.update(camera);

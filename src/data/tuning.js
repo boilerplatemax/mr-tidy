@@ -102,7 +102,7 @@ export const TUNING = {
     lookRadPerPx: 0.0021, // mouselook: radians per mouse count at sensitivity 1
     pitchLimit: 1.48, // rad (~85°)
     // Head-bob: amplitude in metres per gait; sway = sideways share; roll = radians of tilt at walk amplitude.
-    bob: { walk: 0.006, run: 0.012, slink: 0.003, sway: 0.5, roll: 0.004 },
+    bob: { walk: 0.004, run: 0.008, slink: 0.002, sway: 0.5, roll: 0.003 },
     stride: { walk: 0.26, run: 0.42, slink: 0.2 }, // metres per footstep
     stepGain: { walk: 0.8, run: 1.2 }, // footstep loudness. Slink has none: it's silent
     bobLock: 3, // 1/s: how fast the bob's phase is pulled back onto the footsteps after a gait change (never jumps)
@@ -126,9 +126,11 @@ export const TUNING = {
     buffer: 0.12, // s a press before landing still counts
     airSteerMin: 1.0, // m/s: steering speed in the air on a very short hop
     dip: 0.03, dipPitch: 0.06, // the camera dips (m, rad) at full charge
-    wiggle: 0.012, wiggleRate: 30, // rad, rad/s: the pounce wiggle at full charge
+    holdAtMax: 0.8, // s a full charge is held before the jump is called off (Settings › Jump charge: 'Holds, then cancels')
     predictDt: 0.02, predictT: 1.4, // s: landing-spot prediction step and horizon
-    markerSize: 0.26, markerThick: 0.05, markerColor: 0xfff0c8, // m: the landing-spot outline (thick enough to hold together at 240 lines)
+    markerSize: 0.26, markerThick: 0.05, // m: the target outline (thick enough to hold together at 240 lines)
+    markerColors: { land: 0xfff0c8, grab: 0x9fe6a0, wall: 0x9fb4d8 }, // landing on a surface / would catch this edge / would hit a wall
+    shimmer: { color: 0xffa050, base: 0.04, amp: 0.2, freq: 8, speed: 5, pad: 0.006 }, // the wave of colour over the target perch: strength, wave size and speed, m past its faces
   },
 
   // ---------------------------------------------------------------- ledge grab and mantle (src/player/player.js)
@@ -141,36 +143,40 @@ export const TUNING = {
     facing: 0.3, // cos: how squarely the view (or the keys) must face the edge
     dropLock: 0.22, // s after walking off an edge before it can grab (so a drop doesn't snag the ledge you just left)
     letGoLock: 0.35, // s after letting go before it can grab again
-    hangDrop: 0.22, // m: feet below the edge while hanging (puts the eye just over the lip)
-    hangDip: 0.24, // rad: the camera dips to look at the edge
+    hangDrop: 0.34, // m: feet below the edge while hanging: the eye is under the lip, looking up at the paws
+    hangDip: -0.16, // rad: the view tips up toward the edge (negative = up)
+    yawLimit: 0.6, pitchMin: -0.35, pitchMax: 0.6, // rad: how far you can look around while hanging (left/right of the ledge, down, up)
+    lookSettle: 10, // 1/s: how fast the view eases inside those limits when you catch the edge
     settle: 30, // 1/s: how fast the body settles into the hanging pose
     mantleTime: 0.4, // s: the pull-up
     inward: [0.16, 0.12, 0.08, 0.04], // m past the lip to end up, tried in order (narrow perches take the shorter ones)
   },
   // ---------------------------------------------------------------- claw climbing and stamina
   climb: {
-    speed: 0.9, // m/s up a striped face
+    speed: 0.9, // m/s up or down a striped face
     strafe: 0.45, // m/s sideways along it
     contact: 0.05, // m: how close to the face counts as touching it
     facing: 0.6, // cos: how squarely the keys must push into the face
     topOff: 0.2, // m: this far below the top, the cat pulls itself over
-    slideSpeed: 0.9, // m/s down when stamina is out (or W is released). Controlled, no damage
+    slideSpeed: 0.9, // m/s down when stamina runs out. Controlled, no damage
     kickVy: 3.6, kickSpeed: 2.6, // m/s: the kick-off leap (up, away)
     kickLock: 0.3, // s after a kick-off before the claws can catch stripes again
     outKick: 0.5, // when kicking sideways: how much of the leap also goes out from the wall
   },
   stamina: {
-    climbDrain: 0.3, // per second climbing (1 = the full bar: about 3.3 s, 3 m)
-    hangDrain: 0.07, // per second hanging on a ledge ("slowly")
+    climbDrain: 0.3, // per second moving on a climbable face (1 = the full bar: about 3.3 s, 3 m)
+    hangDrain: 0.22, // per second hanging on a ledge: a full bar is about 4.5 s
+    clingDrain: 0.1, // per second clinging still to a climbable face
     kickCost: 0.1, // per kick-off
     regen: 1.6, // per second while standing on any flat surface
     barWidth: 100, barBottom: 12, // HUD px
     barHold: 0.5, // s the bar stays after refilling
   },
   paws: {
-    color: 0xa89a88,
-    gripX: 0.055, gripY: -0.012, gripZ: -0.17, gripTilt: 0.2, // the hanging pose (camera space, m and rad)
-    drop: 0.08, pullDown: 0.1, ease: 18, // m hidden below the view, m lowered during the pull-up, 1/s ease in and out
+    color: 0xa89a88, glow: 0x2a241e, // a little light of its own, so an underside is not black
+    hangSpread: 0.055, hangIn: 0.03, hangLift: 0.014, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
+    tremble: 0.0035, trembleRate: 46, // m, rad/s: the paws shake harder as stamina runs out
+    drop: 0.08, ease: 18, // m below the lip as it appears, 1/s ease in and out
   },
 
   debug: {
@@ -213,7 +219,9 @@ export const TUNING = {
     colors: { // the readable grey-box code (build prompt 0.2). Room floors and walls are in src/data/level.js
       landTop: 0xc98a4a, // the top of anything you can land on
       furniture: 0x8a857c, // sides of furniture
-      ceiling: 0x3a3a3e, outside: 0x202024,
+      ceiling: 0x77777c, ceilingLine: 0x3c3c42, ceilingGlow: 0.55, // the ceiling: tile colour, tile lines, how much it lights itself (nothing shines on it from below)
+      wallTop: 0x3a3a3e, outside: 0x202024,
+      climb: '#2fb3a4', climbDark: '#17665e', // every climbable surface, whatever it is, is this colour
       grandmaDoor: 0x7a1414, doorStrip: 0xffd28a, outlet: 0xb8b4a8,
     },
     doorLight: { color: 0xffc27a, intensity: 2.2, distance: 4.5, decay: 1.6 }, // the glow from under Grandma's door

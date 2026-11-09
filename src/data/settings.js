@@ -5,17 +5,21 @@
 // setting means, or changing a default you want everyone to get: bump VERSION and add a migration below.
 import { TUNING } from './tuning.js';
 
-const VERSION = 1;
+const VERSION = 2;
 const KEY = `${TUNING.game.storagePrefix}.settings`;
 const R = TUNING.render;
 
 /** MIGRATIONS[n] turns a version-n settings object into version n + 1. Example for a future v2:
  *  1: (s) => ({ ...s, warp: false }), // v1 → v2: warp became off by default for everyone */
-const MIGRATIONS = {};
+const MIGRATIONS = {
+  1: (s) => ({ ...s, jitter: false }), // v1 → v2: vertex wobble off by default (it made floor edges hop as the cat walked)
+};
 
 export const LOOK_PRESETS = {
   // the authored look: warp is OFF (it made doors and big walls swim); still available as a custom option
-  authored: { jitter: true, jitterAmount: 1, warp: false, warpAmount: 1, dither: true, ditherAmount: 1, colorBits: R.colorBits, lines: R.targetLines, supersample: 1 },
+  // DESIGN NOTE: vertex wobble is off for Phase 1 (build prompt 0.2 makes it optional). Measured on a scripted walk, it
+  // was the main source of floor edges hopping. It's one checkbox in Settings › Display; revisit with the final look.
+  authored: { jitter: false, jitterAmount: 1, warp: false, warpAmount: 1, dither: true, ditherAmount: 1, colorBits: R.colorBits, lines: R.targetLines, supersample: 1 },
   // clean (comfort): no wobble, no dither, full colour, twice the lines, 2× supersample (stable thin details).
   // Still low-res and foggy: still the same game.
   clean: { jitter: false, jitterAmount: 1, warp: false, warpAmount: 1, dither: false, ditherAmount: 1, colorBits: 8, lines: R.targetLines * 2, supersample: 2 },
@@ -29,6 +33,7 @@ const DEFAULTS = {
   sensitivity: 1.0,
   invertY: false,
   headBob: true,
+  chargeMode: 'cancel', // 'cancel' (full charge holds a moment, then the jump is called off) | 'loop' (weak, strong, weak...)
   subtitles: true, // captions for speech and important sounds
   volume: 1.0,
 };

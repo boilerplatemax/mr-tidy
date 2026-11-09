@@ -104,6 +104,31 @@ function climbChecks(kit) {
   I.keys.clear();
   report('floor -> couch arm', P.groundCollider?.id === 'couchArmS');
 
+  // curtains: climb the fabric, end up on the rod
+  put(3.0, 0.001, 4.75, Math.PI); I.keys.add('KeyW'); t = 0;
+  while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; }
+  I.keys.clear();
+  report('floor -> curtain -> rodW', P.groundCollider?.id === 'rodW', `${t.toFixed(2)} s`);
+
+  // the kitchen's climbed way up
+  put(9.5, 0.001, 4.75, Math.PI); I.keys.add('KeyW'); t = 0;
+  while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; }
+  I.keys.clear();
+  report('floor -> kitchenPanel top', P.groundCollider?.id === 'kitchenPanel', `${t.toFixed(2)} s`);
+
+  // cling: let go of W mid-climb and stay put, draining slowly; then S climbs back down to the floor
+  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  for (let i = 0; i < 50; i++) kit.tick(dt);
+  I.keys.clear();
+  const y0 = P.feetY, s0 = P.stamina;
+  for (let i = 0; i < 60; i++) kit.tick(dt);
+  const clung = P.mode === 'climb' && Math.abs(P.feetY - y0) < 1e-6;
+  report('clings still when no key is held', clung, `drained ${(s0 - P.stamina).toFixed(3)} in 1 s`);
+  I.keys.add('KeyS'); t = 0;
+  while (t < 4 && !P.grounded) { kit.tick(dt); t += dt; }
+  I.keys.clear();
+  report('S climbs down to the floor', P.grounded && P.feetY === 0);
+
   // a kick-off, up the panel: looking back into the room, leaves the wall and flies
   put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
   for (let i = 0; i < 60; i++) kit.tick(dt);

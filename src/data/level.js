@@ -70,6 +70,9 @@ export const LEVEL = {
     box('rodW', 'living', 2.6, 3.5, 5.03, 5.19, 1.99, 2.05),
     box('bracketA', 'living', 3.85, 4.25, 4.95, 5.4 - IN, 1.62, 1.70), // !A! within hose reach
     box('rodE', 'living', 4.6, 5.2, 5.03, 5.19, 1.99, 2.05),
+    // Curtains under the rod: climb the fabric, pull up onto the rod. Everything climbable is the same teal stripes.
+    box('curtainW', 'living', 2.6, 3.5, 5.03, 5.19, 0, 1.99, { land: false, stripes: ['n'], climbTo: 'rodW' }),
+    box('curtainE', 'living', 4.6, 5.2, 5.03, 5.19, 0, 1.99, { land: false, stripes: ['n'], climbTo: 'rodE' }),
     box('rodWmount', 'living', 3.45, 3.5, 5.19, 5.4 - IN, 2.0, 2.04, { land: false, collide: false }),
     box('rodEmount', 'living', 4.6, 4.65, 5.19, 5.4 - IN, 2.0, 2.04, { land: false, collide: false }),
     // A scratching panel beside the rod: a second, climbed way onto the route (and a kick-off wall).
@@ -86,6 +89,7 @@ export const LEVEL = {
     box('chair', 'kitchen', 7.3, 7.75, 2.7, 3.15, 0, 0.45),
     box('k1', 'kitchen', 6.6, 7.6, 5.0, 5.4 - IN, 1.87, 1.95),
     box('k2', 'kitchen', 8.2, 9.2, 5.0, 5.4 - IN, 1.87, 1.95),
+    box('kitchenPanel', 'kitchen', 9.3, 9.75, 5.0, 5.4 - IN, 0, 1.95, { stripes: ['n'] }), // a climbed way off the kitchen floor, between k2 and the fridge
     box('shelfD2', 'kitchen', 6.6, 7.9, IN, 0.35, 1.52, 1.60), // dead end above c1
 
     // ------------------------------------------------------------ hallway: the dangerous crossing
@@ -109,7 +113,7 @@ export const LEVEL = {
     { id: 'living1', room: 'living', pos: [6 - IN, 0.3, 1.2], n: [-1, 0, 0] },
     { id: 'living2', room: 'living', pos: [IN, 0.3, 4.6], n: [1, 0, 0] },
     { id: 'kitchen1', room: 'kitchen', pos: [10.8 - IN, 0.3, 2.2], n: [-1, 0, 0] },
-    { id: 'kitchen2', room: 'kitchen', pos: [8.0, 0.3, 5.4 - IN], n: [0, 0, -1] },
+    { id: 'kitchen2', room: 'kitchen', pos: [8.0, 0.3, 5.4 - IN], n: [0, 0, -1] }, // (clear of the panel)
     { id: 'storage1', room: 'storage', pos: [12.8, 0.3, IN], n: [0, 0, 1] },
     { id: 'hall1', room: 'hall', pos: [5.5, 0.3, -IN], n: [0, 0, -1] },
     { id: 'hall2', room: 'hall', pos: [12.0, 0.3, -1.4 + IN], n: [0, 0, 1] },
@@ -129,7 +133,7 @@ export const LEVEL = {
   ],
   links: [
     // the high route, living room ↔ kitchen, without touching the floor
-    ['book4', 'rodW'], ['rodW', 'bracketA'], ['bracketA', 'rodE'], ['rodE', 'header'], ['header', 'k1'], ['k1', 'k2'], ['k2', 'fridge'],
+    ['book4', 'rodW'], ['rodW', 'bracketA'], ['bracketA', 'rodE'], ['rodE', 'header'], ['header', 'k1'], ['k1', 'k2'], ['k2', 'kitchenPanel'], ['kitchenPanel', 'fridge'],
     // the climb onto it
     ['book1', 'book2'], ['book2', 'book3'], ['book3', 'book4'],
     // the counter run

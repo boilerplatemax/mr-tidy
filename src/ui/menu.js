@@ -31,6 +31,7 @@ export const TABS = {
     ['Mouse sensitivity', 'sensitivity', 'range', [0.2, 3, 0.05, (v) => v.toFixed(2)]],
     ['Invert Y', 'invertY', 'check'],
     ['Head-bob', 'headBob', 'check'],
+    ['Jump charge', 'chargeMode', 'cycle', [['cancel', 'Holds, then cancels'], ['loop', 'Loops weak-strong']]],
     ['Volume', 'volume', 'range', [0, 1, 0.05, pct]],
     ['Subtitles', 'subtitles', 'check'],
   ],
