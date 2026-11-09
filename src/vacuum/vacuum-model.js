@@ -60,9 +60,37 @@ export function buildVacuum() {
   out.face = face;
   out.setFace = (level) => { faceMat.map = out.faces[level]; };
 
+  // the cord reel on his back: a plate, a hub and a coil of cable that shrinks as the cord pays out
+  const dark = makePS1(new THREE.MeshLambertMaterial({ color: 0x141416 })), wire = makePS1(new THREE.MeshLambertMaterial({ color: 0x55565c }));
+  const reel = new THREE.Group();
+  reel.position.set(0, M.reelY, -M.reelZ);
+  root.add(reel);
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(M.reelFlange, M.reelFlange, 0.008, 14).rotateX(Math.PI / 2), dark);
+  plate.position.z = 0.03;
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 8).rotateX(Math.PI / 2), dark);
+  const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.09), dark);
+  bracket.position.z = 0.075;
+  reel.add(plate, hub, bracket);
+  const coil = new THREE.Group();
+  for (let i = 0; i < 4; i++) { // four turns of cable side by side
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.17, 6, 14), wire);
+    ring.position.z = 0.018 - i * 0.02;
+    coil.add(ring);
+  }
+  reel.add(coil);
+  out.reelSpin = coil;
+
   const socket = (x, y, z) => { const o = new THREE.Object3D(); o.position.set(x, y, z); root.add(o); return o; };
   out.hoseSocket = socket(0, M.holeY, M.holeZ - 0.02);
-  out.cordSocket = socket(0, M.cordY, -M.backZ);
+  out.cordSocket = socket(0, M.reelY - M.reelMax, -M.reelZ);
+  /** paid: 0 = all reeled in .. 1 = all paid out. angle: how far the reel has turned (rad). */
+  out.setReel = (paid, angle) => {
+    const r = M.reelMax + (M.reelMin - M.reelMax) * paid;
+    coil.scale.set(r, r, 0.09);
+    coil.rotation.z = angle;
+    out.cordSocket.position.y = M.reelY - r;
+  };
+  out.setReel(0, 0);
   out.catchCamTarget = socket(0, M.holeY + 0.04, M.holeZ + 0.28);
 
   loadGLB(TUNING.assets.vacuum).then((gltf) => { body.add(gltf.scene); }).catch((e) => {

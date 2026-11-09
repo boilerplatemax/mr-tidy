@@ -1,4 +1,4 @@
-// Mr. Tidy. For now he patrols: he glides his fixed loop round the house on the waypoint graph, trailing his cord. The
+// Mr. Tidy. For now he patrols: he glides his fixed loop round the house on the waypoint graph, on the end of his cord. The
 // other states (INVESTIGATE, CLEAN, CHASE, SEARCH, HOSE_REACH, CATCH) join in later steps.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
@@ -8,7 +8,7 @@ import { Nav } from './nav.js';
 import { Cord } from './cord.js';
 import { audio } from '../audio/audio.js';
 
-const V = TUNING.vac, D = TUNING.drone;
+const V = TUNING.vac, D = TUNING.drone, C = TUNING.cord;
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const _s = new THREE.Vector3();
 
@@ -30,8 +30,11 @@ export class Vacuum {
     this.routeI = 0;
     this.path = [start]; // the node list he's following right now (the debug overlay draws it)
     this.pathI = 0;
-    this.cord = new Cord(scene, world, camera, null);
-    this.cord.plugInto(LEVEL.outlets.find((o) => o.id === LEVEL.vacOutlet), start.x, start.z);
+    this.cord = new Cord(scene);
+    // The tether: the waypoints the cord is lying along, from the outlet end to the last one he reached.
+    this.root = this.nav.nodes.get(LEVEL.cordRoot);
+    this.tether = this.nav.path(this.root, start);
+    this.spin = 0; this.lastPaid = this._paid();
     this.model.root.position.set(this.x, 0, this.z);
     this.model.root.updateMatrixWorld(true);
   }
@@ -70,12 +73,48 @@ export class Vacuum {
     if (this.voice) { this.voice.setRate(0.2, D.windDown); this.voice.stop(D.windDown); this.voice = null; }
   }
 
+  /** Metres of cord down right now, including the stretch to where he is between waypoints. */
+  _paid() {
+    const T = this.tether, top = T[T.length - 1], base = this.nav.lengthOf(T);
+    const d = Math.hypot(this.x - top.x, this.z - top.z);
+    return this._retracing() ? base - d : base + d;
+  }
+
+  _retracing() { const T = this.tether; return T.length >= 2 && this.path[this.pathI] === T[T.length - 2]; }
+
+  /**
+   * The route to a waypoint that the cord allows. He can carry on from where he is if there's enough cord; if not, he goes
+   * back along it to the nearest point from which there is. Going back over the cord reels it in.
+   */
+  planTo(target) {
+    const T = this.tether, nav = this.nav, along = [0];
+    for (let i = 1; i < T.length; i++) along.push(along[i - 1] + nav.lengthOf([T[i - 1], T[i]]));
+    const top = T.length - 1;
+    let best = null, bestCost = Infinity;
+    for (let k = top; k >= 0; k--) {
+      const onward = nav.path(T[k], target);
+      if (!onward.length) continue;
+      const len = nav.lengthOf(onward);
+      if (along[k] + len > C.length) continue;
+      const cost = along[top] - along[k] + len;
+      if (cost < bestCost) { bestCost = cost; best = { k, onward }; }
+    }
+    if (!best) return [T[top]];
+    const back = T.slice(best.k, top + 1).reverse();
+    return back.concat(best.onward.slice(1));
+  }
+
   _nextLeg() { // on to the next stop of the patrol loop
     this.routeI = (this.routeI + 1) % this.route.length;
-    const from = this.path[this.pathI];
-    const p = this.nav.path(from, this.route[this.routeI]);
-    this.path = p.length ? p : [from];
+    this.path = this.planTo(this.route[this.routeI]);
     this.pathI = 0;
+  }
+
+  /** Reached a waypoint: the cord now lies to here, or, if he came back over it, has reeled in to here. */
+  _arrived(n) {
+    const T = this.tether;
+    if (T[T.length - 1] === n) return;
+    if (T.length >= 2 && T[T.length - 2] === n) T.pop(); else T.push(n);
   }
 
   /** Per fixed tick. */
@@ -85,6 +124,7 @@ export class Vacuum {
     if (this.frozen || this.off) return;
     let target = this.path[this.pathI];
     if (Math.hypot(target.x - this.x, target.z - this.z) < V.arrive) {
+      this._arrived(target);
       if (this.pathI >= this.path.length - 1) this._nextLeg();
       else this.pathI++;
       target = this.path[this.pathI];
@@ -96,7 +136,6 @@ export class Vacuum {
     const speed = V.speed[this.anger - 1] * Math.max(0, Math.cos(diff));
     this.x += Math.sin(this.heading) * speed * dt;
     this.z += Math.cos(this.heading) * speed * dt;
-    this.cord.tick(dt, this.x, this.z);
   }
 
   /** Per rendered frame. */
@@ -104,8 +143,12 @@ export class Vacuum {
     const r = this.model.root;
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;
+    const paid = this._paid();
+    this.spin += (paid - this.lastPaid) / 0.07; this.lastPaid = paid; // the reel turns as cord goes out or comes in
+    this.model.setReel(Math.min(1, paid / C.length), this.spin);
     r.updateMatrixWorld(true);
     this.model.cordSocket.getWorldPosition(_s);
-    this.cord.frame(_s.x, _s.y, _s.z);
+    const T = this.tether;
+    this.cord.frame(T, this._retracing() ? T.length - 1 : T.length, r.position.x, r.position.z, _s.x, _s.y, _s.z);
   }
 }

@@ -109,16 +109,10 @@ export const LEVEL = {
   // Grandma's door, on the wall at the east end of the hallway. It can't be opened.
   grandmaDoor: { x: 18 - IN, zMin: -1.15, zMax: -0.25, top: 2.05, strip: 0.03 },
 
-  // 1–2 outlets per room (the cord logic arrives with the vac). pos is on the wall face; n is the way the plate faces.
-  outlets: [
-    { id: 'living1', room: 'living', pos: [6 - IN, 0.3, 1.2], n: [-1, 0, 0] },
-    { id: 'living2', room: 'living', pos: [IN, 0.3, 4.6], n: [1, 0, 0] },
-    { id: 'kitchen1', room: 'kitchen', pos: [10.8 - IN, 0.3, 2.2], n: [-1, 0, 0] },
-    { id: 'kitchen2', room: 'kitchen', pos: [8.0, 0.3, 5.4 - IN], n: [0, 0, -1] }, // (clear of the panel)
-    { id: 'storage1', room: 'storage', pos: [12.8, 0.3, IN], n: [0, 0, 1] },
-    { id: 'hall1', room: 'hall', pos: [5.5, 0.3, -IN], n: [0, 0, -1] },
-    { id: 'hall2', room: 'hall', pos: [12.0, 0.3, -1.4 + IN], n: [0, 0, 1] },
-  ],
+  // The one outlet: on the hallway wall, just outside Grandma's door. Mr. Tidy is always plugged in here. pos is on the
+  // wall face; n is the way the plate faces. cordRoot is the waypoint his cord starts from.
+  outlets: [{ id: 'grandma', room: 'hall', pos: [16.8, 0.3, -IN], n: [0, 0, -1] }],
+  cordRoot: 'H4',
 
   // The links a player must be able to jump, checked against TUNING (src/world/route-check.js). Every one is two-way
   // unless oneWay. grab: true means a clean jump isn't enough, the link is meant to need a ledge grab.
@@ -135,7 +129,7 @@ export const LEVEL = {
     ['Hw', 'Hl'], ['Hl', 'H2'], ['H2', 'Hk'], ['Hk', 'H3'], ['H3', 'Hs'], ['Hs', 'H4'], ['Hs', 'Sd'],
     ['Sd', 'S1'], ['S1', 'S2'], ['S1', 'S3'],
   ],
-  vacStart: 'L1', vacOutlet: 'living1', // where he starts, and what he's plugged into
+  vacStart: 'L1', // where he starts
   // His fixed loop (he finds his own way between stops). It takes in the whole house, including the far end of the hallway.
   patrol: ['L2', 'Hl', 'Hk', 'H3', 'Hs', 'S1', 'S2', 'S1', 'Hs', 'H4', 'Hs', 'H3', 'Hk', 'K4', 'K3', 'K2', 'K1', 'K5', 'K1', 'Kd', 'Ld', 'L5', 'L4', 'L3', 'L2', 'L1'],
 

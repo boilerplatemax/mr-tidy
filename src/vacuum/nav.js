@@ -35,6 +35,9 @@ export class Nav {
     return out;
   }
 
+  /** Length of a node list, in metres. */
+  lengthOf(nodes) { let s = 0; for (let i = 1; i < nodes.length; i++) s += Math.hypot(nodes[i].x - nodes[i - 1].x, nodes[i].z - nodes[i - 1].z); return s; }
+
   /** Every edge the vac's body can't fit along, for the route checks. */
   blockedEdges(world, radius, height) {
     const bad = [];

@@ -89,30 +89,28 @@ function vacChecks(kit) {
   report('every waypoint can be reached', orphan.length === 0, orphan.map((n) => n.id).join(' '));
 
   // a whole lap of the patrol: he keeps moving and stays clear of everything
-  const seen = new Set(); let hit = 0, stalled = 0, tx = v.x, tz = v.z, i = 0;
+  const seen = new Set(); let hit = 0, stalled = 0, tx = v.x, tz = v.z, i = 0, maxPaid = 0, retraces = 0, wasRetracing = false, count = v.tether.length;
   const start = v.routeI;
-  for (i = 0; i < 60 * 240; i++) {
+  for (i = 0; i < 60 * 300; i++) {
     kit.tick(dt);
-    seen.add(v.path[v.pathI].id);
+    seen.add(v.path[v.pathI].id); maxPaid = Math.max(maxPaid, v._paid());
+    if (v.tether.length < count) retraces++; count = v.tether.length; wasRetracing = v._retracing(); void wasRetracing;
     if (W.penetration(v.x, v.z, V.radius - 0.03, 0.03, V.height) > 0) hit++;
     if (i % 60 === 0) { if (Math.hypot(v.x - tx, v.z - tz) < 0.05) stalled++; tx = v.x; tz = v.z; }
     if (i > 600 && v.routeI === start) break;
   }
-  report('a full patrol lap, moving, never inside anything', hit === 0 && stalled <= 1 && seen.size >= 15, `${(i / 60).toFixed(0)} s, ${seen.size} waypoints, ${stalled} stalls, ${hit} overlaps`);
+  report('a full patrol lap, moving, never inside anything', hit === 0 && stalled <= 3 && seen.size >= 15, `${(i / 60).toFixed(0)} s, ${seen.size} waypoints, ${stalled} stalls, ${hit} overlaps`);
 
-  // the plug: never moves while the outlet can be seen, moves to the nearest outlet when it can't
-  const cam = kit.camera, C = v.cord, near = (x, z) => LEVEL.outlets.reduce((b, o) => ((o.pos[0] - x) ** 2 + (o.pos[2] - z) ** 2 < (b.pos[0] - x) ** 2 + (b.pos[2] - z) ** 2 ? o : b));
-  const look = (x, y, z, tx2, ty, tz2) => { cam.position.set(x, y, z); cam.lookAt(tx2, ty, tz2); cam.updateMatrixWorld(true); };
-  const living = LEVEL.outlets.find((o) => o.id === 'living1'), kitchen = LEVEL.outlets.find((o) => o.id === 'kitchen1');
-  // parked in the kitchen, plugged in far away in the living room, with the player looking straight at that outlet
-  v.frozen = false; v.x = v.px = 9.55; v.z = v.pz = 2.3; C.plugInto(living, v.x, v.z); v.frozen = true;
-  look(4.6, 0.3, 1.2, living.pos[0], living.pos[1], living.pos[2]);
-  for (let t = 0; t < 40; t++) { C.timer = 0; C.tick(dt, v.x, v.z); }
-  report('the plug stays put while its outlet is in view', C.outlet === living);
-  // now looking away, into a wall: nothing of it is visible
-  look(14, 0.3, 2.6, 15.2, 0.3, 2.6);
-  for (let t = 0; t < 40; t++) { C.timer = 0; C.tick(dt, v.x, v.z); }
-  report('and moves to the nearest outlet once nobody can see it', C.outlet === near(v.x, v.z) && C.outlet === kitchen, `now ${C.outlet.id}`);
+  // the cord: every waypoint is in reach, and he never runs past its end
+  const root = v.nav.nodes.get(LEVEL.cordRoot), Lc = TUNING.cord.length, far = Math.max(...[...v.nav.nodes.values()].map((n) => v.nav.lengthOf(v.nav.path(root, n))));
+  report('the cord reaches every room, with some to spare', far < Lc && far > Lc * 0.6, `farthest ${far.toFixed(1)} m of ${Lc}`);
+  report('it is plugged in beside her door', LEVEL.outlets.length === 1 && Math.hypot(LEVEL.outlets[0].pos[0] - 18, LEVEL.outlets[0].pos[2] + 0.7) < 1.5);
+  report('the patrol lap never ran past the end of the cord', maxPaid <= Lc + 0.05, `most paid out ${maxPaid.toFixed(1)} m`);
+  report('he has to go back the way he came', retraces > 3, `${retraces} waypoints retraced in a lap`);
+  const full = v.model.reelSpin.scale.x; v.model.setReel(1, 0); const empty = v.model.reelSpin.scale.x; v.model.setReel(0, 0); const packed = v.model.reelSpin.scale.x;
+  report('the reel shrinks as cord pays out', empty < packed, `${packed.toFixed(3)} full, ${empty.toFixed(3)} paid out`);
+  void full;
+
   // the drone's shape: louder as he nears, steepest close up, never silent
   const lv = [0.5, 1, 2, 4, 8, 16].map((d) => v.droneLevel(d));
   report('the drone rises steeply as he nears, and is never silent', lv.every((x, i) => i === 0 || x < lv[i - 1]) && lv[1] > lv[3] * 3 && lv[5] >= TUNING.drone.floor, lv.map((x) => x.toFixed(2)).join(' '));

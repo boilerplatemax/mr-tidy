@@ -152,7 +152,8 @@ export const TUNING = {
       scaleY: 0.45, scaleXZ: 0.58, // the model is 1 unit tall and 0.78 wide: this makes it a squat 0.45 m drum, 0.45 m across
       holeY: 0.115, holeR: 0.09, holeZ: 0.2225, // the black mouth (m): height, radius, how far forward
       faceY: 0.29, faceW: 0.26, faceH: 0.19, faceZ: 0.236, // the face plate on the dome, above the hole
-      cordY: 0.1, backZ: 0.2, // where the cord leaves the back
+      reelY: 0.2, reelZ: 0.275, // the cord reel on his back (m): height, how far behind him
+      reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
     },
   },
   drone: { // the motor. The player must be able to find him by ear (src/vacuum/vacuum.js)
@@ -164,11 +165,10 @@ export const TUNING = {
     update: 0.08, // s between adjustments
     windDown: 1.2, // s for the motor to die when Grandma wakes
   },
-  cord: {
-    spacing: 0.25, capacity: 256, // m between trail points; how many before the trail is thinned
+  cord: { // the power cord: one outlet, by Grandma's door, and a fixed length (src/vacuum/cord.js)
+    length: 24, // m. Every room is in reach, but not by every route: when he'd run out he goes back the way he came
+    spacing: 0.25, capacity: 180, // m between points on the tube; the most points it can have
     radius: 0.009, y: 0.012, slack: 0.018, // m: thickness, height off the floor, how much it wanders
-    checkEvery: 0.3, // s between looking for a nearer outlet
-    seenMargin: 1.08, // how far beyond the edge of the screen still counts as visible (a safety margin)
     color: 0x2a2a2c, plugColor: 0x141414,
   },
 

@@ -1,7 +1,7 @@
-// The power cord (visual only, for now): a thin tube along the floor from the back of the vac to the outlet it's plugged
-// into, loosely following where it has been. Video-game magic: whenever the outlet and the cord are out of the player's
-// sight, the plug quietly moves to the outlet nearest the vac. It never switches while any of it can be seen, and it
-// never blocks or limits anything. It's here for the Phase 2 ending, when Grandma unplugs it.
+// The power cord: a thin tube along the floor from the outlet by Grandma's door to the reel on the back of the vac. It's a
+// fixed length, and it lies along the route he actually took, so it's the Vacuum that decides where it runs (see its
+// tether). When he retraces his steps it reels back in. It doesn't block the cat. It's here for the Phase 2 ending too,
+// when Grandma unplugs it.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { LEVEL } from '../data/level.js';
@@ -9,16 +9,11 @@ import { makePS1 } from '../render/ps1-material.js';
 
 const C = TUNING.cord;
 const SIDES = 4;
-const _v = new THREE.Vector3();
 
 export class Cord {
-  constructor(scene, world, camera, socketWorld) {
-    Object.assign(this, { world, camera, socketWorld });
-    this.outlets = LEVEL.outlets;
-    this.outlet = this.outlets[0];
-    this.trail = []; // { x, z } from the outlet toward the vac
-    this.timer = 0;
-    const max = C.capacity + 3;
+  constructor(scene) {
+    this.outlet = LEVEL.outlets[0];
+    const max = C.capacity;
     this.geo = new THREE.BufferGeometry();
     this.pos = new Float32Array(max * SIDES * 3);
     const nor = new Float32Array(max * SIDES * 3); for (let i = 1; i < nor.length; i += 3) nor[i] = 1;
@@ -33,74 +28,36 @@ export class Cord {
     this.mesh = new THREE.Mesh(this.geo, makePS1(new THREE.MeshLambertMaterial({ color: C.color, side: THREE.DoubleSide })));
     this.mesh.frustumCulled = false;
     scene.add(this.mesh);
+    const [x, y, z] = this.outlet.pos, [nx, , nz] = this.outlet.n;
     this.plug = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.03), makePS1(new THREE.MeshLambertMaterial({ color: C.plugColor })));
+    this.plug.position.set(x + nx * 0.02, y, z + nz * 0.02);
+    this.plug.rotation.y = Math.atan2(nx, nz);
     scene.add(this.plug);
-    this._placePlug();
     this.pts = Array.from({ length: max }, () => ({ x: 0, y: 0, z: 0 }));
   }
 
-  _placePlug() {
-    const [x, y, z] = this.outlet.pos, [nx, , nz] = this.outlet.n;
-    this.plug.position.set(x + nx * 0.02, y, z + nz * 0.02);
-    this.plug.rotation.y = Math.atan2(nx, nz);
-  }
-
-  /** Lay a fresh cord straight from an outlet to the vac. */
-  plugInto(outlet, vx, vz) {
-    this.outlet = outlet;
-    this._placePlug();
-    const [ox, , oz] = outlet.pos, len = Math.hypot(vx - ox, vz - oz), n = Math.max(1, Math.ceil(len / C.spacing));
-    this.trail.length = 0;
-    for (let i = 0; i < n; i++) this.trail.push({ x: ox + ((vx - ox) * i) / n, z: oz + ((vz - oz) * i) / n });
-  }
-
-  _seen(x, y, z) {
-    const cam = this.camera;
-    _v.set(x, y, z).applyMatrix4(cam.matrixWorldInverse);
-    if (_v.z >= 0) return false; // behind the camera
-    _v.set(x, y, z).project(cam);
-    if (Math.abs(_v.x) > C.seenMargin || Math.abs(_v.y) > C.seenMargin) return false;
-    const a = this._a || (this._a = { x: 0, y: 0, z: 0 }), b = this._b || (this._b = { x: 0, y: 0, z: 0 });
-    a.x = cam.position.x; a.y = cam.position.y; a.z = cam.position.z; b.x = x; b.y = y; b.z = z;
-    return this.world.countOccluders(a, b, 1, true) === 0;
-  }
-
-  /** Tested from just off the wall: a point exactly on the wall counts as blocked by it. */
-  _outletSeen(o) { return this._seen(o.pos[0] + o.n[0] * 0.05, o.pos[1], o.pos[2] + o.n[2] * 0.05); }
-
-  /** Can the player see this outlet, or any of the cord? */
-  anySeen() {
-    if (this._outletSeen(this.outlet)) return true;
-    for (let i = 0; i < this.trail.length; i += 2) if (this._seen(this.trail[i].x, C.y, this.trail[i].z)) return true;
-    return false;
-  }
-
-  /** Per fixed tick: lay more trail, and move the plug if nobody's looking. */
-  tick(dt, vx, vz) {
-    const T = this.trail, last = T[T.length - 1];
-    if (!last || Math.hypot(vx - last.x, vz - last.z) >= C.spacing) T.push({ x: vx, z: vz });
-    if (T.length >= C.capacity) { for (let i = T.length - 2; i > 0; i -= 2) T.splice(i, 1); } // too long: thin it out
-    this.timer -= dt;
-    if (this.timer > 0) return;
-    this.timer = C.checkEvery;
-    let near = this.outlet, bd = Infinity;
-    for (const o of this.outlets) { const d = (o.pos[0] - vx) ** 2 + (o.pos[2] - vz) ** 2; if (d < bd) { bd = d; near = o; } }
-    if (near === this.outlet || this.anySeen() || this._outletSeen(near)) return;
-    this.plugInto(near, vx, vz);
-  }
-
-  /** Per rendered frame: (vx, vz, vy) is the rendered position of the socket on the back of the vac. */
-  frame(sx, sy, sz) {
-    const P = this.pts, T = this.trail, [ox, oy, oz] = this.outlet.pos, [nx, , nz] = this.outlet.n;
-    let n = 0;
-    const add = (x, y, z) => { const p = P[n++]; p.x = x; p.y = y; p.z = z; };
+  /**
+   * Per rendered frame. nodes[0..count): the waypoints the cord lies along, from the outlet end.
+   * (vx, vz): the vac on the floor. (sx, sy, sz): where it leaves the reel.
+   */
+  frame(nodes, count, vx, vz, sx, sy, sz) {
+    const P = this.pts, [ox, oy, oz] = this.outlet.pos, [nx, , nz] = this.outlet.n;
+    let n = 0, s = 0;
+    const add = (x, y, z) => { if (n < P.length) { const p = P[n++]; p.x = x; p.y = y; p.z = z; } };
+    const fx = ox + nx * 0.06, fz = oz + nz * 0.06;
     add(ox + nx * 0.04, oy, oz + nz * 0.04);
-    add(ox + nx * 0.06, C.y, oz + nz * 0.06);
-    for (let i = 0; i < T.length && n < P.length - 2; i++) { // a slight wander, so it doesn't look ruled
-      const w = Math.sin(i * 1.7) * C.slack;
-      add(T[i].x + w, C.y, T[i].z - w);
-    }
-    add(sx, C.y, sz);
+    add(fx, C.y, fz);
+    let lx = fx, lz = fz;
+    const run = (tx, tz) => { // a stretch of floor, in short pieces with a slight wander, so it doesn't look ruled
+      const len = Math.hypot(tx - lx, tz - lz), steps = Math.max(1, Math.ceil(len / C.spacing));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps, w = i === steps ? 0 : Math.sin((s + len * t) * 3.1) * C.slack;
+        add(lx + (tx - lx) * t + w, C.y, lz + (tz - lz) * t - w);
+      }
+      s += len; lx = tx; lz = tz;
+    };
+    for (let i = 0; i < count; i++) run(nodes[i].x, nodes[i].z);
+    run(sx, sz); // straight to the reel, not under his body
     add(sx, sy, sz);
     const r = C.radius, pos = this.pos;
     for (let i = 0; i < n; i++) {
