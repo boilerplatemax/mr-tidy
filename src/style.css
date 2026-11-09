@@ -117,5 +117,3 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 #cut { position: absolute; inset: 0; z-index: 11; background: #000; }
 #cut[hidden] { display: none; }
 
-/* the flinch when he spots you */
-#sting { position: fixed; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(ellipse at center, transparent 42%, rgba(60, 0, 0, 0.55) 78%, rgba(10, 0, 0, 0.9) 100%); }

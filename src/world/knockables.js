@@ -1,58 +1,96 @@
 // Knockable objects (build prompt 0.5, 6.2): a small custom physics, no library. Objects rest on surfaces, slide with
 // friction when batted, tip when their centre passes an edge, tumble as they fall, and land on whatever is below.
-// Hitting the floor counts as a knock-over: it breaks into cubes or bounces, leaves a mess, and makes a noise event.
+// Hitting the floor counts as a knock-over: each kind of thing does what it does (shatters, breaks into chunks, bounces,
+// rolls, thuds), leaves a mess, and makes a noise event. Data for the 25 objects is in src/data/knockable-props.js.
 //
 // DESIGN NOTE: objects are not colliders for the cat. They're small, and a cat stumbling on a mug would fight the jumps.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { LEVEL } from '../data/level.js';
-import { makePS1 } from '../render/ps1-material.js';
+import { PROPS, PALETTES } from '../data/knockable-props.js';
+import { loadGLB } from '../render/geometry.js';
 import { audio } from '../audio/audio.js';
 
-const K = TUNING.knock, TYPES = TUNING.knockTypes, S = TUNING.swipe;
-
-const buildGeometry = (t) => (t.shape === 'cyl' ? new THREE.CylinderGeometry(t.r, t.r, t.h, 10)
-  : t.shape === 'sphere' ? new THREE.IcosahedronGeometry(t.r, 1)
-  : new THREE.BoxGeometry(t.w, t.h, t.d));
+const K = TUNING.knock, S = TUNING.swipe, X = TUNING.knockFx;
 const roomAt = (x, z) => LEVEL.rooms.find((r) => x >= r.min[0] && x <= r.max[0] && z >= r.min[1] && z <= r.max[1])?.id || null;
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const rand = (a, b) => a + Math.random() * (b - a);
 
 const _axis = new THREE.Vector3(), _dq = new THREE.Quaternion(), _up = new THREE.Quaternion();
 const _v = new THREE.Vector3();
 
+// What the props leave on the floor, and how each survivor gets away.
+const MESS = { mug: 'coffee', teapot: 'coffee', dinner_plate: 'china', teacup: 'china', vase: 'china', cookie_jar: 'china', table_lamp: 'china', cat_figurine: 'china', soap_dish: 'china', perfume: 'perfume', snow_globe: 'glass', dentures_glass: 'glass', picture_frame: 'glass', button_jar: 'buttons' };
+const SURVIVOR = { dentures_glass__teeth: 'hop', soap_dish__soap: 'roll', cookie_jar__lid: 'roll', cat_figurine__head: 'roll', table_lamp__shade: 'tumble', mantel_clock__face: 'roll', rotary_phone__handset: 'tumble' };
+
+function buildType(id) {
+  const p = PROPS[id], [w, h, d] = p.size;
+  return { ...p, id, h, r: Math.max(0.02, Math.min(0.13, Math.max(w, d) / 2)), breakable: p.landing === 'shatter' || p.landing === 'break', points: p.noise * K.noiseScale };
+}
+
 export class Knockables {
   constructor({ scene, world, byId, noise, debris }) {
-    this.world = world; this.noise = noise; this.debris = debris;
+    this.world = world; this.noise = noise; this.debris = debris; this.scene = scene;
     this.count = 0; // knock-overs so far (the vac's anger and the win screen read this)
     this.list = [];
     this.byId = new Map();
+    this.lib = null; // the loaded pack
     this._g = { y: 0, surface: '', collider: null };
     this._clip = (nx, nz) => { const o = this._cur, vn = o.vx * nx + o.vz * nz; if (vn < 0) { o.vx -= nx * vn * (1 + K.wallBounce); o.vz -= nz * vn * (1 + K.wallBounce); } };
-    const mat = makePS1(new THREE.MeshLambertMaterial({ color: TUNING.house.colors.knockable }));
-    const geos = new Map();
+    const types = new Map();
     for (const d of LEVEL.knockables) {
-      const t = TYPES[d.type];
-      if (!geos.has(d.type)) geos.set(d.type, buildGeometry(t));
-      const mesh = new THREE.Mesh(geos.get(d.type), mat);
+      if (!types.has(d.type)) types.set(d.type, buildType(d.type));
+      const t = { ...types.get(d.type), topple: !!d.topple };
+      const mesh = new THREE.Group(); // (the model goes in once the pack has loaded)
       const top = d.on === 'floor' ? 0 : byId.get(d.on).max[1];
       const o = {
-        id: d.id, type: d.type, t, mesh, mass: t.mass, h: t.h, r: t.shape === 'box' ? Math.max(t.w, t.d) * 0.45 : t.r,
+        id: d.id, type: d.type, t, mesh, mass: t.mass, h: t.h, r: t.r, hits: 0, node: null,
         x: d.x, y: top, z: d.z, vx: 0, vy: 0, vz: 0, q: new THREE.Quaternion(), wx: 0, wy: 0, wz: 0,
         px: d.x, py: top, pz: d.z, pq: new THREE.Quaternion(),
         state: 'rest', tipT: 0, bounces: 0, dirty: true, knocked: false, start: { x: d.x, y: top, z: d.z },
       };
+      if (d.yaw) { o.startQ = new THREE.Quaternion().setFromAxisAngle(_axis.set(0, 1, 0), d.yaw); o.q.copy(o.startQ); o.pq.copy(o.startQ); }
       scene.add(mesh);
       this.list.push(o); this.byId.set(o.id, o);
     }
     this.frame(1);
+    this.ready = loadGLB(TUNING.assets.knockables).then((g) => this._dress(g)).catch((e) => console.warn('knockables failed to load:', e?.message || e));
   }
 
-  /** Everything back where it started, for a new run. */
+  /** A fresh copy of a node from the pack, at the origin. */
+  _clone(name) {
+    const n = this.lib?.getObjectByName(name);
+    if (!n) { console.warn(`knockables: no node ${name}`); return new THREE.Group(); }
+    const c = n.clone(true); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1);
+    return c;
+  }
+
+  _dress(gltf) {
+    this.lib = gltf.scene;
+    const shard = this.lib.getObjectByName('fx_shard_0');
+    let geo = null; shard?.traverse((m) => { if (m.isMesh && !geo) geo = m.geometry; });
+    if (geo) this.debris.setShardShape(geo);
+    for (const o of this.list) this._dressOne(o);
+    this.frame(1);
+  }
+
+  _dressOne(o) {
+    const n = o.t.nodes, group = new THREE.Group();
+    group.position.y = -o.h / 2; // (the group's origin is the middle of the object; the models stand on their base)
+    group.add(this._clone(n.intact));
+    for (const part of n.parts || []) group.add(this._clone(part));
+    for (const g of n.glass || []) if (g !== n.intact) group.add(this._clone(g));
+    o.node = group; o.mesh.add(group);
+  }
+
+  /** Back as it was, for a new run. */
   reset() {
     this.count = 0;
     for (const o of this.list) {
       o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z;
-      o.vx = o.vy = o.vz = 0; o.wx = o.wy = o.wz = 0; o.q.identity(); o.pq.identity();
-      o.state = 'rest'; o.tipT = 0; o.bounces = 0; o.knocked = false; o.dirty = true; o.mesh.visible = true;
+      o.vx = o.vy = o.vz = 0; o.wx = o.wy = o.wz = 0; o.startQ ? (o.q.copy(o.startQ), o.pq.copy(o.startQ)) : (o.q.identity(), o.pq.identity());
+      o.state = 'rest'; o.tipT = 0; o.bounces = 0; o.knocked = false; o.dirty = true; o.mesh.visible = true; o.hits = 0;
+      if (o.swapped && this.lib) { o.mesh.remove(o.node); o.swapped = false; this._dressOne(o); }
     }
     this.frame(1);
   }
@@ -67,8 +105,11 @@ export class Knockables {
     for (const o of this.list) {
       if (o.state === 'gone') continue;
       const cx = o.x - eye.x, cy = o.y + o.h / 2 - eye.y, cz = o.z - eye.z, d = Math.hypot(cx, cy, cz);
-      if (d > S.reach || d < 1e-3 || (cx * _v.x + cy * _v.y + cz * _v.z) / d < S.cone) continue;
-      this.shove(o, dx, dz, Math.min(S.maxSpeed, S.impulse / o.mass));
+      if (d > S.reach + o.r || d < 1e-3 || (cx * _v.x + cy * _v.y + cz * _v.z) / d < S.cone) continue;
+      // heavy things take a few hits: the early ones only rock them
+      o.hits++;
+      const free = o.hits >= o.t.swipes, speed = free ? Math.max(S.minSpeed, Math.min(S.maxSpeed, S.impulse / o.mass)) : S.nudge;
+      this.shove(o, dx, dz, speed);
       hits++;
     }
     if (hits) audio.play('knock.clink', { pos: eye, rate: 0.9 + Math.random() * 0.3 });
@@ -77,23 +118,68 @@ export class Knockables {
 
   /** Give an object a push along (dx, dz) at this speed. */
   shove(o, dx, dz, speed) {
-    if (o.t.topple && !o.knocked) { if (speed >= K.toppleSpeed) this._knockOver(o); return; } // knocked over where it stands
+    if (o.t.topple && !o.knocked) { if (speed >= K.toppleSpeed) { o.y = 0; this._knockOver(o); } return; } // knocked over where it stands
     o.vx += dx * speed; o.vz += dz * speed; o.dirty = true;
     if (o.state === 'rest') o.state = 'slide';
+  }
+
+  /** The particular thing this one does when it lands. Returns the pieces it threw clear. */
+  _fx(o) {
+    const t = o.t, n = t.nodes, D = this.debris, bits = [], fx = n.fx || [], x = o.x, z = o.z;
+    if (!this.lib) return bits;
+    for (const part of n.parts || []) { // what survives flies off on its own (they all share the object's origin)
+      const m = this._clone(part);
+      bits.push(D.bit(m, x, Math.max(0.03, o.y), z, SURVIVOR[part] || 'tumble', { life: part.includes('teeth') ? X.chatter : X.roll, r: t.r * 0.7 }));
+    }
+    const lie = (name, yaw) => { const m = this._clone(name); m.rotation.y = yaw; return m; };
+    if (fx.includes('fx_ribbon')) { // a long trail of paper or wool across the floor, as far as there's floor
+      const paper = t.id === 'toilet_roll', mat = (() => { let r = null; this.lib.getObjectByName('fx_ribbon').traverse((m) => { if (m.isMesh && !r) r = m.material; }); return r; })();
+      let px = x, pz = z, yaw = Math.random() * 6.28;
+      for (let i = 0; i < (paper ? X.paperPieces : X.woolPieces); i++) {
+        const dx = Math.sin(yaw) * 0.6, dz = Math.cos(yaw) * 0.6;
+        if (this.world.penetration(px + dx, pz + dz, 0.02, 0.005, 0.05) > 0 || this.world.penetration(px + dx / 2, pz + dz / 2, 0.02, 0.005, 0.05) > 0) break;
+        const m = lie('fx_ribbon', yaw); m.traverse((c) => { if (c.isMesh) c.material = D.tinted(mat, t.tint); }); if (!paper) m.scale.set(0.25, 1, 1);
+        m.position.set(px, 0.006, pz);
+        bits.push(D.bit(m, px, 0.006 + i * 0.0015, pz, 'lie'));
+        px += dx; pz += dz; yaw += rand(-0.5, 0.5);
+      }
+    }
+    if (fx.includes('fx_puff')) {
+      const m = this._clone('fx_puff'); m.traverse((c) => { if (c.isMesh) { c.material = c.material.clone(); c.material.userData = {}; c.material.transparent = true; c.material.depthWrite = false; c.material.color.set(t.tint); m.material = c.material; } });
+      bits.push(D.bit(m, x, 0.1, z, 'puff', { life: X.puffLife }));
+    }
+    if (fx.includes('fx_button')) for (let i = 0; i < X.buttons; i++) { const m = this._clone('fx_button'), c = pick(PALETTES.buttons); m.traverse((q) => { if (q.isMesh) q.material = D.tinted(q.material, c); }); bits.push(D.bit(m, x, 0.05, z, 'tumble', { speed: rand(0.6, 2), up: rand(0.8, 2.2), r: 0.012 })); }
+    if (fx.includes('fx_feather')) for (let i = 0; i < X.feathers; i++) { const m = this._clone('fx_feather'), c = pick(PALETTES.feathers); m.traverse((q) => { if (q.isMesh) q.material = D.tinted(q.material, c); }); bits.push(D.bit(m, x, rand(0.25, 0.7), z, 'drift', { speed: rand(0.4, 1.2) })); }
+    if (fx.includes('fx_cord')) { // the handset's curly cord, stretched back to the phone
+      const hand = bits[0], m = this._clone('fx_cord');
+      this.scene.add(m);
+      hand.link = { mesh: m, from: { x, y: o.y, z } };
+      bits.push({ mesh: m, x, y: o.y, z, scale: 1, settled: true, mode: 'lie', drawn: true, from: null, q: m.quaternion, px: x, py: o.y, pz: z, link: null });
+      D.bits.push(bits[bits.length - 1]);
+    }
+    if (n.variants) { // it stays whole but it's changed: it pops open, cracks, or runs out of paper
+      const name = Object.values(n.variants)[0];
+      o.mesh.remove(o.node); const g = new THREE.Group(); g.position.y = -o.h / 2; g.add(this._clone(name)); o.node = g; o.mesh.add(g); o.swapped = true;
+    }
+    return bits;
   }
 
   /** It hit the floor for the first time: that's a knock-over. Counts once, makes the noise and the mess, and breaks if it can. */
   _knockOver(o) {
     o.knocked = true; this.count++;
-    const t = o.t, room = roomAt(o.x, o.z), D = this.debris;
-    const cubes = t.breakable ? D.burst(o.x, o.z, TUNING.debris.cubeSize, t.cubes[0] + Math.floor(Math.random() * (t.cubes[1] - t.cubes[0] + 1))) : [];
-    const decal = D.decal(o.x, o.z, t.decalSize, t.decal, Math.random() * Math.PI);
-    D.messes.push({ id: o.id, x: o.x, z: o.z, room, decal, cubes, cleaned: false });
+    const t = o.t, room = roomAt(o.x, o.z), D = this.debris, chunks = t.landing === 'break';
+    if (t.breakable && this.lib) o.mesh.remove(o.node);
+    const bits = this._fx(o);
+    const size = chunks ? X.chunkSize : TUNING.debris.cubeSize, n = chunks ? 3 + (Math.random() * 2 | 0) : 6 + (Math.random() * 7 | 0);
+    const cubes = t.breakable ? D.burst(o.x, o.z, size, n, t.tint) : [];
+    const decal = D.decal(o.x, o.z, X.decalSize, MESS[t.id], Math.random() * Math.PI);
+    D.messes.push({ id: o.id, x: o.x, z: o.z, room, decal, cubes, bits, cleaned: false });
     if (t.breakable) {
       o.state = 'gone'; o.mesh.visible = false; o.vx = o.vy = o.vz = 0;
-      audio.play('knock.break', { pos: o, rate: 0.9 + Math.random() * 0.25 });
-    }
-    this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.noise, room, objectId: o.id });
+      audio.play('knock.break', { pos: o, rate: (chunks ? 0.7 : 0.9) + Math.random() * 0.25 });
+    } else if (t.id === 'rubber_duck') audio.play('knock.squeak', { pos: o, rate: 0.9 + Math.random() * 0.25 });
+    else audio.play('knock.thud', { pos: o, gain: 0.6 });
+    this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.points, room, objectId: o.id });
   }
 
   /** Per fixed tick. */
@@ -121,8 +207,9 @@ export class Knockables {
     const g = W.ground(o.x, o.z, K.supportR, o.y + 0.04, this._g);
     if (g.y < o.y - 0.01) { this._startTip(o); return; } // the centre has passed the edge
     o.y = g.y;
-    if (Math.abs(o.q.w) < 0.9999) o.q.slerp(_up.identity(), 0.3); // settle upright after a landing
-    if (Math.hypot(o.vx, o.vz) < K.stopSpeed && Math.abs(o.q.w) >= 0.9999) { o.vx = o.vz = 0; o.q.identity(); o.state = 'rest'; }
+    const up = o.startQ && o.bounces === 0 && !o.knocked ? o.startQ : _up.identity();
+    if (1 - Math.abs(o.q.dot(up)) > 1e-4) o.q.slerp(up, 0.3); // settle upright after a landing
+    if (Math.hypot(o.vx, o.vz) < K.stopSpeed && 1 - Math.abs(o.q.dot(up)) <= 1e-4) { o.vx = o.vz = 0; o.q.copy(up); o.state = 'rest'; }
   }
 
   _startTip(o) {
@@ -173,7 +260,7 @@ export class Knockables {
     if (floor && !o.knocked) { this._knockOver(o); if (o.state === 'gone') return; }
     if (impact > K.bounceMin && o.bounces < 1) { // one bounce, then it settles
       o.bounces++;
-      o.vy = impact * K.bounce;
+      o.vy = impact * K.bounce * (o.t.landing === 'bounce' ? X.bounceMul : 1);
       o.vx *= K.bounceKeep; o.vz *= K.bounceKeep; o.wx *= 0.5; o.wy *= 0.5; o.wz *= 0.5;
       o.state = 'fall';
       audio.play(floor ? 'knock.thud' : 'knock.clink', { pos: o, gain: Math.min(1, impact / 5) });
@@ -181,6 +268,7 @@ export class Knockables {
     }
     o.vy = 0; o.wx = o.wy = o.wz = 0; o.bounces = 0;
     o.vx *= K.bounceKeep; o.vz *= K.bounceKeep;
+    if (o.t.landing === 'roll') { const l = Math.hypot(o.vx, o.vz) || 1, a = l < 0.01 ? Math.random() * 6.28 : 0; o.vx = l < 0.01 ? Math.cos(a) * X.rollSpeed : (o.vx / l) * X.rollSpeed; o.vz = l < 0.01 ? Math.sin(a) * X.rollSpeed : (o.vz / l) * X.rollSpeed; } // a ball carries on
     o.state = 'slide';
   }
 

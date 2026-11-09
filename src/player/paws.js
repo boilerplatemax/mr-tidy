@@ -1,28 +1,31 @@
-// The first-person paws: grey-box blocks with toe bumps, on the viewmodel layer (drawn after the world with depth
-// cleared, never vertex-snapped). They only exist while hanging, climbing or swiping. Hanging and climbing plant them on
-// the real surface in world space, so they stay put as you look around; a final guard makes sure you see both or neither.
+// The first-person paws (cat_forelegs.glb), on the viewmodel layer (drawn after the world with depth cleared, never
+// vertex-snapped). They only exist while hanging, climbing or swiping. Hanging and climbing plant them on the real surface
+// in world space, so they stay put as you look around; a swipe plays the rig's own clip.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
-import { makePS1 } from '../render/ps1-material.js';
+import { loadGLB } from '../render/geometry.js';
 import { LAYER_VIEWMODEL } from '../render/ps1-renderer.js';
 
 const V = TUNING.paws, SW = TUNING.swipe, L = TUNING.ledge;
 const ease = (t) => t * t * (3 - 2 * t);
 
-function buildPaw(mat) {
-  const g = new THREE.Group();
-  // the forearm pivots at the wrist (the group's origin) and runs back toward the cat along +z
-  const leg = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.035, 0.14).translate(0, 0, 0.07), mat);
-  const pad = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.05), mat);
-  g.add(leg, pad);
-  for (const x of [-0.018, -0.006, 0.006, 0.018]) {
-    const toe = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.014, 0.018), mat);
-    toe.position.set(x, 0.002, -0.03);
-    g.add(toe);
-  }
-  g.traverse((o) => o.layers.set(LAYER_VIEWMODEL));
+/** An empty paw: the wrist at the origin, the forearm running back along +z. The real meshes go in once they've loaded. */
+function emptyPaw() {
+  const g = new THREE.Group(), leg = new THREE.Group();
+  g.add(leg);
   g.userData.leg = leg;
   return g;
+}
+
+/** Fill a paw with the leg, pad and claws for this side. */
+function fillPaw(paw, lib, side) {
+  const leg = lib.getObjectByName(`leg_${side}_mesh`).clone(), pad = lib.getObjectByName(`paw_${side}_mesh`).clone(), claws = lib.getObjectByName(`claws_${side}_mesh`).clone();
+  leg.position.set(0, 0, V.legLen); // (modelled running forward from the shoulder: moved so its wrist end is at the origin)
+  pad.position.set(0, 0, 0); claws.position.set(0, 0, 0);
+  paw.userData.leg.add(leg);
+  paw.add(pad, claws);
+  paw.scale.setScalar(V.plantScale); // (so close to the eye, the full-size model fills the view)
+  paw.traverse((o) => o.layers.set(LAYER_VIEWMODEL));
 }
 
 const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _cq = new THREE.Quaternion(), _m = new THREE.Matrix4(), _r = new THREE.Quaternion();
@@ -31,10 +34,19 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export class Paws {
   constructor(camera) {
-    const mat = makePS1(new THREE.MeshLambertMaterial({ color: V.color, emissive: V.glow, fog: false }));
     this.camera = camera;
-    this.left = buildPaw(mat); this.right = buildPaw(mat);
+    this.left = emptyPaw(); this.right = emptyPaw();
+    this.rig = null; this.mixer = null; this.swipeClip = null; // the whole rig, for the swipe's own animation
     camera.add(this.left, this.right);
+    loadGLB(TUNING.assets.forelegs).then((g) => {
+      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive.setHex(V.glow); o.material.fog = false; o.layers.set(LAYER_VIEWMODEL); } o.frustumCulled = false; }); // (a little light of their own, so an underside isn't black)
+      fillPaw(this.left, g.scene, 'L'); fillPaw(this.right, g.scene, 'R');
+      this.rig = g.scene; this.rig.visible = false;
+      camera.add(this.rig);
+      this.mixer = new THREE.AnimationMixer(this.rig);
+      this.swipeClip = this.mixer.clipAction(THREE.AnimationClip.findByName(g.animations, 'swipe_R'));
+      this.swipeClip.setLoop(THREE.LoopOnce, 1); this.swipeClip.clampWhenFinished = true; this.swipeClip.play(); this.swipeClip.paused = true;
+    }).catch((e) => console.warn('forelegs failed to load:', e?.message || e));
     this.left.visible = this.right.visible = false;
     this.grip = 0; // 0 hidden .. 1 on the surface
     this.side = 0; // 0 .. 1: how much the climb is going sideways
@@ -110,16 +122,12 @@ export class Paws {
     l.x += shift * -l.z * tan; r.x += shift * -r.z * tan;
   }
 
-  /** The right paw mid-swipe: it rises into view, sweeps across, drops away. */
+  /** Mid-swipe: the rig's own animation, scrubbed to where the swipe has got to. */
   _swipePose(player, alpha) {
-    const p = this.right, leg = p.userData.leg;
-    leg.rotation.x = V.swipeLeg; leg.scale.z = V.swipeLegLen;
+    if (!this.rig) return;
     const a = player.prevSwipeT >= 0 ? player.prevSwipeT + (player.swipeT - player.prevSwipeT) * alpha : player.swipeT;
-    const u = Math.min(1, a / SW.time);
-    const t = u < V.swipeOut ? ease(u / V.swipeOut) : 1 - ease((u - V.swipeOut) / (1 - V.swipeOut));
-    const reveal = ease(Math.min(1, Math.min(u, 1 - u) / V.reveal)), arc = Math.sin(t * Math.PI);
-    p.position.set(V.swipeStartX + (V.swipeEndX - V.swipeStartX) * t, V.swipeHiddenY + (V.swipeY - V.swipeHiddenY) * reveal + arc * V.swipeLift, V.swipeZ - arc * V.swipeReach);
-    p.rotation.set(0, V.swipeYaw0 + (V.swipeYaw1 - V.swipeYaw0) * t, V.swipeRoll0 + (V.swipeRoll1 - V.swipeRoll0) * t);
+    this.swipeClip.time = Math.min(1, a / SW.time) * this.swipeClip.getClip().duration;
+    this.mixer.update(0);
   }
 
   /** Per rendered frame, after the camera is placed. hidden: third-person debug view. */
@@ -129,7 +137,8 @@ export class Paws {
     const swiping = !gripping && !climbing && player.swipeT >= 0;
     this.grip += ((gripping || climbing ? 1 : 0) - this.grip) * (1 - Math.exp(-V.ease * dt));
     this.left.visible = (gripping || climbing) && !hidden;
-    this.right.visible = (gripping || climbing || swiping) && !hidden;
+    this.right.visible = (gripping || climbing) && !hidden;
+    if (this.rig) this.rig.visible = swiping && !gripping && !climbing && !hidden;
     if (hidden) return;
     if (gripping) { this._plantHang(player, alpha); this._keepBoth(); }
     else if (climbing) { this._plantClimb(player, alpha, dt); this._keepBoth(); }

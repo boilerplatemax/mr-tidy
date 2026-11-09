@@ -31,7 +31,7 @@ Open <http://localhost:8080> and click **Begin**.
 | Left click | Swipe: bats whatever is in front of you. Hit the outlet Mr. Tidy is plugged into to knock him out for a few seconds |
 | Esc | Pause and settings |
 
-Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F4** anger +1 · **F5** wake +20 · **F6** trigger the catch · **F8** freeze the vac · **F9** key list.
+Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F4** anger +1 · **F5** wake +20 · **F6** trigger the catch · **F7** dust cloud · **F8** freeze the vac · **F9** key list.
 
 ## How to tune
 
@@ -50,7 +50,13 @@ Everything that affects feel is in `src/data/tuning.js`. The numbers that matter
 | `cord.length`, `cord.off`, `cord.lock` | How far he can go, and how good unplugging him is |
 | `drone.closeness`, `drone.floor` | How well you can place him by ear |
 | `grandma.gain` | How many knock-overs a run takes (about 12 right now) |
-| `catch.drag`, `catch.hold`, `catch.spin` | How the catch lands |
+| `catch.rideSpeed`, `catch.catchDist`, `catch.hold` | How the catch lands |
+| `alert.time`, `alert.dip`, `sting.cooldown` | How long he stops to listen, how far the motor drops, how often the stingers play |
+| `roam.think`, `roam.pauseChance`, `roam.backChance`, `roam.hunchChance` | How unpredictable his rounds are |
+| `creep.after`, `creep.speed`, `creep.range` | The slow hose that comes for a cat hiding up high |
+| `blast.lobChance`, `blast.lobAbove` | When the dust shot is a lob |
+| `dust.tumble`, `dust.knock`, `dust.time` | What being hit does to you |
+| `fog.grow`, `fog.hold`, `fog.density`, `fog.cooldown`, `fog.sight` | The dust cloud, and how much it blinds him |
 
 ## Tuning
 
@@ -64,3 +70,7 @@ controller and tests ledge grabs and climbing (it proves a jump is possible, not
 node Tools/serve.mjs 8123
 node Tools/check-page.mjs "http://localhost:8123/?play" out.png "window.__kitReady" 60000 "__routeBot()"
 ```
+
+## Credits
+
+See `game-assets/CREDITS.txt`.

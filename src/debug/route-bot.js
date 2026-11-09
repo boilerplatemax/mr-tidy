@@ -434,10 +434,10 @@ function attackChecks(kit) {
 
   B.lobChance = lob0;
   // ---- the lob: a cat up high, or with something in the way, gets it from above
-  { put('L4', 3, 0.1, 1.9, 1.4, 5.15, 0); hunt(1.9, 5.15); v.blastCd = 0; v.reachCd = 99;
+  { put('D4', 3, -1.9, 2.35, 1.25, -6.43, 0); hunt(2.35, -6.43); v.blastCd = 0; v.reachCd = 99;
     let lobbed = false; if (!hold(0.5, () => v.state === 'BLAST')) lobbed = false; else { lobbed = v.lob; }
     let peak = 0; const d0 = P.dust; hold(3.5, () => { if (v.blast.state === 'fly') peak = Math.max(peak, v.blast.pos.y); return P.dust > 0; });
-    report('a cat up high gets a lob, and it arcs over and lands on it', lobbed && d0 === 0 && P.dust > 0 && peak > 1.6, `peak ${peak.toFixed(2)} m, burst on ${v.blast.lastHit}`); P.resetMotion(); }
+    report('a cat up high gets a lob, and it arcs over and lands on it', lobbed && d0 === 0 && P.dust > 0 && peak > 1.5, `peak ${peak.toFixed(2)} m, burst on ${v.blast.lastHit}`); P.resetMotion(); }
   // ---- being hit: bowled over, then staggering
   { put('H2', 2, 0, 9, 0, -0.45); const x0 = P.pos.x; P.dustHit(1, 0); const air = !P.grounded && P.tumbleT > 0;
     I.keys.add('KeyA'); hold(0.5); const t0 = P.tumbleT > 0, moved = P.pos.x - x0; hold(1); const after = P.tumbleT <= 0 && P.dust > 0; I.keys.clear();
@@ -457,9 +457,10 @@ function attackChecks(kit) {
   { const dist = 3.2; put('H2', 4, 1.57, 5.6 + dist, 0, -0.45); v.fogCd = 0; hunt(5.6 + dist, -0.45); v.reachCd = 99; v.blastCd = 99;
     const fired = hold(0.4, () => v.state === 'FOG'); const x = v.x; let windT = 0; while (v.fogPhase === 'wind' && windT < 3) { kit.tick(dt); windT += dt; }
     report('furious and at a distance, he fills the place with dust after a warning', fired && Math.abs(windT - TUNING.fog.wind) < 0.1 && v.cloud.active && v.x === x, `${windT.toFixed(2)} s`);
-    for (let i = 0; i < 180; i++) v.cloud.tick(dt);
-    const Fg = TUNING.fog, c = v.cloud, thick = c.amountAt(c.pos.x, 1, c.pos.z), off = c.amountAt(c.pos.x + Fg.radius + 0.5, 1, c.pos.z), wall = c.amountAt(c.pos.x, 1, c.pos.z + 1.2);
-    report('it has a radius and stops at the walls', thick > 0.9 && off === 0 && wall === 0, `${thick.toFixed(2)} inside, ${off} past it, ${wall} through the wall`);
+    const Fg = TUNING.fog, c = v.cloud, early = c.amountAt(0.5, 1, 4.8);
+    for (let i = 0; i < Math.ceil((Fg.grow + 0.5) * 60); i++) c.tick(dt);
+    const thick = c.amountAt(c.pos.x, 1, c.pos.z), far = c.amountAt(0.5, 1, 4.8), other = c.amountAt(13, 1, -5);
+    report('it rolls out from him through the whole house', early === 0 && thick > 0.9 && far > 0.9 && other > 0.9, `${early} before it arrives, ${far.toFixed(2)} at the far end`);
     P.resetMotion(); P.teleport(v.x + 3, 0.001, v.z, 0); P.tick(dt); v.heading = v.prevHeading = 1.57;
     report('he is nearly blind in it', !v._canSee() && Math.hypot(P.pos.x - v.x, P.pos.z - v.z) > Fg.sight);
     v.state = 'CHASE'; report('and he cannot spit dust through it', !v._canBlast()); v.state = 'PATROL';
@@ -605,7 +606,7 @@ function vacChecks(kit) {
   // a whole lap of the patrol: he keeps moving and stays clear of everything
   for (const m of kit.debris.messes) m.cleaned = true;
   v.pending = null; v.setAnger(1); v._resumePatrol();
-  const seen = new Set(); let run0 = 0, hoseIn = 0, cordIn = 0, hit = 0, stalled = 0, tx = v.x, tz = v.z, i = 0, maxPaid = 0, retraces = 0, wasRetracing = false, count = v.tether.length;
+  const seen = new Set(); let hitAt = '', run0 = 0, hoseIn = 0, cordIn = 0, hit = 0, stalled = 0, tx = v.x, tz = v.z, i = 0, maxPaid = 0, retraces = 0, wasRetracing = false, count = v.tether.length;
   v.thinkT = 5;
   const legs = []; let lastI = v.routeI;
   for (i = 0; i < 60 * 300; i++) {
@@ -613,12 +614,12 @@ function vacChecks(kit) {
     kit.tick(dt);
     seen.add(v.path[v.pathI].id); maxPaid = Math.max(maxPaid, v._paid());
     if (v.tether.length < count) retraces++; count = v.tether.length; wasRetracing = v._retracing(); void wasRetracing;
-    if (W.penetration(v.x, v.z, V.radius - 0.03, 0.03, V.height) > 0) hit++;
+    if (W.penetration(v.x, v.z, V.radius - 0.03, 0.03, V.height) > 0) { hit++; hitAt = `${v.x.toFixed(2)},${v.z.toFixed(2)} on ${v.path[Math.max(0, v.pathI - 1)]?.id}-${v.path[v.pathI]?.id}`; }
     if (i % 60 === 0) { if (v.state !== 'PAUSE' && Math.hypot(v.x - tx, v.z - tz) < 0.05) { run0++; stalled = Math.max(stalled, run0); } else run0 = 0; tx = v.x; tz = v.z; }
     if (i % 10 === 0) { for (const p of v.hose.pts) if (W.penetration(p.x, p.z, 0.015, p.y - 0.01, p.y + 0.01, null, p.y - 0.01) > 0) hoseIn++; cordIn += cordCrossings(v, W); }
   }
   report('over a whole lap, the cord and hose stay out of walls and furniture', hoseIn === 0 && cordIn === 0, `${hoseIn} hose, ${cordIn} cord`);
-  report('a full patrol lap, moving, never inside anything', hit === 0 && stalled <= 3 && seen.size >= 15, `${(i / 60).toFixed(0)} s, ${seen.size} waypoints, ${stalled} stalls, ${hit} overlaps`);
+  report('a full patrol lap, moving, never inside anything', hit === 0 && stalled <= 3 && seen.size >= 15, `${(i / 60).toFixed(0)} s, ${seen.size} waypoints, ${stalled} stalls, ${hit} overlaps ${hitAt}`);
 
   { const a = legs.slice(0, Math.floor(legs.length / 2)).join(), b = legs.slice(Math.floor(legs.length / 2)).join(); report('his rounds are not a fixed circuit', legs.length > 8 && a !== b, `${legs.length} legs`); }
   // the cord, as drawn, curves round corners and stays out of things
@@ -717,11 +718,11 @@ function grandmaChecks(kit) {
   const G = kit.grandma, K = kit.knock, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} WAKE ${name}${note ? ' (' + note + ')' : ''}`);
   // how many knock-overs a run takes, from the real numbers
-  const values = K.list.map((o) => G.valueOf(o.start.x, o.start.z, o.t.noise)).sort((a, b) => b - a);
+  const values = K.list.map((o) => G.valueOf(o.start.x, o.start.z, o.t.points)).sort((a, b) => b - a);
   const total = values.reduce((a, b) => a + b, 0), avg = total / values.length;
   let best = 0, sum = 0; while (sum < 100 && best < values.length) sum += values[best++];
   let worst = 0; sum = 0; for (let i = values.length - 1; i >= 0 && sum < 100; i--) { sum += values[i]; worst++; }
-  report('a run takes about 10–14 knock-overs', 100 / avg >= 10 && 100 / avg <= 14 && total >= 100, `average ${(100 / avg).toFixed(1)}, loudest-first ${best}, quietest-first ${worst}, all 20 give ${total.toFixed(0)}`);
+  report('a run takes about 10–14 knock-overs', 100 / avg >= 10 && 100 / avg <= 14 && total >= 100, `average ${(100 / avg).toFixed(1)}, loudest-first ${best}, quietest-first ${worst}, all ${values.length} give ${total.toFixed(0)}`);
   const near = G.valueOf(17, -0.7, 10), far = G.valueOf(1, 5, 10);
   report('a crash near her door counts for more', near > far * 1.8, `${near.toFixed(1)} vs ${far.toFixed(1)}`);
   const w0 = G.wake; G.add(-30); G.add(0);
@@ -745,7 +746,7 @@ function pocketScan(kit) {
   const W = kit.world, P = TUNING.player, r = P.radius, found = new Map(), p = { x: 0, z: 0 }, g = { y: 0, surface: '', collider: null };
   for (const y of [0.05, 0.3, 0.6, 1.0, 1.3, 1.6, 1.9, 2.1]) {
     const low = y + P.stepHeight, high = y + P.height;
-    for (let x = -0.1; x < 18.1; x += 0.03) for (let z = -1.45; z < 5.45; z += 0.03) {
+    for (let x = -0.1; x < 18.1; x += 0.03) for (let z = -6.65; z < 5.45; z += 0.03) {
       W.ground(x, z, r * P.edgeSupport, y + P.stepHeight, g);
       if (g.y >= y - 0.05) continue; // something underfoot: the cat stands, it doesn't drop in
       W.ground(x, z, r * P.edgeSupport, 3, g);
@@ -784,25 +785,25 @@ function knockChecks(kit) {
   const stand = (x, y, z, yaw, pitch = 0) => { I.keys.clear(); I.edges.clear(); P.frozen = false; P.resetMotion(); P.teleport(x, y + 0.001, z, yaw); P.yaw = yaw; P.pitch = pitch; for (let i = 0; i < 6 && !P.grounded; i++) kit.tick(dt); P.render(1); kit.camera.updateMatrixWorld(); };
 
   // a real click: the paw knocks a mug off the coffee table
-  const mug = K.byId.get('mug1');
+  const mug = K.byId.get('cup1');
   stand(3.42, 0.42, 2.35, Math.PI / 2, -0.25);
   I.edges.add('Mouse0'); kit.tick(dt);
   for (let i = 0; i < 12; i++) kit.tick(dt);
   const hit = mug.state !== 'rest';
   settle(mug);
-  const mess = kit.debris.messes.find((m) => m.id === 'mug1'), noise = kit.noise.last;
-  report('a broken mug: gone, cubes, one mess, one crash', mug.state === 'gone' && !!mess && mess.cubes.length >= 3 && mess.cubes.length <= 6 && noise?.kind === 'crash' && noise.objectId === 'mug1' && kit.knock.count === 1, `${mess?.cubes.length} cubes, room ${mess?.room}, count ${kit.knock.count}`);
-  report('click swipes a mug off the table', hit && mug.y === 0, `ended at ${mug.x.toFixed(2)}, ${mug.y.toFixed(2)}, ${mug.z.toFixed(2)}`);
+  const mess = kit.debris.messes.find((m) => m.id === 'cup1'), noise = kit.noise.last;
+  report('a broken cup: gone, shards, one mess, one crash', mug.state === 'gone' && !!mess && mess.cubes.length >= 6 && mess.cubes.length <= 12 && noise?.kind === 'crash' && noise.objectId === 'cup1' && kit.knock.count === 1, `${mess?.cubes.length} cubes, room ${mess?.room}, count ${kit.knock.count}`);
+  report('click swipes a cup off the table', hit && mug.y === 0, `ended at ${mug.x.toFixed(2)}, ${mug.y.toFixed(2)}, ${mug.z.toFixed(2)}`);
 
   // a heavy book only inches: it takes several swipes to reach the edge
-  const book = K.byId.get('book1');
+  const book = K.byId.get('phone');
   let swipes = 0;
   while (swipes < 20 && book.y > 0.5) {
     stand(book.x - 0.3, 0.9, book.z, -Math.PI / 2, -0.3);
     K.swipe(P, kit.camera); swipes++;
     settle(book);
   }
-  report('a heavy book takes several swipes', swipes >= 2 && swipes <= 8 && book.y === 0, `${swipes} swipes`);
+  report('a heavy phone takes several swipes', swipes === K.byId.get('phone').t.swipes && book.y === 0, `${swipes} swipes`);
 
   // falling onto a lower surface: it lands there, it doesn't clip through
   const plate = K.byId.get('plate1');
@@ -812,7 +813,7 @@ function knockChecks(kit) {
 
   // nothing is left in a broken state
   // a heavy book doesn't break: it's on the floor, counted once, with a mess
-  report('an unbreakable book stays whole and counts once', book.state === 'rest' && book.knocked && kit.debris.messes.filter((m) => m.id === 'book1').length === 1 && kit.knock.count === 2, `count ${kit.knock.count}`);
+  report('a phone stays whole and counts once', book.state === 'rest' && book.knocked && kit.debris.messes.filter((m) => m.id === 'phone').length === 1 && kit.knock.count === 2, `count ${kit.knock.count}`);
   K.shove(book, 1, 0, 1); settle(book);
   report('knocking it around the floor again does not recount', kit.knock.count === 2);
 
@@ -825,7 +826,7 @@ function knockChecks(kit) {
   // cubes settle on the floor and stop
   for (let i = 0; i < 240; i++) kit.tick(dt);
   report('debris settles', kit.debris.live.length === 0, `${kit.debris.nextCube} cubes placed`);
-  report('all 20 objects placed, each over a surface', K.list.length === 20 && K.list.filter((o) => o.state === 'rest' || o.knocked).every((o) => { const g = kit.world.ground(o.start.x, o.start.z, 0.01, o.start.y + 0.04, { y: 0, surface: '', collider: null }); return Math.abs(g.y - o.start.y) < 0.001; }));
+  report(`all ${LEVEL.knockables.length} objects placed, each over a surface`, K.list.length === LEVEL.knockables.length && K.list.filter((o) => o.state === 'rest' || o.knocked).every((o) => { const g = kit.world.ground(o.start.x, o.start.z, 0.01, o.start.y + 0.04, { y: 0, surface: '', collider: null }); return Math.abs(g.y - o.start.y) < 0.001; }));
 
   report('every object has finite numbers', K.list.every((o) => Number.isFinite(o.x + o.y + o.z + o.q.w)));
   return rows;
@@ -1024,7 +1025,34 @@ function climbChecks(kit) {
   return rows;
 }
 
-export function runRouteBot(kit) {
+/** Every one of the objects, knocked over for real: all its pieces exist, and nothing is left in a broken state. */
+function propChecks(kit) {
+  const K = kit.knock, D = kit.debris, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} PROPS ${name}${note ? ' (' + note + ')' : ''}`);
+  const count = K.count, types = new Set(); let bad = 0, missing = 0, bitsMade = 0, chars = 0;
+  const warn0 = console.warn; console.warn = (...a) => { if (String(a[0]).includes('no node')) missing++; else warn0(...a); };
+  report('the pack has loaded', !!K.lib);
+  for (const o of K.list) {
+    if (types.has(o.type)) continue;
+    types.add(o.type);
+    o.y = 0.4; o.vy = -3; o.px = o.x; o.py = o.y; o.state = 'fall'; o.knocked = false; o.dirty = true;
+    for (let i = 0; i < 90; i++) { kit.tick(dt); K.frame(1); D.frame(1); }
+    const m = D.messes.find((q) => q.id === o.id);
+    if (!m) bad++; else { bitsMade += m.bits.length; if (o.t.landing === 'shatter' || o.t.landing === 'break') { if (o.state !== 'gone' || !m.cubes.length) bad++; } else if (o.state === 'gone') bad++; }
+    if (!Number.isFinite(o.x + o.y + o.z)) bad++;
+    if (o.t.nodes.variants && !o.swapped) chars++;
+  }
+  console.warn = warn0;
+  for (let i = 0; i < 300; i++) kit.tick(dt);
+  report('all 25 kinds do what they should when they land', types.size === 25 && bad === 0 && missing === 0 && chars === 0, `${types.size} kinds, ${bitsMade} pieces thrown clear, ${bad} wrong, ${missing} missing meshes`);
+  report('every piece comes to rest', D.bits.every((b) => b.settled || b.mode === 'puff') && D.live.length === 0, `${D.bits.filter((b) => !b.settled).length} still moving`);
+  K.count = count; kit.resetRun(); kit.vac.frozen = true; kit.player.noclip = false;
+  report('and they all go back for a new run', K.list.every((o) => o.state === 'rest' && !o.knocked && o.node) && D.bits.length === 0);
+  return rows;
+}
+
+export async function runRouteBot(kit) {
+  await kit.knock.ready;
   kit.vac.frozen = true; // keep him out of the jump tests
   const byId = kit.house.byId, rows = [];
   for (const [a, b, start] of LEVEL.grabLinks) {
@@ -1050,6 +1078,7 @@ export function runRouteBot(kit) {
   }
   rows.push(...climbChecks(kit));
   rows.push(...knockChecks(kit));
+  rows.push(...propChecks(kit));
   rows.push(...pocketScan(kit));
   rows.push(...vacChecks(kit));
   rows.push(...hearingChecks(kit));

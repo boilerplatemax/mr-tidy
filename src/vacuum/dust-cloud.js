@@ -1,6 +1,6 @@
-// The dust cloud: when he's furious enough he blows his bag out and fills the room. It's a true volume with a radius,
-// worked out per pixel in the PS1 material (a ray through a sphere, cut off by the walls of the room it's in), so it thickens
-// with distance like real smog and never leaks through a wall. Motes and a few big puffs give it something to see moving.
+// The dust cloud: when he's furious enough he blows his bag out and it rolls through the whole house from where he stands.
+// It's a true volume, worked out per pixel in the PS1 material (a ray through a growing sphere, inside the house), so it
+// thickens with distance like real smog. Motes around you and a few big puffs give it something to see moving.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { LEVEL } from '../data/level.js';
@@ -44,19 +44,10 @@ export class DustCloud {
 
   get active() { return this.phase !== 'idle'; }
 
-  /** The room he's in: the cloud stops at its walls. */
-  static roomAt(x, z) {
-    const inside = LEVEL.rooms.find((q) => x >= q.min[0] && x <= q.max[0] && z >= q.min[1] && z <= q.max[1]);
-    if (inside) return inside;
-    let best = LEVEL.rooms[0], bd = Infinity;
-    for (const q of LEVEL.rooms) { const d = Math.hypot(x - (q.min[0] + q.max[0]) / 2, z - (q.min[1] + q.max[1]) / 2); if (d < bd) { bd = d; best = q; } }
-    return best;
-  }
-
   release(x, y, z) {
-    const r = DustCloud.roomAt(x, z), T = LEVEL.wallT / 2, U = this.u;
+    const U = this.u, XS = LEVEL.rooms.flatMap((r) => [r.min[0], r.max[0]]), ZS = LEVEL.rooms.flatMap((r) => [r.min[1], r.max[1]]);
     this.phase = 'grow'; this.t = 0; this.pos.set(x, y, z);
-    this.min.set(r.min[0] + T, 0, r.min[1] + T); this.max.set(r.max[0] - T, LEVEL.ceiling, r.max[1] - T);
+    this.min.set(Math.min(...XS), 0, Math.min(...ZS)); this.max.set(Math.max(...XS), LEVEL.ceiling, Math.max(...ZS));
     U.uPs1CloudPos.value.copy(this.pos); U.uPs1CloudMin.value.copy(this.min); U.uPs1CloudMax.value.copy(this.max);
     const pos = this.motes.geometry.attributes.position;
     for (let i = 0; i < pos.count; i++) pos.setXYZ(i, this.min.x + Math.random() * (this.max.x - this.min.x), Math.random() * 2.6, this.min.z + Math.random() * (this.max.z - this.min.z));
@@ -73,7 +64,7 @@ export class DustCloud {
     for (const b of this.puffs) { b.s.visible = false; b.s.material.opacity = 0; }
   }
 
-  /** How thick it is at a point: 0 outside (past the radius or the walls), up to 1 in the middle of it. */
+  /** How thick it is at a point: 0 ahead of the front as it spreads, up to 1 behind it. */
   amountAt(x, y, z) {
     if (!this.active || x < this.min.x || x > this.max.x || z < this.min.z || z > this.max.z) return 0;
     const d = Math.hypot(x - this.pos.x, y - this.pos.y, z - this.pos.z);
@@ -102,7 +93,7 @@ export class DustCloud {
   }
 
   /** Per rendered frame. */
-  frame(dt) {
+  frame(dt, cam) {
     const U = this.u;
     U.uPs1CloudAmt.value = this.thick; U.uPs1CloudR.value = this.radius; U.uPs1CloudTime.value = this.clock;
     if (this.phase === 'idle') return;
@@ -110,8 +101,8 @@ export class DustCloud {
     for (let i = 0; i < pos.count; i++) {
       const v = this.moteV[i], W = Math.sin(this.clock * 0.7 + v.p) * 0.05;
       let x = pos.getX(i) + (v.x + W) * dt, y = pos.getY(i) + v.y * dt, z = pos.getZ(i) + (v.z - W) * dt;
-      if (x < this.min.x) x = this.max.x; if (x > this.max.x) x = this.min.x;
-      if (z < this.min.z) z = this.max.z; if (z > this.max.z) z = this.min.z;
+      const wrap = (v, c, half) => c - half + ((((v - c + half) % (2 * half)) + 2 * half) % (2 * half)); // the motes stay around you, wherever you go
+      x = wrap(x, cam.x, F.moteBox); z = wrap(z, cam.z, F.moteBox);
       if (y < 0.02) y = 2.6; if (y > 2.7) y = 0.05;
       pos.setXYZ(i, x, y, z);
     }

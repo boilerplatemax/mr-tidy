@@ -1,0 +1,30 @@
+// The 25 knockables: gameplay data for game-assets/models/knockables_v2.glb (generated from the pack's knockables_v2.json).
+// mass kg; swipes = hits to get it moving; noise 1-5; landing shatter | break | bounce | roll | thud; size W H D (m); nodes = meshes.
+export const PROPS = {
+  "dentures_glass": {"mass":0.3,"swipes":1,"noise":3,"landing":"shatter","tint":"#bcd6dc","size":[0.08,0.1,0.08],"nodes":{"intact":"dentures_glass","parts":["dentures_glass__teeth"],"fx":["fx_shards"],"glass":["dentures_glass"]}},
+  "toilet_roll": {"mass":0.1,"swipes":1,"noise":1,"landing":"bounce","tint":"#f6f4ee","size":[0.111,0.1,0.114],"nodes":{"intact":"toilet_roll","variants":{"unrolled":"toilet_roll__thin"},"fx":["fx_ribbon"]}},
+  "talc_tin": {"mass":0.2,"swipes":1,"noise":2,"landing":"bounce","tint":"#ffffff","size":[0.068,0.148,0.044],"nodes":{"intact":"talc_tin","fx":["fx_puff"]}},
+  "rubber_duck": {"mass":0.05,"swipes":1,"noise":1,"landing":"bounce","tint":"#f4c430","size":[0.088,0.102,0.156],"nodes":{"intact":"rubber_duck"}},
+  "soap_dish": {"mass":0.4,"swipes":2,"noise":3,"landing":"shatter","tint":"#e7b8c4","size":[0.17,0.022,0.122],"nodes":{"intact":"soap_dish","parts":["soap_dish__soap"],"fx":["fx_shards"]}},
+  "perfume": {"mass":0.2,"swipes":1,"noise":3,"landing":"shatter","tint":"#e9a8c4","size":[0.086,0.116,0.035],"nodes":{"intact":"perfume","fx":["fx_shards"]}},
+  "cookie_jar": {"mass":1.2,"swipes":3,"noise":4,"landing":"break","tint":"#f2e6cf","size":[0.172,0.165,0.176],"nodes":{"intact":"cookie_jar","parts":["cookie_jar__lid"],"fx":["fx_chunks"]}},
+  "teapot": {"mass":0.8,"swipes":2,"noise":4,"landing":"shatter","tint":"#f4f1ea","size":[0.253,0.137,0.16],"nodes":{"intact":"teapot","fx":["fx_shards"]}},
+  "mug": {"mass":0.35,"swipes":2,"noise":3,"landing":"shatter","tint":"#b8402f","size":[0.115,0.095,0.084],"nodes":{"intact":"mug","fx":["fx_shards"]}},
+  "dinner_plate": {"mass":0.5,"swipes":2,"noise":4,"landing":"shatter","tint":"#f4f1ea","size":[0.256,0.025,0.26],"nodes":{"intact":"dinner_plate","fx":["fx_shards"]}},
+  "salt_pepper": {"mass":0.1,"swipes":1,"noise":2,"landing":"bounce","tint":"#f4f1ea","size":[0.082,0.075,0.04],"nodes":{"intact":"salt_pepper"}},
+  "yarn_ball": {"mass":0.1,"swipes":1,"noise":1,"landing":"roll","tint":"#c84a64","size":[0.098,0.098,0.098],"nodes":{"intact":"yarn_ball","fx":["fx_ribbon"]}},
+  "cat_figurine": {"mass":0.4,"swipes":2,"noise":3,"landing":"break","tint":"#f4f1ea","size":[0.09,0.102,0.085],"nodes":{"intact":"cat_figurine","parts":["cat_figurine__head"]}},
+  "snow_globe": {"mass":0.6,"swipes":2,"noise":4,"landing":"shatter","tint":"#a9cfe8","size":[0.1,0.081,0.1],"nodes":{"intact":"snow_globe","fx":["fx_shards"],"glass":["snow_globe__dome"]}},
+  "table_lamp": {"mass":1.5,"swipes":3,"noise":4,"landing":"break","tint":"#4a78a8","size":[0.146,0.352,0.15],"nodes":{"intact":"table_lamp","parts":["table_lamp__shade"],"fx":["fx_chunks"]}},
+  "picture_frame": {"mass":0.3,"swipes":1,"noise":2,"landing":"shatter","tint":"#c9a44a","size":[0.12,0.16,0.051],"nodes":{"intact":"picture_frame","fx":["fx_shards"]}},
+  "mantel_clock": {"mass":1,"swipes":3,"noise":4,"landing":"break","tint":"#6a4628","size":[0.25,0.24,0.1],"nodes":{"intact":"mantel_clock","parts":["mantel_clock__face"],"fx":["fx_chunks"]}},
+  "vase": {"mass":0.9,"swipes":3,"noise":5,"landing":"shatter","tint":"#2f5f9e","size":[0.136,0.285,0.14],"nodes":{"intact":"vase","fx":["fx_shards"]}},
+  "rotary_phone": {"mass":1.4,"swipes":3,"noise":4,"landing":"thud","tint":"#4a2a24","size":[0.16,0.108,0.2],"nodes":{"intact":"rotary_phone","parts":["rotary_phone__handset"],"fx":["fx_cord"]}},
+  "umbrella": {"mass":0.4,"swipes":2,"noise":2,"landing":"bounce","tint":"#2e3a5a","size":[0.087,0.782,0.06],"nodes":{"intact":"umbrella","variants":{"open":"umbrella__open"}}},
+  "glasses": {"mass":0.05,"swipes":1,"noise":1,"landing":"bounce","tint":"#c9dde6","size":[0.106,0.049,0.113],"nodes":{"intact":"glasses","variants":{"cracked":"glasses__cracked"}}},
+  "candlestick": {"mass":0.6,"swipes":2,"noise":3,"landing":"thud","tint":"#c9a44a","size":[0.1,0.317,0.1],"nodes":{"intact":"candlestick"}},
+  "teacup": {"mass":0.25,"swipes":1,"noise":3,"landing":"shatter","tint":"#f4f1ea","size":[0.144,0.062,0.144],"nodes":{"intact":"teacup","fx":["fx_shards"]}},
+  "button_jar": {"mass":0.7,"swipes":2,"noise":4,"landing":"shatter","tint":"#bcd6dc","size":[0.082,0.123,0.086],"nodes":{"intact":"button_jar","fx":["fx_shards","fx_button"],"glass":["button_jar__glass"]}},
+  "feather_duster": {"mass":0.15,"swipes":1,"noise":1,"landing":"bounce","tint":"#c8463c","size":[0.241,0.443,0.239],"nodes":{"intact":"feather_duster","fx":["fx_feather"]}},
+};
+export const PALETTES = {"buttons":["#c8463c","#3c6fae","#e6c84a","#4b8a52","#efe6d6"],"feathers":["#c8463c","#3c6fae","#e6c84a","#4b8a52","#efe6d6","#8a4a9a"]};

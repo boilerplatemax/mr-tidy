@@ -20,36 +20,42 @@ const blob = (g, cx, cy, rx, ry, color, rough = 0) => {
   }
 };
 
-/** Two black holes for eyes and a black smile. wild: the last stage, much further gone. screaming: the mouth wide open. */
+const EYE_X = 0.1, EYE_Y = 0.155; // every face has its eyes here, on the drum either side of the intake
+
+/** Two black holes for eyes and a black smile. wild: the last stage, wider and uneven. screaming: the mouth wide open. */
 function drawHoles(g, wild, screaming) {
-  const eyeR = (wild ? 0.052 : 0.042) * FA.pxPerM, ey = wild ? [0.162, 0.15] : [0.155, 0.155], ex = wild ? 0.11 : 0.1;
-  if (wild) { // the paint has gone: rust and grime spreading from the holes
-    for (let i = 0; i < 130; i++) {
-      const a = rr() * 6.28, d = 12 + rr() * 74, x = W / 2 + Math.cos(a) * d * 1.6, y = Y(0.13) + Math.sin(a) * d * 0.5;
-      if (y < Y(0.2) || y > Y(0.03)) continue;
-      g.fillStyle = rr() < 0.5 ? '#2a0806' : '#4a1a10'; g.fillRect(Math.round(x), Math.round(y), 1 + (rr() * 3 | 0), 1 + (rr() * 2 | 0));
-    }
-  }
-  [-1, 1].forEach((side, i) => {
-    const cx = X(side * ex), cy = Y(ey[i]), ry = eyeR * (screaming ? 1.5 : wild ? 1.12 : 1), rx = eyeR * (screaming ? 0.82 : 1);
-    blob(g, cx, cy, rx + 2, ry + 2, wild ? '#1a0403' : '#4a0606', wild ? 0.1 : 0); // the recess
-    blob(g, cx, cy, rx, ry, '#000000', wild ? 0.14 : 0);
-    if (wild) for (let k = 0; k < 3; k++) { const x = Math.round(cx - rx * 0.8 + rr() * rx * 1.6), top = Math.round(cy + ry * 0.7), len = 8 + (rr() * 22 | 0); g.fillStyle = '#000000'; g.fillRect(x, top, 1 + (rr() * 2 | 0), len); } // running down from the eyes
+  const eyeR = (wild ? 0.05 : 0.042) * FA.pxPerM;
+  [-1, 1].forEach((side) => {
+    const cx = X(side * EYE_X), cy = Y(EYE_Y + (wild ? side * 0.005 : 0)), ry = eyeR * (screaming ? 1.28 : 1), rx = eyeR * (screaming ? 0.85 : 1);
+    blob(g, cx, cy, rx + 2, ry + 2, wild ? '#1a0403' : '#4a0606'); // the recess
+    blob(g, cx, cy, rx, ry, '#000000');
   });
-  // the smile: a crescent under the nose, far wider once he's gone
-  const span = wild ? 0.225 : 0.165, top0 = wild ? 0.064 : 0.062, low0 = wild ? 0.018 : 0.032, rise = wild ? 0.09 : 0.05, riseLow = wild ? 0.135 : 0.08;
   g.fillStyle = '#000000';
-  if (screaming) { blob(g, W / 2, Y(0.052), span * FA.pxPerM * 0.72, 24, '#000000', 0.08); return; }
+  if (screaming) { blob(g, W / 2, Y(0.05), 0.15 * FA.pxPerM, 17, '#000000'); return; }
+  // the smile: a crescent under the nose, clear of the eyes and the intake
+  const span = wild ? 0.225 : 0.165, top0 = 0.046, low0 = wild ? 0.018 : 0.028, rise = wild ? 0.06 : 0.05, riseLow = wild ? 0.098 : 0.078;
   for (let px = X(-span); px <= X(span); px++) {
-    const m = (px - W / 2) / FA.pxPerM, k = (m / span) ** 2;
-    let yU = top0 + k * rise, yL = low0 + k * riseLow;
-    if (wild) { yU += Math.abs(Math.sin(px * 1.3)) * 0.014 + (Math.sin(px * 0.31) * 0.006); yL -= Math.abs(Math.sin(px * 0.9)) * 0.008; }
+    const k = ((px - W / 2) / FA.pxPerM / span) ** 2;
+    const yU = top0 + k * rise + (wild ? Math.abs(Math.sin(px * 0.95)) * 0.005 : 0), yL = low0 + k * riseLow;
     const a = Math.round(Y(yU)), b = Math.round(Y(yL));
     if (b > a) g.fillRect(Math.round(px), a, 1, b - a);
   }
-  if (wild) for (const side of [-1, 1]) { // the corners split upward, past the eyes
-    let px = X(side * span), py = Y(top0 + rise);
-    for (let i = 0; i < 16; i++) { g.fillRect(Math.round(px), Math.round(py), 2, 2); px += side * (0.4 + rr() * 0.5); py -= 0.8 + rr() * 0.5; }
+}
+
+/** The calm faces, drawn the old way: pale discs and pupils, at the same place the holes will be. level: 1 neutral, 2 annoyed. */
+function drawCalm(g, level) {
+  const r = 0.042 * FA.pxPerM;
+  for (const side of [-1, 1]) {
+    const cx = X(side * EYE_X), cy = Y(EYE_Y);
+    blob(g, cx, cy, r, r, '#e8e4d8');
+    blob(g, cx, cy + 2, r * 0.38, r * 0.38, '#000000');
+  }
+  if (level === 2) { // annoyed: flat brows sitting low on the eyes
+    for (const side of [-1, 1]) {
+      const cx = X(side * EYE_X), top = Y(EYE_Y) - r - 2;
+      g.clearRect(cx - r - 2, top, 2 * r + 4, r * 0.85);
+      g.fillStyle = '#e8e4d8'; g.fillRect(cx - r - 3, top + r * 0.85 - 3, 2 * r + 6, 3);
+    }
   }
 }
 
@@ -59,23 +65,6 @@ function faceTexture(draw) {
   draw(g);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-  return pixelTexture(t);
-}
-
-/** The calm faces, drawn at pixel size on a plate on the dome. level: 1 neutral, 2 annoyed. */
-function drawFace(level) {
-  const c = document.createElement('canvas'); c.width = 64; c.height = 48;
-  const g = c.getContext('2d');
-  const disc = (cx, cy, r, color) => { g.fillStyle = color; for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r + 1) g.fillRect(cx + x, cy + y, 1, 1); };
-  const brow = (x0, x1, y0, y1, thick) => { g.fillStyle = '#e8e4d8'; const n = Math.abs(x1 - x0); for (let i = 0; i <= n; i++) g.fillRect(x0 + Math.sign(x1 - x0) * i, Math.round(y0 + ((y1 - y0) * i) / n), 1, thick); };
-  for (const x of [20, 44]) { disc(x, 20, 8, '#e8e4d8'); disc(x, 21, 3, '#000000'); }
-  if (level === 2) { // annoyed: flat brows sitting low on the eyes
-    g.globalCompositeOperation = 'destination-out'; g.fillRect(11, 8, 42, 7); g.globalCompositeOperation = 'source-over';
-    brow(11, 29, 12, 12, 2); brow(53, 35, 12, 12, 2);
-  }
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   return pixelTexture(t);
 }
 
@@ -107,20 +96,19 @@ export function buildVacuum() {
   const out = {
     root, body, ready: false, stage: 1, k: 1, shriekT: 0, flick: 0, alert: 0, twitchT: 0, tiltZ: 0, tiltX: 0, bodyMats: [],
     still: false,
-    faces: { 1: drawFace(1), 2: drawFace(2), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => drawHoles(g, true, true)) },
+    faces: { 1: faceTexture((g) => drawCalm(g, 1)), 2: faceTexture((g) => drawCalm(g, 2)), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => drawHoles(g, true, true)) },
   };
 
   // the intake: a black disc, smaller once it has become a nose
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(M.holeR, 16), makePS1(new THREE.MeshBasicMaterial({ color: 0x000000, fog: false })));
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(M.holeR, 16), makePS1(new THREE.MeshBasicMaterial({ color: 0x000000 })));
   hole.position.set(0, M.holeY, M.holeZ);
   root.add(hole);
 
-  const faceMat = makePS1(new THREE.MeshBasicMaterial({ map: out.faces[1], alphaTest: 0.5, fog: false, side: THREE.DoubleSide })); // (no fog: in his own dust cloud, the face is the last thing you can see)
-  const skin = faceSkin(), plate2 = new THREE.PlaneGeometry(M.faceW, M.faceH).translate(0, M.faceY, M.faceZ);
-  const face = new THREE.Mesh(plate2, faceMat);
+  const faceMat = makePS1(new THREE.MeshBasicMaterial({ map: out.faces[1], alphaTest: 0.5, side: THREE.DoubleSide }));
+  const face = new THREE.Mesh(faceSkin(), faceMat);
   root.add(face);
   out.face = face;
-  const show = (level) => { faceMat.map = out.faces[level]; face.geometry = level <= 2 ? plate2 : skin; }; // calm: the plate on the dome. After that: painted round his body
+  const show = (level) => { faceMat.map = out.faces[level]; };
   out.setFace = (level) => { out.stage = level; show(level); };
 
   // the cord reel on his back: a plate, a hub and a coil of cable that shrinks as the cord pays out

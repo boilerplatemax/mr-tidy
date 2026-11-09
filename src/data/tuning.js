@@ -140,7 +140,7 @@ export const TUNING = {
     shimmer: { color: 0xffc890, base: 0.035, amp: 0.05, freq: 2.2, speed: 1.3, fade: 7, pad: 0.006 }, // the soft glow over the target perch: strength, slow broad wave (size, speed), 1/s fade-in, m past its faces
   },
 
-  assets: { vacuum: 'game-assets/models/shopvac.glb' }, // the one real model in Phase 1. If it fails to load, a primitive stands in
+  assets: { forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in
 
   // ---------------------------------------------------------------- Mr. Tidy (src/vacuum/)
   vac: {
@@ -180,13 +180,12 @@ export const TUNING = {
     spotEvery: 0.25, // s between looking around for messes
     model: {
       scaleY: 0.45, scaleXZ: 0.58, // the model is 1 unit tall and 0.78 wide: this makes it a squat 0.45 m drum, 0.45 m across
-      holeY: 0.115, holeR: 0.09, holeZ: 0.2225, // the black mouth (m): height, radius, how far forward
-      faceY: 0.29, faceW: 0.26, faceH: 0.19, faceZ: 0.236, // the calm faces' plate on the dome, above the hole
+      holeY: 0.115, holeR: 0.036, holeZ: 0.2225, // the black mouth (m): height, radius, how far forward
       face: { // the skin the face is painted on: it follows his outline ([height, radius] in m)
         profile: [[0.0225, 0.151], [0.045, 0.194], [0.18, 0.204], [0.2025, 0.222], [0.225, 0.226], [0.236, 0.222], [0.281, 0.211], [0.326, 0.206], [0.36, 0.19]],
         lift: 0.006, arc: 3.6, y0: 0.02, y1: 0.36, pxPerM: 358, centerY: 0.15, // m off his surface; rad round him; the height range the canvas covers; canvas px per m; where the camera looks at him
       },
-      stretch: [1, 1, 1.08, 1.22], holeRs: [0.09, 0.085, 0.058, 0.066], tone: [1, 0.92, 0.72, 0.5], // by stage: how tall he stands; the intake's radius; how dark his body has gone
+      stretch: [1, 1, 1.08, 1.22], holeRs: [0.036, 0.036, 0.036, 0.036], tone: [1, 0.92, 0.72, 0.5], // by stage: how tall he stands; the intake's radius; how dark his body has gone
       twitch: 0.09, listenTilt: 0.14, flickTime: 0.45, // rad of twitching at the end; rad he leans back when he stops to listen; s his face flickers when he changes
       catchDist: 0.42, // m in front of the hole where the camera ends up: close, but you see the whole of his face
       reelY: 0.2, reelZ: 0.275, // the cord reel on his back (m): height, how far behind him
@@ -206,7 +205,7 @@ export const TUNING = {
     time: [1.0, 0.9, 0.65, 0.5], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
     dip: 0.72, rateDip: 0.22, dipEase: 9, // how far the motor falls away (share of volume, share of pitch), 1/s
     sniffOut: 0.55, sniffUp: 0.5, sniffSpeed: 2.5, // m the nozzle lifts toward the sound
-    stingEvery: 4, // s between heard-you stingers
+    stingEvery: 16, // s between heard-you stingers
   },
   roam: { // the patrol isn't a circuit: he picks where to go next, and changes his mind
     think: [5, 11], // s between second thoughts
@@ -217,7 +216,7 @@ export const TUNING = {
     lookSpeed: 1.3, // rad/s looking around
   },
   sting: { // eye contact and being spotted
-    eyeCos: 0.94, cooldown: 9, freeze: 0.32, pulse: 0.6, // how squarely you must be looking at him; s between stingers; s he freezes, staring back; s the screen flinches
+    eyeCos: 0.94, cooldown: 28, freeze: 0.32, // how squarely you must be looking at him; s between stingers; s he freezes, staring back
     shriekEvery: 16, shriekFace: 1.3, // s between shrieks; s his mouth stays open
   },
   creep: { // the hose comes for a cat hiding up high: slowly, from a long way off, with the motor nearly silent
@@ -229,10 +228,10 @@ export const TUNING = {
     cooldown: [0, 0, 16, 10], // s before he tries again, by stage
   },
   fog: { // the dust cloud (src/vacuum/dust-cloud.js)
-    minAnger: 4, cooldown: 28, minDist: 2.5, lostFor: 0.4, // furious only; s before he can do it again (from when the last cloud has gone); only if you're this far off, or he lost you this long ago
+    minAnger: 4, cooldown: 40, minDist: 2.5, lostFor: 0.4, // furious only; s before he can do it again (from when the last cloud has gone); only if you're this far off, or he lost you this long ago
     wind: 1.4, recover: 0.7, // s of telegraph (planted, nozzle up, screaming); s standing still after
-    radius: 4.8, grow: 1.6, hold: 8, fade: 3, density: 1.45, // m; s to fill; s at full; s to clear; how thick (per metre)
-    color: 0x8a7a60, moteColor: 0xbfae8a, moteSize: 0.018, motes: 120, moteAlpha: 0.75, puffs: 14, puffSize: 2.6, puffSpeed: 1.6, puffAlpha: 0.32,
+    radius: 30, grow: 6, hold: 9, fade: 3.5, density: 1.15, // m it spreads from him (the whole house); s to fill; s at full; s to clear; how thick (per metre)
+    color: 0x8a7a60, moteColor: 0xbfae8a, moteSize: 0.018, motes: 140, moteBox: 3, moteAlpha: 0.75, puffs: 14, puffSize: 2.6, puffSpeed: 1.6, puffAlpha: 0.32,
     // Fair play: he's blind in his own cloud, and slow, and the strike is much easier to dodge.
     sight: 1.5, speedMul: 0.62, strikeRangeMul: 0.6, extraWindup: 0.45, strikeCdMul: 2,
   },
@@ -302,7 +301,7 @@ export const TUNING = {
     windDown: 1.2, // s for the motor to die when Grandma wakes
   },
   cord: { // the power cord: one outlet, by Grandma's door, and a fixed length (src/vacuum/cord.js)
-    length: 24, // m. Every room is in reach, but not by every route: when he'd run out he goes back the way he came
+    length: 32, // m. Every room is in reach, but not by every route: when he'd run out he goes back the way he came
     spacing: 0.2, capacity: 420, round: 0.6, roundTight: 0.14, roundSteps: 8, wander: 0.05, wanderRate: 1.7, // (the last five: m it curves round a waypoint, and round a tight spot off the graph; points per curve; m it drifts off a straight line; how fast)
     // m between points on the tube; the most points it can have
     radius: 0.009, y: 0.012, slack: 0.018, // m: thickness, height off the floor, how much it wanders
@@ -315,7 +314,7 @@ export const TUNING = {
 
   // ---------------------------------------------------------------- Grandma and the win (src/world/grandma.js)
   grandma: {
-    gain: 0.85, // scales every crash. The main "how long is a run" number: aim for 10–14 knock-overs on average
+    gain: 1.0, // scales every crash. The main "how long is a run" number: aim for 10–14 knock-overs on average
     farScale: 0.6, nearScale: 1.5, // what a crash is worth far from her door / right at it
     range: 17, // m from the door at which a crash counts as far
     thresholds: [25, 50, 75], // wake values where the snoring lightens and a cue plays
@@ -388,7 +387,7 @@ export const TUNING = {
     impactAt: 0.09, // s into the swipe when objects get hit
     cooldown: 0.32, // s between swipes
     impulse: 0.6, // shove strength: speed = impulse / mass. Light things fly, heavy things inch
-    maxSpeed: 3.2, // m/s: a cap, so a very light thing doesn't launch across the house
+    maxSpeed: 3.2, minSpeed: 2.0, nudge: 0.55, // m/s: the most and least a freeing hit gives it; what the earlier hits on something heavy do (they only rock it)
     sideBias: 0.18, // how much the shove also goes the way the paw sweeps (to the left)
   },
   knock: {
@@ -399,23 +398,18 @@ export const TUNING = {
     gravity: 18, // m/s²
     tipTime: 0.12, tipRate: 5, tipSpeed: 0.45, tipGravity: 0.45, // tipping over an edge: s, rad/s, m/s minimum outward, share of gravity
     spin: 14, // rad/s of random tumble as it falls
+    noiseScale: 2.5, // a prop's noise (1 to 5) in points toward waking Grandma, before her distance scaling
     toppleSpeed: 0.5, // m/s: a shove at least this hard knocks over something standing on the floor
     bounce: 0.3, bounceMin: 1.2, bounceKeep: 0.55, // first-hit bounce: share of impact speed, least impact to bounce, share of sideways speed kept
   },
-  // shape, size (m), mass (only the ratio to swipe.impulse matters), breakable, noise (points toward waking Grandma, scaled
-  // by distance to her door in step 9), cubes (min, max when it breaks), decal (the mess square's colour and size in m).
-  // topple: stands on the floor, and a swipe knocks it over where it stands.
-  knockTypes: {
-    mug: { shape: 'cyl', r: 0.042, h: 0.095, mass: 0.2, breakable: true, noise: 8, cubes: [3, 4], decal: 0xbfb5a0, decalSize: 0.22 },
-    plate: { shape: 'cyl', r: 0.1, h: 0.025, mass: 0.25, breakable: true, noise: 11, cubes: [4, 6], decal: 0xd6d0c2, decalSize: 0.28 },
-    vase: { shape: 'cyl', r: 0.06, h: 0.24, mass: 0.55, breakable: true, noise: 11, cubes: [4, 6], decal: 0x9fb2c0, decalSize: 0.3 },
-    jar: { shape: 'cyl', r: 0.05, h: 0.12, mass: 0.42, breakable: true, noise: 10, cubes: [4, 6], decal: 0xa8b878, decalSize: 0.26 },
-    book: { shape: 'box', w: 0.16, h: 0.04, d: 0.22, mass: 0.9, breakable: false, noise: 5, decal: 0x7a6a55, decalSize: 0.18 },
-    yarn: { shape: 'sphere', r: 0.06, h: 0.12, mass: 0.12, breakable: false, noise: 3, decal: 0xb07a90, decalSize: 0.14 },
-    floorVase: { shape: 'cyl', r: 0.1, h: 0.46, mass: 0.7, breakable: true, topple: true, noise: 12, cubes: [5, 6], decal: 0x8fa08f, decalSize: 0.36 },
+  knockFx: { // what the different objects do when they land (src/world/knockables.js)
+    chunkSize: [0.05, 0.09], decalSize: 0.34, // m: the big pieces that a "break" leaves; a stain
+    chatter: 3, roll: 1.3, // s dentures chatter across the floor; s a lid or head keeps rolling
+    paperPieces: 5, woolPieces: 4, buttons: 20, feathers: 8, puffLife: 0.7, // how far the trails run (0.6 m a piece) and how much spills
+    bounceMul: 1.6, rollSpeed: 1.5, // how much livelier a bouncy thing is; m/s a ball carries on at
   },
   debris: {
-    cubeSize: [0.02, 0.04], // m: the small cubes a broken thing turns into
+    cubeSize: [0.018, 0.04], // m: the shards a broken thing turns into
     speed: [0.5, 1.6], up: [0.8, 2.0], // m/s: how they scatter
     bounce: 0.35, bounces: 3, // share of speed kept per bounce; how many before they stop
     startY: 0.06, // m above the floor they burst from
@@ -423,13 +417,7 @@ export const TUNING = {
     decalY: 0.004, decalStep: 0.0004, // m off the floor; extra lift per decal so overlaps never z-fight
   },
   paws: {
-    color: 0xa89a88, glow: 0x2a241e, // a little light of its own, so an underside isn't black
-    // The swipe: the same paw as the hanging one. It only exists while you're swiping: it rises into view, sweeps, drops away.
-    swipeStartX: 0.12, swipeEndX: -0.1, swipeHiddenY: -0.2, swipeY: -0.045, swipeZ: -0.2, // camera space, m
-    swipeLift: 0.03, swipeReach: 0.05, // m: the arc up and forward
-    swipeYaw0: 0.5, swipeYaw1: -0.6, swipeRoll0: -0.2, swipeRoll1: 0.2, // rad: how the paw turns through the sweep
-    swipeLeg: 1.32, swipeLegLen: 2.6, // the forearm, as when hanging
-    swipeOut: 0.42, reveal: 0.2, // share of the swipe spent going out; share spent rising into view (and dropping away)
+    plantScale: 0.6, glow: 0x2a241e, legLen: 0.15, // a little light of their own, so an underside isn't black; m: the forearm's length in the model
     hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end
     keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)
     climbSpread: 0.06, climbUp: 0.03, climbReach: 0.03, climbStride: 0.2, climbLeg: -0.55, climbIn: 0.008, // on a climbable face: m apart from centre, m above the eye, m each paw reaches up and down, m climbed per pair of steps, rad the forearm comes back from the wall, m off the wall
@@ -478,7 +466,8 @@ export const TUNING = {
 
   // ---------------------------------------------------------------- the house (src/world/house.js)
   house: {
-    colors: { // the readable grey-box code (build prompt 0.2). Room floors and walls are in src/data/level.js
+    tile: { carpet_rose: 0.35, fabric_carpet: 0.35, wood_walnut: 0.5, wood_oak: 0.5, cardboard: 0.5, formica_retro: 0.5, paint_cream: 0.5, tile_bath_floor: 0.5 }, // metres per repeat of a texture (default 0.5)
+    colors: {
       landTop: 0xc98a4a, // the top of anything you can land on
       furniture: 0x8a857c, // sides of furniture
       ceiling: 0x77777c, ceilingLine: 0x3c3c42, ceilingGlow: 0.55, // the ceiling: tile colour, tile lines, how much it lights itself (nothing shines on it from below)

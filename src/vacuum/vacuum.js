@@ -21,7 +21,7 @@ export class Vacuum {
   constructor({ scene, world, camera, noise, knock, debris, player }) {
     this.world = world; this.knock = knock; this.debris = debris; this.camera = camera; this.player = player;
     this.vox = new Voxels(world); this.hose = new Hose(scene, this.vox); this.blast = new Blast(scene, this.vox, knock); this.blast.onHit = (dx, dz) => player.dustHit(dx, dz); this.cloud = new DustCloud(scene); this.lob = false; this._v = new THREE.Vector3();
-    this.fogPhase = null; this.fogT = 0; this.fogCd = 0; this.creepT = 0; this.creepCd = 0; this.creepV = null; this.alertT = 0; this.alertX = 0; this.alertZ = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.pulse = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseT = 0; this.pauseYaw = 0; this.pauseThen = null; this.time = 0; this.seenAt = new Map(); this.noises = []; this.lastStop = null; this.blastPhase = null; this.blastT = 0; this.blastCd = 0; this.suckT = 0; this.suckPhase = 0; this.suckY = 0; this.suckV = null; this.coughV = null; this._blastDir = new THREE.Vector3(); this._blastO = new THREE.Vector3(); this.cleanWait = 0; this._cmd = { mode: 'approach', goal: new THREE.Vector3(), speed: 0, turn: 0, hover: false }; this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
+    this.fogPhase = null; this.fogT = 0; this.fogCd = 0; this.creepT = 0; this.creepCd = 0; this.creepV = null; this.alertT = 0; this.alertX = 0; this.alertZ = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseT = 0; this.pauseYaw = 0; this.pauseThen = null; this.time = 0; this.seenAt = new Map(); this.noises = []; this.lastStop = null; this.blastPhase = null; this.blastT = 0; this.blastCd = 0; this.suckT = 0; this.suckPhase = 0; this.suckY = 0; this.suckV = null; this.coughV = null; this._blastDir = new THREE.Vector3(); this._blastO = new THREE.Vector3(); this.cleanWait = 0; this._cmd = { mode: 'approach', goal: new THREE.Vector3(), speed: 0, turn: 0, hover: false }; this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
     this._dirv = { x: 0, y: 0, z: 0 }; this._under = null; this._notUnder = (c) => c.solid && c !== this._under; this.campT = 0; this.ignoreT = 0;
     this.seeT = 0; this.seesCat = false; this.lastX = 0; this.lastZ = 0; this.loseT = 0; this.replanT = 0; this.direct = false; this.directOK = false; this.chaseNode = null; this.sweep = false; this.sweepT = 0;
@@ -70,7 +70,7 @@ export class Vacuum {
     this.routeI = 0; this.path = [start]; this.pathI = 0;
     this.spin = 0; this.lastPaid = this._paid();
     this.hose.reset(); this.blast.reset(); this._endBlast(); this._endSuck(); this._endCreep(); this._endFog(); this.cloud.reset(); this.blastCd = 0;
-    this.fogCd = 0; this.creepCd = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.pulse = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseThen = null; this.seenAt.clear(); this.noises.length = 0; this.lastStop = null; this.model.shriekT = 0; this.model.flick = 0;
+    this.fogCd = 0; this.creepCd = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseThen = null; this.seenAt.clear(); this.noises.length = 0; this.lastStop = null; this.model.shriekT = 0; this.model.flick = 0;
     this.model.face.visible = true;
     this.setAnger(1);
     this.anger = 1; this.model.setFace(1);
@@ -94,10 +94,10 @@ export class Vacuum {
     audio.play('vac.shriek', { follow: this.model.hoseSocket, refDistance: 4, rolloff: 0.35 });
   }
 
-  /** The stab of strings when he spots you. The screen flinches with it. */
+  /** The stinger when he spots you. */
   _sting() {
     if (this.stingCd > 0) return;
-    this.stingCd = ST.cooldown; this.pulse = ST.pulse;
+    this.stingCd = ST.cooldown;
     audio.play('sting.spot');
   }
 
@@ -839,7 +839,7 @@ export class Vacuum {
   tick(dt) {
     this.time += dt;
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading;
-    for (const k of ['alertCd', 'heardCd', 'stingCd', 'shriekCd', 'creepCd', 'pulse']) if (this[k] > 0) this[k] -= dt;
+    for (const k of ['alertCd', 'heardCd', 'stingCd', 'shriekCd', 'creepCd']) if (this[k] > 0) this[k] -= dt;
     if (this.fogCd > 0 && !this.cloud.active) this.fogCd -= dt;
     this.cloud.tick(dt);
     if (!this.frozen) this._bump();
@@ -883,7 +883,7 @@ export class Vacuum {
   frame(alpha, dt = 1 / 60) {
     const r = this.model.root;
     this.model.animate(dt, this.state === 'ALERT' || this.freezeT > 0);
-    this.cloud.frame(dt);
+    this.cloud.frame(dt, this.camera.position);
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;
     this.hose.frame(alpha);

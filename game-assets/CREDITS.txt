@@ -1,0 +1,9 @@
+Credits (CC BY 4.0 requires these lines to stay with the game or the files)
+
+PSX Furniture Free by heyheythere - https://heyheythere.itch.io/psx-furniture-free - CC BY 4.0
+  used: game-assets/models/house/psx_*.glb and game-assets/models/textures/atlas.png
+
+The other PSX kits in this folder's zip files (Apartment Kit, Liminal Kit, Textures) are not used in the game yet. If you use them:
+PSX Apartment Kit Free by heyheythere - https://heyheythere.itch.io/psx-apartment-kit-free - CC BY 4.0
+PSX Liminal Kit Free by heyheythere - https://heyheythere.itch.io/psx-liminal-kit-free - CC BY 4.0
+PSX Textures Free by heyheythere - https://heyheythere.itch.io/psx-textures-free - CC BY 4.0

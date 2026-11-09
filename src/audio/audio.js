@@ -22,7 +22,10 @@ class Voice {
     const ctx = engine.ctx, def = SOUNDS[slotName];
     const bufs = engine.buffers.get(slotName);
     this.src = ctx.createBufferSource();
-    this.src.buffer = bufs[Math.floor(Math.random() * bufs.length)];
+    let pick = Math.floor(Math.random() * bufs.length); // never the same variation twice running
+    if (bufs.length > 1 && pick === engine.lastPick.get(slotName)) pick = (pick + 1 + Math.floor(Math.random() * (bufs.length - 1))) % bufs.length;
+    engine.lastPick.set(slotName, pick);
+    this.src.buffer = bufs[pick];
     this.src.loop = opts.loop ?? !!def.loop;
     this.src.playbackRate.value = opts.rate ?? 1;
     this.gain = ctx.createGain();
@@ -117,6 +120,7 @@ export class AudioEngine {
     this.ctx = null;
     this.ready = false;
     this.buffers = new Map();
+    this.lastPick = new Map();
     this.voices = new Set();
     this.world = null; // a CollisionWorld: colliders with occludes: true muffle sounds behind them
     this.indoorBoxes = []; // THREE.Box3[]: inside these, the indoor reverb and the muffled bed

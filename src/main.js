@@ -50,6 +50,7 @@ const world = new CollisionWorld();
 const input = new Input(canvas);
 const player = new Player(camera, world, input);
 const house = buildHouse({ scene, world });
+import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); });
 PS1.setLightZones(house.zones);
 PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
@@ -83,7 +84,6 @@ const wakeIcon = TUNING.hud.wakeIcon ? new WakeIcon(hudLayer) : null;
 const roomLabel = hudLayer.label('hud-room').place('center', 0, 0.14);
 roomLabel.set([{ text: "Grandma's room" }], 'center');
 let roomShown = false;
-const stingEl = document.createElement('div'); stingEl.id = 'sting'; document.body.append(stingEl); // the screen flinches when he spots you
 const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
 /** A whole new run, without a reload. */
 function resetRun() {
@@ -158,7 +158,6 @@ function frame(alpha, dt, frameMs) {
     staminaBar.frame(player, dt);
   }
   vac.frame(input.live ? alpha : 1, dt);
-  stingEl.style.opacity = String(Math.max(0, vac.pulse / TUNING.sting.pulse));
   env.update(camera);
   audio.update(dt, camera);
   subtitles.update(dt);

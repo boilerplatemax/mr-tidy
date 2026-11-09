@@ -1,15 +1,16 @@
-// Builds the grey-box house from src/data/level.js: rooms, walls, furniture, the colour code (build prompt 0.2), and
-// a collider for every solid. Static geometry is batched per material, so the house is a handful of draw calls.
+// Builds the house from src/data/level.js: rooms, walls, furniture and a collider for every solid. Walls, floors and anything
+// that stays a plain box are textured here; the furniture proper is real models, placed by src/world/dress.js. Static
+// geometry is batched per material, so the shell is a handful of draw calls.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { LEVEL } from '../data/level.js';
-import { makePS1 } from '../render/ps1-material.js';
-import { canvasTexture } from '../render/geometry.js';
+import { makePS1, pixelTexture } from '../render/ps1-material.js';
 
 const H = TUNING.house;
 const lambert = (color, extra = {}) => makePS1(new THREE.MeshLambertMaterial({ color, ...extra }));
+const loader = new THREE.TextureLoader();
 
-/** Quads collected per material, merged into one mesh each at the end. UVs are box-projected in metres. */
+/** Quads collected per material, merged into one mesh each at the end. UVs are in metres, divided by the material's tile size. */
 class Batches {
   constructor() { this.map = new Map(); }
   quad(mat, a, b, c, d, n, uvA, uvB) { // corners counter-clockwise from the normal's side
@@ -17,7 +18,8 @@ class Batches {
     if (!e) { e = { p: [], n: [], u: [], i: [], v: 0 }; this.map.set(mat, e); }
     e.p.push(...a, ...b, ...c, ...d);
     for (let k = 0; k < 4; k++) e.n.push(...n);
-    e.u.push(uvA[0], uvA[1], uvB[0], uvA[1], uvB[0], uvB[1], uvA[0], uvB[1]);
+    const t = mat.userData.tile || 1;
+    e.u.push(uvA[0] / t, uvA[1] / t, uvB[0] / t, uvA[1] / t, uvB[0] / t, uvB[1] / t, uvA[0] / t, uvB[1] / t);
     e.i.push(e.v, e.v + 1, e.v + 2, e.v, e.v + 2, e.v + 3);
     e.v += 4;
   }
@@ -34,12 +36,12 @@ class Batches {
 }
 
 /** The six faces of an axis-aligned box. pick(face, centre) returns a material, or null to skip the face. */
-function boxFaces(B, min, max, pick, tile = 1) {
+function boxFaces(B, min, max, pick) {
   const [x0, y0, z0] = min, [x1, y1, z1] = max;
   const face = (name, a, b, c, d, n, uvA, uvB) => {
     const cx = (a[0] + c[0]) / 2, cy = (a[1] + c[1]) / 2, cz = (a[2] + c[2]) / 2;
     const mat = pick(name, cx, cy, cz, n);
-    if (mat) B.quad(mat, a, b, c, d, n, [uvA[0] / tile, uvA[1] / tile], [uvB[0] / tile, uvB[1] / tile]);
+    if (mat) B.quad(mat, a, b, c, d, n, uvA, uvB);
   };
   face('top', [x0, y1, z1], [x1, y1, z1], [x1, y1, z0], [x0, y1, z0], [0, 1, 0], [x0, z1], [x1, z0]);
   face('bottom', [x0, y0, z0], [x1, y0, z0], [x1, y0, z1], [x0, y0, z1], [0, -1, 0], [x0, z0], [x1, z1]);
@@ -54,23 +56,26 @@ const roomAt = (x, z) => LEVEL.rooms.find((r) => x >= r.min[0] && x <= r.max[0] 
 export function buildHouse({ scene, world }) {
   const B = new Batches();
   const C = H.colors;
+  const texMats = new Map();
+  /** A PS1 material with a tiling picture from game-assets/textures/house. tile: metres per repeat. */
+  const tex = (name, tile = H.tile[name] ?? 0.5) => {
+    if (!texMats.has(name)) {
+      const t = loader.load(`game-assets/textures/house/${name}.png`, undefined, undefined, () => console.warn(`house: no texture ${name}`));
+      t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; pixelTexture(t);
+      const m = makePS1(new THREE.MeshLambertMaterial({ map: t }));
+      m.userData.tile = tile;
+      texMats.set(name, m);
+    }
+    return texMats.get(name);
+  };
   const mats = {
-    tan: lambert(C.landTop), side: lambert(C.furniture), wallTop: lambert(C.wallTop), outside: lambert(C.outside),
-    ceiling: (() => {
-      const tiles = canvasTexture(32, (g, n) => {
-        g.fillStyle = '#' + C.ceiling.toString(16).padStart(6, '0'); g.fillRect(0, 0, n, n);
-        g.fillStyle = '#' + C.ceilingLine.toString(16).padStart(6, '0'); g.fillRect(0, 0, n, 3); g.fillRect(0, 0, 3, n); // tile lines: a plane the eye can read, not a void
-      });
-      return makePS1(new THREE.MeshLambertMaterial({ map: tiles, emissive: 0xffffff, emissiveMap: tiles, emissiveIntensity: C.ceilingGlow }));
-    })(),
-    door: lambert(C.grandmaDoor), plate: lambert(C.outlet),
-    stripes: makePS1(new THREE.MeshLambertMaterial({ map: canvasTexture(32, (g, n) => {
-      g.fillStyle = C.climbDark; g.fillRect(0, 0, n, n);
-      g.fillStyle = C.climb; for (let x = 0; x < n; x += 16) g.fillRect(x, 0, 3, n); // wide enough to survive the mip levels at a distance
-    }) })),
+    wallTop: lambert(C.wallTop), outside: lambert(C.outside),
+    ceiling: (() => { const m = tex('ceiling_popcorn'); m.emissive = new THREE.Color(0xffffff); m.emissiveMap = m.map; m.emissiveIntensity = C.ceilingGlow; return m; })(),
+    plate: lambert(C.outlet),
+    stripes: tex('fabric_sisal', 0.25),
     strip: makePS1(new THREE.MeshBasicMaterial({ color: C.doorStrip, fog: false })),
-    floor: new Map(LEVEL.rooms.map((r) => [r.id, lambert(r.floor)])),
-    wall: new Map(LEVEL.rooms.map((r) => [r.id, lambert(r.wall)])),
+    floor: new Map(LEVEL.rooms.map((r) => [r.id, tex(r.floorTex)])),
+    wall: new Map(LEVEL.rooms.map((r) => [r.id, tex(r.wallTex)])),
   };
 
   // ---- floors, ceilings and footstep surfaces
@@ -78,7 +83,7 @@ export function buildHouse({ scene, world }) {
   for (const r of LEVEL.rooms) {
     const [x0, z0] = r.min, [x1, z1] = r.max;
     B.quad(mats.floor.get(r.id), [x0, 0, z1], [x1, 0, z1], [x1, 0, z0], [x0, 0, z0], [0, 1, 0], [x0, z1], [x1, z0]);
-    B.quad(mats.ceiling, [x0, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z1], [x0, LEVEL.ceiling, z1], [0, -1, 0], [x0 / 0.6, z0 / 0.6], [x1 / 0.6, z1 / 0.6]);
+    B.quad(mats.ceiling, [x0, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z0], [x1, LEVEL.ceiling, z1], [x0, LEVEL.ceiling, z1], [0, -1, 0], [x0, z0], [x1, z1]);
     world.addRegion(x0, x1, z0, z1, r.surface);
   }
   world.ceilingY = LEVEL.ceiling;
@@ -107,14 +112,18 @@ export function buildHouse({ scene, world }) {
     wallBox(w.axis, w.at, cursor, w.to, 0, LEVEL.ceiling);
   }
 
-  // ---- furniture: warm tops on perches, stripes on climbable faces (see the colour code in build prompt 0.2)
+  // ---- furniture: whatever isn't a model is drawn as a textured box. The models replace the solids named in their fit lists
   const byId = new Map();
+  const dressed = new Set(LEVEL.dress.flatMap((e) => e.fit || []));
   for (const s of LEVEL.solids) {
-    boxFaces(B, s.min, s.max, (name) => {
-      if (name === 'top') return s.land ? mats.tan : mats.side;
-      if (name === 'bottom') return s.min[1] > 0.001 ? mats.side : null;
-      return s.stripes?.includes(name) ? mats.stripes : mats.side;
-    }, 0.25);
+    if (!dressed.has(s.id) && !s.noVisual) {
+      const side = tex(s.tex || 'wood_walnut'), top = s.topTex ? tex(s.topTex) : side;
+      boxFaces(B, s.min, s.max, (name) => {
+        if (name === 'top') return top;
+        if (name === 'bottom') return s.min[1] > 0.001 ? side : null;
+        return s.stripes?.includes(name) ? mats.stripes : side;
+      });
+    }
     byId.set(s.id, s);
     if (s.collide === false) continue;
     const [x0, y0, z0] = s.min, [x1, y1, z1] = s.max;
@@ -125,23 +134,46 @@ export function buildHouse({ scene, world }) {
 
   for (const s of LEVEL.solids) if (s.climbTo) s.collider.climbTo = byId.get(s.climbTo).collider; // a curtain hands over to its rod at the top
 
-  // ---- Grandma's door: deep red, a strip of light under it
+  // ---- the strip of light under Grandma's door (the door itself is a model)
   const D = LEVEL.grandmaDoor;
-  boxFaces(B, [D.x - 0.04, D.strip, D.zMin], [D.x, D.top, D.zMax], (name) => (name === 'e' || name === 'bottom' ? null : mats.door));
   boxFaces(B, [D.x - 0.04, 0, D.zMin], [D.x, D.strip, D.zMax], (name) => (name === 'e' ? null : mats.strip));
 
-  // ---- wall outlets: a small plate on the wall, visual only
-  for (const o of LEVEL.outlets) {
-    const [x, y, z] = o.pos, [nx, , nz] = o.n, w = 0.05, h = 0.06, d = 0.012;
-    const min = [nx ? (nx > 0 ? x : x - d) : x - w, y - h, nz ? (nz > 0 ? z : z - d) : z - w];
-    const max = [nx ? (nx > 0 ? x + d : x) : x + w, y + h, nz ? (nz > 0 ? z + d : z) : z + w];
-    boxFaces(B, min, max, () => mats.plate);
-  }
+  // ---- the hallway runner
+  { const m = tex('runner_oriental', 0.7); B.quad(m, [0.1, 0.006, -0.35], [17.9, 0.006, -0.35], [17.9, 0.006, -1.05], [0.1, 0.006, -1.05], [0, 1, 0], [0.1, -0.35], [17.9, -1.05]); }
 
   B.addTo(scene);
 
+  // ---- wall outlets: models, without their own plug (the cord brings the real one)
+  import('./dress.js').then(() => loadOutlets(scene));
+
+  // ---- the portraits down the hallway: the cats who came before
+  const portraits = new THREE.Group(), frameMat = tex('wood_walnut');
+  const pic = (file, w, h) => { const t = loader.load(`game-assets/textures/portraits/${file}.png`); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t); return new THREE.Mesh(new THREE.PlaneGeometry(w, h), makePS1(new THREE.MeshLambertMaterial({ map: t }))); };
+  for (const [x, name, plate] of LEVEL.portraits) {
+    const y = 1.25, z = -T / 2 - 0.012;
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.48, 0.02), frameMat); frame.position.set(x, y, z + 0.002);
+    const p = pic(`portrait_${name}`, 0.34, 0.42); p.position.set(x, y, z - 0.009); p.rotation.y = Math.PI;
+    portraits.add(frame, p);
+    if (plate) { const n = pic(`nameplate_0${plate}`, 0.22, 0.055); n.position.set(x, y - 0.3, z - 0.002); n.rotation.y = Math.PI; portraits.add(n); }
+  }
+  scene.add(portraits);
+
   const zones = LEVEL.rooms.map((r) => new THREE.Box3(new THREE.Vector3(r.min[0], -0.1, r.min[1]), new THREE.Vector3(r.max[0], LEVEL.ceiling + 0.1, r.max[1])));
-  const shell = new THREE.Box3(new THREE.Vector3(-1, -1, -3), new THREE.Vector3(19, LEVEL.ceiling + 0.2, 6.5));
+  const XS = LEVEL.rooms.flatMap((r) => [r.min[0], r.max[0]]), ZS = LEVEL.rooms.flatMap((r) => [r.min[1], r.max[1]]);
+  const shell = new THREE.Box3(new THREE.Vector3(Math.min(...XS) - 1, -1, Math.min(...ZS) - 1), new THREE.Vector3(Math.max(...XS) + 1, LEVEL.ceiling + 0.2, Math.max(...ZS) + 1));
 
   return { zones, indoor: [shell], spawn: H.spawn, byId, doorStrip: mats.strip, tick() {}, startSound() {} };
+}
+
+async function loadOutlets(scene) {
+  const { loadGLB } = await import('../render/geometry.js');
+  let g;
+  try { g = await loadGLB('game-assets/models/house/wall_outlet.glb'); } catch { return; }
+  for (const o of LEVEL.outlets) {
+    const m = g.scene.clone(true), plug = m.getObjectByName('plug');
+    if (plug) plug.visible = false;
+    m.position.set(o.pos[0], o.pos[1], o.pos[2]);
+    m.rotation.y = Math.atan2(o.n[0], o.n[2]);
+    scene.add(m);
+  }
 }

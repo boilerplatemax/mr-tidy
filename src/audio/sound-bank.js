@@ -77,28 +77,31 @@ function drone(sr) { // a 2 s seamless loop: built 0.25 s long, then the tail is
 }
 
 // ---------------------------------------------------------------- horror: the shriek and the stingers (all generated)
-/** A throat tearing itself open: a few detuned voices, a pitch that lurches up and warbles, rasp, vowel-like resonances. */
-function shriek(sr, len = 1.9) {
-  const out = S.buffer(len, sr), T = rand(0.2, 0.3), peak = rand(1050, 1300), last = rand(560, 760), flutter = rand(11, 16);
-  const contour = (t, det) => {
-    const u = t * len;
-    let f = u < T ? 320 + (peak - 320) * Math.pow(u / T, 0.6) : peak + (last - peak) * Math.pow((u - T) / (len - T), 1.4);
-    f *= 1 + 0.045 * Math.sin(u * flutter * 6.283) + 0.03 * Math.sin(u * 37 + det * 9);
-    return f * det;
-  };
-  for (const [det, g] of [[1, 1], [1.016, 0.7], [0.985, 0.7], [1.49, 0.35], [0.5, 0.5]]) S.mix(out, S.saw(S.buffer(len, sr), sr, (t) => contour(t, det)), g);
-  const rasp = S.sine(S.buffer(len, sr), sr, rand(68, 92));
-  for (let i = 0; i < out.length; i++) out[i] *= 0.55 + 0.45 * rasp[i]; // a ring of low growl through it
-  const a = S.biquad(out.slice(), sr, 'bp', (t) => 1100 + 500 * Math.sin(t * 9), 3.5), b = S.biquad(out.slice(), sr, 'bp', (t) => 2500 + 700 * t, 4), c = S.biquad(out.slice(), sr, 'bp', 3700, 5);
+/** One scream. len: s. pitch(u): Hz at u seconds. amp(u): 0..1. voices: [detune, level] pairs. wobble: [Hz, depth]. rasp: how much growl. */
+function scream(sr, { len, pitch, amp = () => 1, voices = [[1, 1], [1.016, 0.7], [0.985, 0.7], [1.49, 0.35], [0.5, 0.5]], wobble = [rand(11, 16), 0.045], rasp = 0.45, bright = 0 }) {
+  const out = S.buffer(len, sr);
+  for (const [det, g] of voices) S.mix(out, S.saw(S.buffer(len, sr), sr, (t) => { const u = t * len; return Math.max(30, pitch(u) * det * (1 + wobble[1] * Math.sin(u * wobble[0] * 6.283) + 0.03 * Math.sin(u * 37 + det * 9))); }), g);
+  const growl = S.sine(S.buffer(len, sr), sr, rand(68, 92));
+  for (let i = 0; i < out.length; i++) out[i] *= 1 - rasp + rasp * growl[i]; // a ring of low growl through it
+  const a = S.biquad(out.slice(), sr, 'bp', (t) => 1100 + 500 * Math.sin(t * 9) + bright, 3.5), b = S.biquad(out.slice(), sr, 'bp', (t) => 2500 + 700 * t + bright, 4), c = S.biquad(out.slice(), sr, 'bp', 3700 + bright, 5);
   const x = new Float32Array(out.length);
   S.mix(x, a, 1); S.mix(x, b, 0.8); S.mix(x, c, 0.5);
   S.mix(x, S.biquad(S.noise(S.buffer(len, sr)), sr, 'bp', (t) => 1800 + 1800 * t, 0.9), 0.55); // breath
-  for (let i = 0; i < x.length; i++) {
-    const u = i / sr, e = Math.min(1, u / 0.05) * (u > len - 0.55 ? Math.pow(Math.max(0, len - u) / 0.55, 1.5) : 1) * (0.86 + 0.14 * Math.sin(u * 53));
-    x[i] = Math.tanh(x[i] * 2.4 * e);
-  }
+  for (let i = 0; i < x.length; i++) { const u = i / sr, e = amp(u) * (0.86 + 0.14 * Math.sin(u * 53)); x[i] = Math.tanh(x[i] * 2.4 * e); }
   return S.declick(S.normalise(x, 0.98), sr);
 }
+const edges = (len, on = 0.05, off = 0.55) => (u) => Math.min(1, u / on) * (u > len - off ? Math.pow(Math.max(0, len - u) / off, 1.5) : 1);
+/** Eight different throats: he never screams quite the same way twice in a row. */
+const SCREAMS = [
+  (sr) => { const len = 1.9, T = rand(0.2, 0.3), top = rand(1050, 1300), end = rand(560, 760); return scream(sr, { len, amp: edges(len), pitch: (u) => (u < T ? 320 + (top - 320) * Math.pow(u / T, 0.6) : top + (end - top) * Math.pow((u - T) / (len - T), 1.4)) }); }, // tears open and sags
+  (sr) => { const len = 2.7, top = rand(950, 1150); return scream(sr, { len, amp: edges(len, 0.25, 0.7), wobble: [rand(6, 8), 0.06], pitch: (u) => (u < 1.8 ? 280 + (top - 280) * Math.pow(u / 1.8, 1.5) : top * (1 - 0.3 * (u - 1.8) / 0.9)) }); }, // a long climbing wail
+  (sr) => { const len = 1.8, base = rand(880, 1150), e = edges(len, 0.02, 0.2); return scream(sr, { len, pitch: (u) => base * (1 + 0.28 * ((u * 4.4) % 1)), amp: (u) => e(u) * (((u * 4.4) % 1) < 0.7 ? 1 : 0.04) }); }, // gasping, in short stabs
+  (sr) => { const len = 2.2, jump = rand(0.6, 0.8), top = rand(1100, 1350); return scream(sr, { len, rasp: 0.75, amp: edges(len), pitch: (u) => (u < jump ? rand(130, 150) * (1 + 0.1 * Math.sin(u * 9)) : top * (1 - 0.35 * (u - jump) / (len - jump))) }); }, // a growl that breaks upward
+  (sr) => { const len = 1.9, base = rand(620, 800); return scream(sr, { len, rasp: 0.7, wobble: [rand(24, 30), 0.13], amp: edges(len), pitch: (u) => base * (1 + 0.25 * Math.sin(u * 2.7)) }); }, // choking, wet, bubbling
+  (sr) => { const len = 2.1, drawn = 0.75, top = rand(1200, 1450); return scream(sr, { len, bright: 400, wobble: [13, 0.03], pitch: (u) => (u < drawn ? 900 * (0.5 + 0.6 * u) : top * (1 - 0.22 * (u - drawn) / (len - drawn))), amp: (u) => (u < drawn ? 0.05 + 0.3 * (u / drawn) : Math.min(1, (u - drawn) / 0.03)) * (u > len - 0.06 ? 0 : 1) }); }, // draws breath, then screams and stops dead
+  (sr) => { const len = 1.1, top = rand(1400, 1700); return scream(sr, { len, bright: 700, wobble: [17, 0.05], amp: edges(len, 0.02, 0.22), pitch: (u) => top * (1 - 0.2 * u) }); }, // short, right at the top of his range
+  (sr) => { const len = 2.3, a = rand(900, 1100); return scream(sr, { len, voices: [[1, 1], [0.97, 0.6]], amp: edges(len, 0.08, 0.6), pitch: (u) => a * (1 + 0.42 * Math.sin(u * 2.2)) * (1 + 0.06 * Math.sin(u * 41)) }); }, // two notes sliding through each other, off-key
+];
 /** He's seen you: a cluster of strings stabbing in, sliding up against itself, over a thump. */
 function stingSpot(sr) {
   const x = S.buffer(1.5, sr);
@@ -111,6 +114,34 @@ function stingSpot(sr) {
   S.mix(x, S.env(S.sine(S.buffer(0.5, sr), sr, (t) => 62 - 26 * t), sr, 0.004, 0.16), 2.0);
   return S.declick(S.normalise(x, 0.95), sr);
 }
+/** A high scrape, sliding down: two strings sawing against each other. */
+function stingScrape(sr) {
+  const x = S.buffer(1.3, sr), f0 = rand(1500, 1900);
+  for (const d of [1, 1.03]) { const v = S.saw(S.buffer(1.3, sr), sr, (t) => f0 * d * (1 - 0.32 * t) * (1 + 0.012 * Math.sin(t * 150))); S.env(v, sr, 0.02, 0.4); S.mix(x, v, 1); }
+  S.biquad(x, sr, 'hp', 900);
+  return S.declick(S.normalise(x, 0.8), sr);
+}
+/** Low horns, a fifth apart and a semitone wrong, swelling and cut off. */
+function stingBrass(sr) {
+  const x = S.buffer(1.4, sr), base = rand(82, 98);
+  for (const r of [1, 1.5, 1.06, 2.12]) S.mix(x, S.saw(S.buffer(1.4, sr), sr, (t) => base * r * (1 + 0.05 * t)), 0.6);
+  S.biquad(x, sr, 'lp', (t) => 500 + 1900 * Math.min(1, t * 2.5), 1.4);
+  for (let i = 0; i < x.length; i++) { const t = i / x.length; x[i] *= Math.min(1, t * 8) * Math.pow(1 - t, 1.6); }
+  return S.declick(S.normalise(x, 0.9), sr);
+}
+/** A piano struck with both forearms, right down at the bottom. */
+function stingPiano(sr) {
+  const x = S.buffer(1.6, sr), base = rand(52, 62);
+  for (const r of [1, 1.06, 1.41, 1.5, 2.83, 3.0]) { const f = base * r; for (const h of [1, 2, 3.01, 4.03]) { const v = S.sine(S.buffer(1.6, sr), sr, f * h); S.env(v, sr, 0.003, 0.5 / h); S.mix(x, v, 0.5 / h); } }
+  return S.declick(S.normalise(x, 0.92), sr);
+}
+/** Struck metal: partials that don't add up to a note. */
+function stingMetal(sr) {
+  const x = S.buffer(1.2, sr), base = rand(320, 420);
+  for (const r of [1, 1.59, 2.14, 2.83, 3.74, 5.2]) { const v = S.sine(S.buffer(1.2, sr), sr, base * r * rand(0.99, 1.01)); S.env(v, sr, 0.002, 0.36 / Math.sqrt(r)); S.mix(x, v, 1 / Math.sqrt(r)); }
+  S.mix(x, S.env(S.sine(S.buffer(0.3, sr), sr, 55), sr, 0.003, 0.1), 1.1);
+  return S.declick(S.normalise(x, 0.85), sr);
+}
 /** He heard something: low and close, two notes rubbing together, swelling and gone. */
 function stingHeard(sr) {
   const n = 1.1, x = S.buffer(n, sr);
@@ -121,9 +152,9 @@ function stingHeard(sr) {
 }
 
 export const SOUNDS = {
-  'vac.shriek': { gen: v((sr) => shriek(sr), 3), gain: 1.15, subtitle: 'a tearing shriek', bus: 'voice' },
-  'sting.spot': { gen: v(stingSpot, 2), gain: 0.95, subtitle: 'a sharp stab of strings', bus: 'voice' },
-  'sting.heard': { gen: v(stingHeard, 2), gain: 0.6, bus: 'voice' },
+  'vac.shriek': { gen: (sr) => SCREAMS.map((f) => f(sr)), gain: 1.15, subtitle: 'a tearing shriek', bus: 'voice' },
+  'sting.spot': { gen: (sr) => [stingSpot(sr), stingSpot(sr), stingScrape(sr), stingScrape(sr), stingBrass(sr), stingBrass(sr), stingPiano(sr), stingPiano(sr), stingMetal(sr), stingMetal(sr)], gain: 0.9, subtitle: 'a sudden stab of music', bus: 'voice' },
+  'sting.heard': { gen: v(stingHeard, 3), gain: 0.5, bus: 'voice' },
   'vac.listen': { gen: (sr) => { const x = S.buffer(0.45, sr); S.grains(x, sr, 5, 0.006, 0.06, 0); S.biquad(x, sr, 'bp', 2100, 2); S.mix(x, S.env(S.saw(S.buffer(0.42, sr), sr, (t) => 150 - 95 * t), sr, 0.005, 0.14), 0.5); return S.declick(S.normalise(x, 0.7), sr); }, gain: 0.55, subtitle: 'the motor drops, listening' },
   'vac.creep': { gen: (sr) => { const x = S.buffer(1.6, sr); S.grains(x, sr, 30, 0.02, 1.5, 0); S.biquad(x, sr, 'bp', 900, 1.2); S.mix(x, S.biquad(S.noise(S.buffer(1.6, sr)), sr, 'bp', 420, 3), 0.3); return S.normalise(S.loopable(x, sr, 0.25), 0.5); }, loop: true, gain: 0.5, subtitle: 'something sliding, slowly' },
   'vac.exhale': { gen: (sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(1.8, sr)), sr, 'bp', (t) => 300 + 1500 * (1 - t), 0.7), sr, 0.04, 0.8), 0.95), sr), gain: 1.1, subtitle: 'a great gust of dust' },
@@ -175,6 +206,7 @@ export const SOUNDS = {
     S.mix(x, S.env(S.sine(S.buffer(0.14, sr), sr, 150), sr, 0.001, 0.03), 0.5);
     return S.declick(S.normalise(x, 0.9), sr);
   }, 4), gain: 0.85 },
+  'knock.squeak': { gen: v((sr) => S.declick(S.normalise(S.env(S.sine(S.buffer(0.2, sr), sr, (t) => 1500 + 900 * Math.sin(t * 3.1)), sr, 0.01, 0.07), 0.7), sr), 2), gain: 0.5 },
   'knock.thud': { gen: v((sr) => thud(sr, 95, 0.2, 0.3), 3), gain: 0.7 },
   'cat.dash': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.16, sr)), sr, 'bp', (t) => 1400 - 900 * t, 0.9), sr, 0.008, 0.05), 0.7), sr), 3), gain: 0.3 },
   'foot.thud': { gen: v((sr) => thud(sr, 62, 0.28), 2), gain: 0.75 }, // a big drop: the vac can hear this one

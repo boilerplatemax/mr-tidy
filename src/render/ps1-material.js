@@ -241,7 +241,7 @@ export function pixelTexture(t) {
   t.minFilter = THREE.NearestMipmapNearestFilter;
   t.generateMipmaps = true;
   t.anisotropy = 1;
-  t.needsUpdate = true;
+  if (t.image) t.needsUpdate = true; // (one still loading gets flagged by its loader when it arrives)
   return t;
 }
 
