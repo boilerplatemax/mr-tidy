@@ -1,0 +1,105 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+  color: #d8d2c4;
+  font: 14px/1.4 "Courier New", ui-monospace, monospace;
+}
+
+/* The game canvas is rendered at ~320×240 (or wider, in 'fill' framing) and scaled by an exact integer, nearest-neighbour. */
+#game {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  image-rendering: pixelated; image-rendering: crisp-edges; display: block;
+}
+
+#loading {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #6f6858; letter-spacing: .3em; background: #000;
+}
+#loading[hidden] { display: none; }
+
+/* captions (src/ui/subtitles.js) */
+#subtitles {
+  position: absolute; left: 0; right: 0; bottom: 9vh;
+  display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none;
+}
+#subtitles div {
+  font-size: clamp(14px, 2.4vh, 22px); color: #e8e2d0; background: rgba(0, 0, 0, .55);
+  padding: 2px 10px; letter-spacing: .03em; transition: opacity .2s linear;
+}
+#subtitles div.speech { color: #f0e6c8; }
+
+/* dev overlay (src/ui/dev-overlay.js) */
+#dev-overlay, #dev-help {
+  position: absolute; top: 6px; left: 6px; margin: 0; z-index: 20;
+  padding: 6px 8px; background: rgba(0, 0, 0, .7); color: #9fe39f;
+  font-size: 12px; line-height: 1.35; pointer-events: none; white-space: pre;
+}
+#dev-help { left: auto; right: 6px; color: #e3d59f; }
+
+/* the HUD: pixel-font labels laid over the game canvas (src/ui/pixel-label.js) */
+#hud { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 4; }
+#hud .hud-label { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; transition: opacity .35s linear; opacity: 0; }
+#hud .hud-prompt { transition-duration: .08s; } /* the action prompt is quick to come and go */
+
+/* the pause menu + settings in the pixel font (src/ui/menu.js). --px = screen px per font pixel. */
+#pause {
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(0, 0, 0, .62);
+  display: flex; align-items: center; justify-content: center;
+  --px: 2;
+}
+#pause[hidden] { display: none; }
+#pause .pix { width: calc(var(--w) * var(--px) * 1px); height: calc(var(--h) * var(--px) * 1px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+#pause .pix.big { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
+#pause .panel {
+  width: min(calc(440px * var(--px)), calc(100vw - 32px)); max-height: calc(100vh - 24px); overflow: auto; box-sizing: border-box;
+  background: #0d0c0a; border: 1px solid #3a352b; padding: calc(8px * var(--px)) calc(12px * var(--px));
+  display: flex; flex-direction: column; gap: calc(3px * var(--px));
+}
+#pause .panel > * { flex-shrink: 0; }
+#pause .title, #pause .sub, #pause .note { display: flex; justify-content: center; text-align: center; }
+#pause .sub:empty, #pause .note:empty { display: none; }
+#pause .main { display: flex; flex-direction: column; gap: calc(3px * var(--px)); margin: calc(3px * var(--px)) 0; }
+#pause button { background: #2a261e; border: 1px solid #4a4334; padding: calc(3px * var(--px)) calc(6px * var(--px)); cursor: pointer; display: flex; justify-content: center; align-items: center; width: 100%; }
+#pause button:hover { background: #3a3428; }
+#pause button.small { background: transparent; border-color: #2a261e; padding: calc(2px * var(--px)); }
+#pause button[hidden] { display: none; }
+#pause .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: calc(4px * var(--px)); border-bottom: 1px solid #4a4334; }
+#pause .tabs button { background: transparent; border: 1px solid transparent; border-bottom: none; }
+#pause .tabs button.on { background: #1a1814; border-color: #4a4334; }
+#pause .body { display: flex; flex-direction: column; gap: calc(3px * var(--px)); padding: calc(4px * var(--px)) 0; min-height: calc(110px * var(--px)); } /* tabs never jump in height */
+#pause .body.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 calc(16px * var(--px)); align-items: start; }
+#pause .col { display: flex; flex-direction: column; gap: calc(3px * var(--px)); min-width: 0; }
+#pause .row { display: flex; justify-content: space-between; align-items: center; gap: calc(6px * var(--px)); min-height: calc(13px * var(--px)); }
+#pause .ctl { display: flex; align-items: center; gap: calc(4px * var(--px)); }
+#pause .ctl button.pick { width: auto; min-width: calc(60px * var(--px)); padding: calc(2px * var(--px)) calc(4px * var(--px)); }
+#pause .ctl .val { min-width: calc(22px * var(--px)); display: flex; justify-content: flex-end; }
+#pause input[type=range] { width: calc(60px * var(--px)); accent-color: #b8a06a; }
+#pause .controls { display: grid; grid-template-columns: calc(68px * var(--px)) 1fr; gap: calc(1px * var(--px)) calc(6px * var(--px)); align-items: center; margin-bottom: calc(5px * var(--px)); }
+#pause .controls .head { grid-column: 1 / -1; margin-bottom: calc(1px * var(--px)); }
+#pause .foot { display: flex; justify-content: center; gap: calc(6px * var(--px)); }
+#pause .foot button { width: auto; }
+
+/* The title screen: before play the pause screen is the title. No veil, no box: the live scene shows through; just the
+   name and the buttons on it. The settings sit behind their own button (.settings). */
+#pause.title { background: transparent; align-items: flex-start; }
+#pause.title .panel { width: auto; min-width: calc(150px * var(--px)); background: transparent; border-color: transparent; margin-top: 11vh; }
+#pause.title .pix.big { width: calc(var(--w) * var(--px) * 3px); height: calc(var(--h) * var(--px) * 3px); }
+#pause.title .title { margin-bottom: calc(6px * var(--px)); }
+#pause.title .main { align-items: center; gap: calc(1px * var(--px)); }
+#pause.title .main button { width: auto; min-width: calc(110px * var(--px)); background: transparent; border-color: transparent; }
+#pause.title .main button:hover { background: rgba(207, 196, 166, .07); border-color: rgba(207, 196, 166, .12); }
+#pause.title .tabs, #pause.title .body, #pause.title .foot { display: none; }
+#pause.title .note { max-width: calc(220px * var(--px)); align-self: center; }
+#pause.title.settings { background: rgba(0, 0, 0, .62); align-items: center; }
+#pause.title.settings .panel { width: min(calc(440px * var(--px)), calc(100vw - 32px)); background: #0d0c0a; border-color: #3a352b; margin-top: 0; }
+#pause.title.settings .pix.big { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
+#pause.title.settings .title { margin-bottom: 0; }
+#pause.title.settings .main, #pause.title.settings .note { display: none; }
+#pause.title.settings .tabs { display: grid; }
+#pause.title.settings .body.cols { display: grid; }
+#pause.title.settings .foot { display: flex; }
+/* nothing of the game's own overlays shows on the title */
+body.on-title #hud, body.on-title #subtitles { display: none; }
