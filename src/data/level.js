@@ -97,12 +97,13 @@ export const LEVEL = {
     box('plantStand', 'hall', 14.8, 15.2, -1.3, -0.9, 0, 1.1),
 
     // ------------------------------------------------------------ storage: ledges 1.1 m apart (a jump alone can't do it)
-    box('w1', 'storage', 12 + IN, 12.55, 1.0, 2.2, 0, 1.1),
-    box('w2', 'storage', 12 + IN, 12.55, 2.4, 3.0, 0, 2.2),
-    box('e1', 'storage', 14.85, 15.4 - IN, 0.6, 1.8, 0, 1.1),
-    box('e2', 'storage', 14.85, 15.4 - IN, 2.0, 3.0, 0, 2.2),
-    box('s1', 'storage', 12.75, 13.6, 3.25, 3.8 - IN, 0, 1.1),
-    box('s2', 'storage', 13.8, 14.6, 3.25, 3.8 - IN, 0, 2.2),
+    // DESIGN NOTE: neighbouring units touch. A slot narrower than the cat (0.24 m) is a trap it can drop into and not leave.
+    box('w1', 'storage', 12 + IN, 12.55, 1.0, 2.3, 0, 1.1),
+    box('w2', 'storage', 12 + IN, 12.55, 2.3, 3.0, 0, 2.2),
+    box('e1', 'storage', 14.85, 15.4 - IN, 0.6, 1.9, 0, 1.1),
+    box('e2', 'storage', 14.85, 15.4 - IN, 1.9, 3.0, 0, 2.2),
+    box('s1', 'storage', 12.75, 13.7, 3.25, 3.8 - IN, 0, 1.1),
+    box('s2', 'storage', 13.7, 14.6, 3.25, 3.8 - IN, 0, 2.2),
   ],
 
   // Grandma's door, on the wall at the east end of the hallway. It can't be opened.

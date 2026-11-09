@@ -29,12 +29,13 @@ export class Player {
     this.viewDip = 0; this.landDip = 0; this.chargeDip = 0;
     this._pv = { viewDip: 0, landDip: 0, chargeDip: 0 };
     // the jump
-    this.charging = false; this.chargeT = 0; this.coyoteT = 0; this.bufferT = 0; this.time = 0;
+    this.charging = false; this.chargeT = 0; this.chargeCarry = 0; this.coyoteT = 0; this.bufferT = 0; this.time = 0;
     this.launched = false; this.launchSpeed = 0; this.launchX = 0; this.launchZ = 0;
     this.aim = { ok: false, kind: 'land', x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, col: null }; // where a jump released now would end (the target marker and shimmer read this)
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
     this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 0; this.airDashUsed = false; this.fovKick = 0; this.prevFovKick = 0;
+    this.wedgedT = 0;
     this.swipeT = -1; this.prevSwipeT = -1; this.swipeCd = 0; this.swipeHit = false;
     this.onSwipe = null; // () when the paw connects: the knockables hook in here
     this.stamina = 1; this.clawLock = 0;
@@ -163,7 +164,7 @@ export class Player {
     this.bufferT = I.pressed('Space') && !this.frozen ? J.buffer : Math.max(0, this.bufferT - dt);
     if (!this.charging && this.bufferT > 0 && this.coyoteT > 0) {
       this.bufferT = 0;
-      if (this.grounded) { this.charging = true; this.chargeT = 0; }
+      if (this.grounded) { this.charging = true; this.chargeT = 0; this.chargeCarry = Math.min(Math.hypot(this.vel.x, this.vel.z), J.runCarry); }
       else this._launch(J.coyoteCharge); // a fresh press just after leaving an edge
     }
     if (this.charging) {
@@ -210,7 +211,8 @@ export class Player {
   }
 
   _jumpSpeed(c) {
-    const moving = Math.min(Math.hypot(this.vel.x, this.vel.z), J.runCarry);
+    // fixed when the charge starts: the cat slows while charging, and the predicted landing must not creep back with it
+    const moving = this.charging ? this.chargeCarry : Math.min(Math.hypot(this.vel.x, this.vel.z), J.runCarry);
     return Math.max(J.minSpeed + (J.maxSpeed - J.minSpeed) * c, moving);
   }
 
@@ -224,13 +226,13 @@ export class Player {
   }
 
   /** Fly the arc a release would take, against the real colliders, and note where it ends (this.aim). */
-  _predict(c) {
+  _predict(c, spring = false) {
     const a = this.aim, W = this.world, r = P.radius;
     a.ok = false;
-    const d = this._jumpDir(c);
+    const d = spring ? this._kickDir() : this._jumpDir(c);
     if (!d.x && !d.z) return;
-    const speed = this._jumpSpeed(c), step = J.predictDt;
-    let x = this.pos.x, z = this.pos.z, y = this.feetY, vy = J.minVy + (J.maxVy - J.minVy) * c;
+    const speed = spring ? lerp(C.kickSpeed, C.springSpeed, c) : this._jumpSpeed(c), step = J.predictDt;
+    let x = this.pos.x, z = this.pos.z, y = this.feetY, vy = spring ? lerp(C.kickVy, C.springVy, c) : J.minVy + (J.maxVy - J.minVy) * c;
     for (let t = 0; t < J.predictT; t += step) {
       const px = x, py = y, pz = z;
       x += d.x * speed * step; z += d.z * speed * step; vy -= P.gravity * step; y += vy * step;
@@ -429,10 +431,11 @@ export class Player {
     return true;
   }
 
-  _offWall() { this.mode = 'move'; this.grounded = false; this.vy = 0; this.launched = false; this.launchSpeed = 0; this.clawLock = C.kickLock; }
+  _offWall() { this.charging = false; this.chargeT = 0; this.aim.ok = false; this.mode = 'move'; this.grounded = false; this.vy = 0; this.launched = false; this.launchSpeed = 0; this.clawLock = C.kickLock; }
 
-  _kick() {
-    const c = this.climb;
+  /** Which way a jump off the wall goes (writes this._dir): to the side with A / D, the way you're looking, or straight back. */
+  _kickDir() {
+    const c = this.climb, d = this._dir || (this._dir = { x: 0, z: 0 });
     const toRight = -(this.wx * c.z) + this.wz * c.x; // the keys along the wall
     let dx, dz;
     if (Math.abs(this.wside) > 0.1 && Math.abs(toRight) > 0.1) { // sideways: along the wall, a little out
@@ -440,11 +443,19 @@ export class Player {
       dx = -c.z * s + c.x * C.outKick; dz = c.x * s + c.z * C.outKick;
     } else if (this.fx * c.x + this.fz * c.z > 0.15) { dx = this.fx; dz = this.fz; } // the way you're looking, if that's away from the wall
     else { dx = c.x; dz = c.z; } // straight back
-    const l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-    this.vel.x = dx * C.kickSpeed; this.vel.z = dz * C.kickSpeed; this.vy = C.kickVy;
-    this.launched = true; this.launchX = dx; this.launchZ = dz; this.launchSpeed = C.kickSpeed;
+    const l = Math.hypot(dx, dz) || 1;
+    d.x = dx / l; d.z = dz / l;
+    return d;
+  }
+
+  /** Leave the wall. c: 0 = a tapped kick-off .. 1 = a fully charged spring. */
+  _kick(c = 0) {
+    const d = this._kickDir(), speed = lerp(C.kickSpeed, C.springSpeed, c);
+    this.vel.x = d.x * speed; this.vel.z = d.z * speed; this.vy = lerp(C.kickVy, C.springVy, c);
+    this.launched = true; this.launchX = d.x; this.launchZ = d.z; this.launchSpeed = speed;
     this.mode = 'move'; this.grounded = false; this.clawLock = C.kickLock; this.grabLock = 0.12;
-    this.stamina = Math.max(0, this.stamina - ST.kickCost);
+    this.stamina = Math.max(0, this.stamina - ST.kickCost - ST.springCost * c);
+    this.charging = false; this.chargeT = 0; this.aim.ok = false;
     audio.play('cat.grab');
   }
 
@@ -452,8 +463,25 @@ export class Player {
   // slowly. Space kicks off; C lets go. When stamina runs out the cat slides down.
   _tickClimb(dt) {
     const I = this.input, c = this.climb, b = c.col, W = this.world;
-    if (I.pressed('Space') && !this.frozen) { this._kick(); return; }
     if (I.down('KeyC')) { this._offWall(); return; }
+    // Space: tap for a quick kick-off, hold to charge a spring, as on the ground. The ring shows where it will land.
+    if (I.pressed('Space') && !this.frozen) { this.charging = true; this.chargeT = 0; }
+    if (this.charging) {
+      if (!I.down('Space') || this.frozen) { this._kick(this.charge); return; }
+      this.chargeT += dt;
+      this.stamina = Math.max(0, this.stamina - ST.clingDrain * dt);
+      if (this.stamina <= 0 || this.chargeT >= J.chargeTime + J.holdAtMax) { // out of grip, or held too long: called off
+        this.charging = false; this.chargeT = 0; this.aim.ok = false;
+        audio.play('cat.huff');
+        if (this.stamina <= 0) this.mode = 'slide';
+        return;
+      }
+      this.chargeDip += (this.charge * J.dip - this.chargeDip) * expK(16, dt);
+      this._predict(this.charge, true);
+      if (!this._hugFace()) this._offWall();
+      return;
+    }
+    this.chargeDip += (0 - this.chargeDip) * expK(16, dt);
     this.viewDip += (0 - this.viewDip) * expK(10, dt);
     const moving = this.wfwd !== 0 || this.wside !== 0;
     this.stamina = Math.max(0, this.stamina - (moving ? ST.climbDrain : ST.clingDrain) * dt);
@@ -495,6 +523,16 @@ export class Player {
     if (!this._hugFace()) this._offWall();
   }
 
+  /** The failsafe: wedged somewhere the cat doesn't fit. Move to the nearest place it does. */
+  _unstick(lowY, highY) {
+    const W = this.world, r = P.radius, x0 = this.pos.x, z0 = this.pos.z;
+    for (let d = 0.05; d <= 1.2; d += 0.05) for (let a = 0; a < 16; a++) {
+      const x = x0 + Math.cos((a / 16) * Math.PI * 2) * d, z = z0 + Math.sin((a / 16) * Math.PI * 2) * d;
+      if (W.penetration(x, z, r * 1.05, lowY, highY, null, this.feetY) === 0) { this.pos.x = x; this.pos.z = z; this.prev.x = x; this.prev.z = z; this.vel.x = this.vel.z = 0; this.wedgedT = 0; return; }
+    }
+    this.wedgedT = 0;
+  }
+
   /** Horizontal move with collision (substeps so nothing tunnels). */
   _moveXZ(dt) {
     const r = P.radius, lowY = this.feetY + P.stepHeight, highY = this.feetY + this.height;
@@ -505,10 +543,14 @@ export class Player {
       this.pos.x += dx / steps; this.pos.z += dz / steps;
       this.world.resolve(this.pos, r, lowY, highY, this._clip, 5, this.feetY);
     }
-    // never accept an overlapping position (corner wedges): fall back to where we were
-    if (this.world.penetration(this.pos.x, this.pos.z, r, lowY, highY, null, this.feetY) > 0.02) {
-      this.pos.x = startX; this.pos.z = startZ; this.vel.x = this.vel.z = 0;
-    }
+    // never accept an overlapping position (corner wedges) unless it's a way out of an overlap the cat is already in
+    const after = this.world.penetration(this.pos.x, this.pos.z, r, lowY, highY, null, this.feetY);
+    if (after > 0.02) {
+      const before = this.world.penetration(startX, startZ, r, lowY, highY, null, this.feetY);
+      if (after >= before - 1e-4) { this.pos.x = startX; this.pos.z = startZ; this.vel.x = this.vel.z = 0; }
+      this.wedgedT = before > 0.02 ? this.wedgedT + dt : 0;
+      if (this.wedgedT >= P.unstickAfter) this._unstick(lowY, highY);
+    } else this.wedgedT = 0;
   }
 
   _eyeAndSteps(dt) {

@@ -107,6 +107,7 @@ export const TUNING = {
     stepGain: { walk: 0.8, run: 1.2 }, // footstep loudness. Slink has none: it's silent
     bobLock: 3, // 1/s: how fast the bob's phase is pulled back onto the footsteps after a gait change (never jumps)
     bobGaitEase: 8, // 1/s: how fast the bob's depth eases between gaits
+    unstickAfter: 0.2, // s wedged before the failsafe lifts the cat to the nearest free spot
     landDip: 0.03, // m: camera dip when landing
     landSoft: 2.2, // m/s: impacts below this make no sound at all
     landHeavy: 5.2, // m/s: impacts above this (a drop of about 0.75 m) are the heavy thud the vac can hear
@@ -128,7 +129,10 @@ export const TUNING = {
     dip: 0.03, dipPitch: 0.06, // the camera dips (m, rad) at full charge
     holdAtMax: 0.8, // s a full charge is held before the jump is called off
     predictDt: 0.02, predictT: 1.4, // s: landing-spot prediction step and horizon
-    markerDot: 0.016, // the target dot's radius per metre of distance: the same size on screen near and far
+    marker: { // the jump target: a ring painted onto the world around the landing spot (src/player/landing-marker.js)
+      ringInner: 0.085, ringOuter: 0.135, ringFull: 1.3, ringMin: 0.45, // m; closer than ringFull m the ring shrinks, down to this share
+      retractMin: 0.04, retractHold: 0.14, // m, s: a spot that moves back this far must stay back this long before the target follows
+    },
     markerEase: 22, // 1/s: how fast the dot glides to a new spot
     dotBelowLip: 0.04, // m: where the dot sits under an edge you'd catch
     markerColors: { land: 0xfff0c8, grab: 0x9fe6a0, wall: 0x9fb4d8 }, // landing on a surface / would catch this edge / would hit a wall
@@ -170,7 +174,8 @@ export const TUNING = {
     airFacing: 0.3, // cos: in mid-air you cling just by flying at a face while looking at it, no keys needed
     topOff: 0.2, // m: this far below the top, the cat pulls itself over
     slideSpeed: 0.9, // m/s down when stamina runs out. Controlled, no damage
-    kickVy: 3.6, kickSpeed: 2.6, // m/s: the kick-off leap (up, away)
+    kickVy: 3.6, kickSpeed: 2.6, // m/s: a tapped kick-off (up, away)
+    springVy: 5.85, springSpeed: 3.2, // m/s: a fully charged spring off the wall (hold Space while clinging)
     kickLock: 0.3, // s after a kick-off before the claws can catch stripes again
     outKick: 0.5, // when kicking sideways: how much of the leap also goes out from the wall
   },
@@ -179,6 +184,7 @@ export const TUNING = {
     hangDrain: 0.22, // per second hanging on a ledge: a full bar is about 4.5 s
     clingDrain: 0.1, // per second clinging still to a climbable face
     kickCost: 0.1, // per kick-off
+    springCost: 0.1, // extra for a fully charged spring
     regen: 1.6, // per second while standing on any flat surface
     barWidth: 100, barBottom: 12, // HUD px
     barHold: 0.5, // s the bar stays after refilling
@@ -233,6 +239,9 @@ export const TUNING = {
     swipeYaw0: 0.5, swipeYaw1: -0.6, swipeRoll0: -0.2, swipeRoll1: 0.2, // rad: how the paw turns through the sweep
     swipeLeg: 1.32, swipeLegLen: 2.6, // the forearm, as when hanging
     swipeOut: 0.42, reveal: 0.2, // share of the swipe spent going out; share spent rising into view (and dropping away)
+    hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end
+    keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)
+    climbSpread: 0.06, climbUp: 0.03, climbReach: 0.03, climbStride: 0.2, climbLeg: -0.55, climbIn: 0.008, // on a climbable face: m apart from centre, m above the eye, m each paw reaches up and down, m climbed per pair of steps, rad the forearm comes back from the wall, m off the wall
     hangSpread: 0.055, hangIn: 0.03, hangLift: 0.014, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
     tremble: 0.0035, trembleRate: 46, // m, rad/s: the paws shake harder as stamina runs out
     drop: 0.08, ease: 18, // m below the lip as it appears, 1/s ease in and out

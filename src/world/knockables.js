@@ -110,8 +110,8 @@ export class Knockables {
     const g = W.ground(o.x, o.z, K.supportR, o.y + 0.04, this._g);
     if (g.y < o.y - 0.01) { this._startTip(o); return; } // the centre has passed the edge
     o.y = g.y;
-    if (o.q.w < 0.9999) o.q.slerp(_up.identity(), 0.3); // settle upright after a landing
-    if (Math.hypot(o.vx, o.vz) < K.stopSpeed && o.q.w >= 0.9999) { o.vx = o.vz = 0; o.q.identity(); o.state = 'rest'; }
+    if (Math.abs(o.q.w) < 0.9999) o.q.slerp(_up.identity(), 0.3); // settle upright after a landing
+    if (Math.hypot(o.vx, o.vz) < K.stopSpeed && Math.abs(o.q.w) >= 0.9999) { o.vx = o.vz = 0; o.q.identity(); o.state = 'rest'; }
   }
 
   _startTip(o) {

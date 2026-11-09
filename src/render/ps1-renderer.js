@@ -126,10 +126,12 @@ export class PS1Renderer {
     scene.background = null;
     r.clearDepth();
     camera.layers.set(LAYER_VIEWMODEL);
-    const snap = PS1.uniforms.uPs1Snap.value;
+    const snap = PS1.uniforms.uPs1Snap.value, ring = PS1.uniforms.uPs1RingOn.value;
+    PS1.uniforms.uPs1RingOn.value = 0; // the jump target is painted on the world, not on the paws
     PS1.uniforms.uPs1Snap.value = 0; // snapping makes held things twitch pixel to pixel as they sway: viewmodels don't snap
     r.render(scene, camera);
     PS1.uniforms.uPs1Snap.value = snap;
+    PS1.uniforms.uPs1RingOn.value = ring;
     camera.layers.set(0);
     scene.background = bg;
     this.stats.calls = r.info.render.calls;

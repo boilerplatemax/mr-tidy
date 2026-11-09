@@ -33,6 +33,11 @@ export const PS1 = {
     uPs1ZoneMin: { value: Array.from({ length: MAX_ZONES }, () => new THREE.Vector3()) },
     uPs1ZoneMax: { value: Array.from({ length: MAX_ZONES }, () => new THREE.Vector3()) },
     uPs1ZoneCount: { value: 0 },
+    // the jump target, painted onto whatever surfaces are near the landing spot (src/player/landing-marker.js)
+    uPs1RingOn: { value: 0 },
+    uPs1RingPos: { value: new THREE.Vector3() },
+    uPs1RingRad: { value: new THREE.Vector2(0.08, 0.13) },
+    uPs1RingColor: { value: new THREE.Color(0xffffff) },
   },
   /** Light zones (array of THREE.Box3, world space). A point light lights only its own zone. */
   setLightZones(boxes) {
@@ -99,6 +104,10 @@ uniform int uPs1ZoneCount;
 uniform float uPs1Highlight;
 uniform float uPs1WarpMul;
 uniform float uPs1DiscardDark;
+uniform float uPs1RingOn;
+uniform vec3 uPs1RingPos;
+uniform vec2 uPs1RingRad;
+uniform vec3 uPs1RingColor;
 varying vec3 vPs1Affine;
 varying vec3 vPs1World;
 float ps1Indoor() {
@@ -169,6 +178,8 @@ function onBeforeCompile(shader, renderer) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\n' + FRAG_HEAD)
     .replace('#include <map_fragment>', FRAG_MAP)
+    .replace('#include <fog_fragment>', `#include <fog_fragment>
+  if ( uPs1RingOn > 0.5 ) { float ps1D = distance( vPs1World, uPs1RingPos ); if ( ps1D > uPs1RingRad.x && ps1D < uPs1RingRad.y ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPs1RingColor, 0.85 ); }`)
     .replace('#include <lights_fragment_begin>', patchLights(THREE.ShaderChunk.lights_fragment_begin))
     .replace('#include <opaque_fragment>', '#include <opaque_fragment>\n  gl_FragColor.rgb = gl_FragColor.rgb * ( 1.0 + uPs1Highlight ) + uPs1Highlight * 0.012;');
 }

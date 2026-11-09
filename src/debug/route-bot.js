@@ -78,6 +78,42 @@ function grabAttempt(kit, from, to, start, charge) {
   return { ok: id === to.id, on: id, caught };
 }
 
+/** Searches the whole house for slots the cat can fall into but not fit in: pushed from both sides, nowhere to go. */
+function pocketScan(kit) {
+  const W = kit.world, P = TUNING.player, r = P.radius, found = new Map(), p = { x: 0, z: 0 }, g = { y: 0, surface: '', collider: null };
+  for (const y of [0.05, 0.3, 0.6, 1.0, 1.3, 1.6, 1.9, 2.1]) {
+    const low = y + P.stepHeight, high = y + P.height;
+    for (let x = -0.1; x < 18.1; x += 0.03) for (let z = -1.45; z < 5.45; z += 0.03) {
+      W.ground(x, z, r * P.edgeSupport, y + P.stepHeight, g);
+      if (g.y >= y - 0.05) continue; // something underfoot: the cat stands, it doesn't drop in
+      W.ground(x, z, r * P.edgeSupport, 3, g);
+      if (g.y > y) continue; // covered from above by something it would land on: it can't get in from the top
+      if (W.penetration(x, z, 0.001, low, high, null, y) > 0) continue; // inside something solid
+      if (W.penetration(x, z, r, low, high, null, y) <= 0.02) continue;
+      p.x = x; p.z = z;
+      W.resolve(p, r, low, high, null, 8, y);
+      if (W.penetration(p.x, p.z, r, low, high, null, y) <= 0.02) continue; // a single wall just pushes the cat away
+      // only a real pocket if the cat's whole body fits right above it: otherwise it can never have come in from the top
+      let open = false;
+      for (let u = y + 0.1; u < 2.9 && !open; u += 0.1) if (W.penetration(x, z, r, u + P.stepHeight, u + P.height, null, u) === 0) open = true;
+      if (!open) continue;
+      const key = `${x.toFixed(1)},${z.toFixed(1)}`;
+      if (!found.has(key)) found.set(key, y);
+    }
+  }
+  const rows = [];
+  rows.push(`${found.size ? 'FAIL' : 'ok  '} POCKET no slots the cat can drop into but not fit${found.size ? ' at ' + [...found.keys()].slice(0, 30).join(' ; ') : ''}`);
+  // the failsafe: put the cat where it doesn't fit, and it must free itself
+  const K = kit.player, I = kit.input, dt = 1 / 60;
+  I.keys.clear(); K.resetMotion(); K.teleport(7.0, 0.001, 0.65, Math.PI); K.grounded = true; K.feetY = 0; K.eyeFeet = 0;
+  I.keys.add('KeyW'); I.keys.delete('KeyW');
+  let t = 0;
+  while (t < 1.5 && W.penetration(K.pos.x, K.pos.z, r, K.feetY + P.stepHeight, K.feetY + P.height, null, K.feetY) > 0.02) { I.keys.add('KeyA'); kit.tick(dt); t += dt; }
+  I.keys.clear();
+  rows.push(`${t < 1.5 ? 'ok  ' : 'FAIL'} POCKET a wedged cat frees itself (${t.toFixed(2)} s)`);
+  return rows;
+}
+
 /** The swipe and knockable physics with the real objects. */
 function knockChecks(kit) {
   const P = kit.player, I = kit.input, K = kit.knock, dt = 1 / 60, rows = [];
@@ -210,6 +246,30 @@ function climbChecks(kit) {
   for (let i = 0; i < 90 && !P.grounded; i++) kit.tick(dt);
   report('landing refreshes the air dash', P.grounded && !P.airDashUsed);
 
+  // the target never creeps back as the charge builds, walking or standing
+  for (const [name, keys] of [['standing', []], ['walking', ['KeyW']], ['running', ['KeyW', 'ShiftLeft']]]) {
+    put(2.4, 0.001, 1.0, Math.PI);
+    for (const key of keys) I.keys.add(key);
+    for (let i = 0; i < 20; i++) kit.tick(dt);
+    I.keys.add('Space'); I.edges.add('Space');
+    let prev = -1, backs = 0, frames = 0;
+    for (let i = 0; i < 30; i++) { kit.tick(dt); if (P.aim.ok && P.aim.kind === 'land') { if (P.aim.z < prev - 1e-4) backs++; prev = P.aim.z; frames++; } }
+    I.keys.clear();
+    report(`target never retracts while charging, ${name}`, frames > 15 && backs === 0, `${backs} backsteps in ${frames} ticks`);
+    I.keys.add('KeyC'); kit.tick(dt); I.keys.clear(); for (let i = 0; i < 30 && !P.grounded; i++) kit.tick(dt);
+  }
+
+  // hold Space while clinging: a charged spring, and it goes further than a tap
+  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  for (let i = 0; i < 40; i++) kit.tick(dt);
+  I.keys.clear(); P.yaw = 0; const h0 = P.feetY;
+  I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt);
+  for (let i = 0; i < 30; i++) kit.tick(dt);
+  const stuck = P.mode === 'climb' && Math.abs(P.feetY - h0) < 1e-6, aimed = P.aim.ok, c1 = P.charge;
+  I.keys.clear(); kit.tick(dt);
+  report('hold Space on a wall charges a spring jump', stuck && aimed && c1 > 0.9 && P.mode === 'move' && P.vy > 4.5, `charge ${c1.toFixed(2)}, vy ${P.vy.toFixed(2)}`);
+  for (let i = 0; i < 120 && !P.grounded; i++) kit.tick(dt);
+
   // a kick-off, up the panel: looking back into the room, leaves the wall and flies
   put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
   for (let i = 0; i < 60; i++) kit.tick(dt);
@@ -253,6 +313,7 @@ export function runRouteBot(kit) {
   }
   rows.push(...climbChecks(kit));
   rows.push(...knockChecks(kit));
+  rows.push(...pocketScan(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
 }

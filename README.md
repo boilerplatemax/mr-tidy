@@ -21,7 +21,7 @@ Open <http://localhost:8080> and click **Begin**.
 | W A S D, mouse | Move, look |
 | Shift | Dash (once per jump in the air). Keep holding to run |
 | C (hold) | Slink: slow, low, silent |
-| Space (hold, release) | Charge and jump. Tap for a hop. A dot marks where a charged jump will end |
+| Space (hold, release) | Charge and jump. Tap for a hop. A ring on the surfaces ahead marks where a charged jump will end |
 | Space while hanging | Pull up |
 | S or C while hanging | Let go |
 | W into a grey-green striped surface, or jump at one | Climb: W up, S down, A / D sideways, stamina drains (holding still drains slowly) |

@@ -56,7 +56,7 @@ player.onSwipe = () => knock.swipe(player, camera);
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
-const marker = new LandingMarker(scene);
+const marker = new LandingMarker(camera);
 const shimmer = new LandingShimmer(scene);
 const paws = new Paws(camera);
 
@@ -111,7 +111,7 @@ function frame(alpha, dt, frameMs) {
     if (input.live) player.look();
     player.render(alpha);
     debug.frame();
-    marker.update(player.aim, camera, dt);
+    marker.update(player.aim, dt, player);
     shimmer.update(player.aim, wallTime, dt);
     paws.frame(player, dt, input.live ? alpha : 1, debug.thirdPerson);
     knock.frame(input.live ? alpha : 1);
