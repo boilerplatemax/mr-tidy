@@ -8,7 +8,7 @@ import { makePS1 } from '../render/ps1-material.js';
 const D = TUNING.debug;
 const LOOKS = ['authored', 'clean'];
 const HELP = () => [
-  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F5 wake +20', 'F8 freeze the vac', 'F9 this list',
+  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F4 anger +1', 'F5 wake +20', 'F8 freeze the vac', 'F9 this list',
   'With the overlay open:', 'L light preset', '1 / 2 / 3 jitter / warp / dither', '4 look: authored <-> clean',
   'URL: ?dev ?play',
 ].join('\n');
@@ -47,12 +47,19 @@ export class Debug {
     const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(32 * 3), 3));
     this.pathLine = new THREE.Line(pg, mat(0xffe060)); this.pathLine.renderOrder = 9; this.pathLine.frustumCulled = false; this.pathLine.visible = false;
     this.scene.add(this.pathLine);
+    const ring = []; for (let i = 0; i <= 40; i++) { const a = (i / 40) * Math.PI * 2; ring.push(Math.cos(a), 0, Math.sin(a)); }
+    const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.Float32BufferAttribute(ring, 3));
+    this.hearRing = new THREE.Line(rg, mat(0x70c0ff)); this.hearRing.renderOrder = 9; this.hearRing.visible = false; this.hearRing.frustumCulled = false;
+    this.scene.add(this.hearRing);
   }
 
   _drawNav() {
     const on = this.overlay.visible, v = this.vac;
     this.navLines.visible = this.pathLine.visible = on;
+    const V = TUNING.vac, r = v.anger === 1 ? V.hearNear : v.anger === 3 ? V.hearSteps : 0; // (at anger 2 he hears crashes anywhere: no ring)
+    this.hearRing.visible = on && r > 0;
     if (!on) return;
+    this.hearRing.position.set(v.x, 0.06, v.z); this.hearRing.scale.set(r, 1, r);
     const a = this.pathLine.geometry.attributes.position, Y = 0.05;
     a.setXYZ(0, v.x, Y, v.z);
     let n = 1;
@@ -69,6 +76,7 @@ export class Debug {
     if (!I.live) return;
     if (I.pressed('F2')) { this.thirdPerson = !this.thirdPerson; O.note(`third person ${this.thirdPerson ? 'on' : 'off'}`); }
     if (I.pressed('F3')) { this.player.noclip = !this.player.noclip; O.note(`noclip ${this.player.noclip ? 'on' : 'off'}`); }
+    if (I.pressed('F4')) { this.vac.setAnger(this.vac.anger + 1); O.note(`anger ${this.vac.anger}`); }
     if (I.pressed('F8')) { this.vac.frozen = !this.vac.frozen; O.note(`vac ${this.vac.frozen ? 'frozen' : 'running'}`); }
     if (I.pressed('F5')) { this.grandma.add(20); O.note(`wake ${this.grandma.wake.toFixed(0)}`); }
     if (!O.visible) return;
@@ -101,7 +109,7 @@ export class Debug {
       `${ps1.stats.calls} draw calls · ${(ps1.stats.triangles / 1000).toFixed(1)}k tris · ${ps1.width}x${ps1.height} x${ps1.scale}`,
       `pos ${P.pos.x.toFixed(2)}, ${P.feetY.toFixed(2)}, ${P.pos.z.toFixed(2)} · ${P.mode} · ${P.gait} on ${P.surface}${P.grounded ? '' : ' (air)'} · stamina ${P.stamina.toFixed(2)}`,
       `knocked ${this.knock.count}/${this.knock.list.length} · messes ${this.debris.messes.length} · last noise ${this.noise.last ? this.noise.last.kind + (this.noise.last.objectId ? ' ' + this.noise.last.objectId : '') : 'none'}`,
-      `vac ${this.vac.state}${this.vac.frozen ? ' (frozen)' : ''} · anger ${this.vac.anger} · cord ${this.vac._paid().toFixed(1)}/${TUNING.cord.length} m`,
+      `vac ${this.vac.state}${this.vac.frozen ? ' (frozen)' : ''} · anger ${this.vac.anger} · hears ${this.vac.anger === 1 ? 'near crashes' : this.vac.anger === 2 ? 'all crashes' : 'all crashes + steps'} · cord ${this.vac._paid().toFixed(1)}/${TUNING.cord.length} m`,
       `grandmaWake ${this.grandma.wake.toFixed(1)} · stage ${this.grandma.stage}`,
       `audio ${this.audio.ready ? this.audio.voices.size + ' voices' : 'not started'} · look ${settings.look} · light ${this.env.preset}`,
     ];

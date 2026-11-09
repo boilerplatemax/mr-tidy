@@ -85,6 +85,7 @@ export const SOUNDS = {
     return S.declick(S.normalise(x, 0.9), sr);
   }, 2), gain: 0.9, subtitle: 'a spark' },
   'vac.power': { gen: (sr) => S.declick(S.normalise(S.env(S.saw(S.buffer(0.7, sr), sr, (t) => 40 + 90 * t), sr, 0.2, 0.3), 0.7), sr), gain: 0.55, subtitle: 'a motor starting' },
+  'vac.slurp': { gen: (sr) => S.normalise(S.loopable(S.biquad(S.biquad(S.noise(S.buffer(1.25, sr)), sr, 'bp', (t) => 700 + 500 * Math.sin(t * 19), 2.5), sr, 'lp', 2600), sr, 0.25), 0.7), loop: true, gain: 0.55 },
   'vac.drone': { gen: drone, loop: true, gain: 0.75 },
   // Grandma: the snoring lightens through four stages; a cue marks each step toward waking
   'grandma.snore0': { gen: snore({ len: 3.4, f: 62, rasp: 1, air: 0.4, in: 0.5, out: 0.4, peak: 0.85 }), loop: true, gain: 0.9 },

@@ -79,6 +79,59 @@ function grabAttempt(kit, from, to, start, charge) {
   return { ok: id === to.id, on: id, caught };
 }
 
+/** Put him at a waypoint, calm and on patrol, with no messes about. */
+function freshVac(kit, id, anger = 1) {
+  const v = kit.vac, n = v.nav.nodes.get(id);
+  for (const m of kit.debris.messes) m.cleaned = true;
+  if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
+  v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
+  v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
+  v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
+  return v;
+}
+
+/** Hearing, investigating and cleaning. */
+function hearingChecks(kit) {
+  const v = kit.vac, K = kit.knock, N = kit.noise, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} HEAR ${name}${note ? ' (' + note + ')' : ''}`);
+  const crash = (x, z) => N.emit({ kind: 'crash', x, y: 0, z, loud: 0, room: 'test' });
+  const count = K.count; K.count = 0;
+  freshVac(kit, 'L1', 1); crash(v.x + 3, v.z);
+  report('anger 1: goes to a crash nearby', v.state === 'INVESTIGATE');
+  freshVac(kit, 'L1', 1); crash(16, -0.5);
+  report('anger 1: ignores one far away', v.state === 'PATROL');
+  freshVac(kit, 'L1', 2); crash(16, -0.5);
+  report('anger 2: hears crashes anywhere', v.state === 'INVESTIGATE');
+  freshVac(kit, 'H2', 2); N.emit({ kind: 'step', x: v.x + 2, y: 0, z: v.z });
+  report('anger 2: ignores footsteps', v.state === 'PATROL');
+  freshVac(kit, 'H2', 3); N.emit({ kind: 'step', x: v.x + 2, y: 0, z: v.z });
+  report('anger 3: hears running close by', v.state === 'INVESTIGATE');
+  freshVac(kit, 'H2', 3); N.emit({ kind: 'step', x: v.x + 6, y: 0, z: v.z });
+  report('anger 3: but not far off', v.state === 'PATROL');
+  freshVac(kit, 'H2', 3); N.emit({ kind: 'thud', x: v.x + 2, y: 0, z: v.z });
+  report('anger 3: hears heavy landings', v.state === 'INVESTIGATE');
+  freshVac(kit, 'L1', 1); K.count = TUNING.vac.angerAt[0]; crash(16, -0.5);
+  const a2 = v.anger; K.count = TUNING.vac.angerAt[1]; crash(16, -0.5);
+  report('anger rises with knock-overs', a2 === 2 && v.anger === 3, `${a2} then ${v.anger}`);
+  K.count = count;
+
+  // a real break, found and cleaned: progress stays
+  freshVac(kit, 'K1', 1);
+  const o = K.byId.get('k2Vase'), before = K.count;
+  K._knockOver(o);
+  const mess = kit.debris.messes.find((m) => m.id === 'k2Vase'), wake = kit.grandma.wake;
+  let sawClean = false, t = 0;
+  while (t < 45 && !mess.cleaned) { kit.tick(dt); t += dt; if (v.state === 'CLEAN') sawClean = true; }
+  const moved = v.state;
+  report('he goes to the mess and cleans it', sawClean && mess.cleaned, `${t.toFixed(1)} s`);
+  report('cleaning never takes progress back', kit.grandma.wake === wake && K.count === before + 1);
+  const m = new (kit.debris.cubes.instanceMatrix.array.constructor)(16); kit.debris.cubes.instanceMatrix.array.subarray(mess.cubes[0] * 16, mess.cubes[0] * 16 + 16).forEach((x, i) => { m[i] = x; });
+  report('the debris is gone', Math.abs(m[0]) + Math.abs(m[1]) + Math.abs(m[2]) < 1e-3);
+  report('he goes back on patrol', moved === 'PATROL' || moved === 'INVESTIGATE');
+  freshVac(kit, 'L1', 1);
+  return rows;
+}
+
 /** Mr. Tidy: the graph, the patrol, the cord. */
 function vacChecks(kit) {
   const v = kit.vac, W = kit.world, V = TUNING.vac, dt = 1 / 60, rows = [];
@@ -89,6 +142,8 @@ function vacChecks(kit) {
   report('every waypoint can be reached', orphan.length === 0, orphan.map((n) => n.id).join(' '));
 
   // a whole lap of the patrol: he keeps moving and stays clear of everything
+  for (const m of kit.debris.messes) m.cleaned = true;
+  v.pending = null; v.setAnger(1); v._resumePatrol();
   const seen = new Set(); let hit = 0, stalled = 0, tx = v.x, tz = v.z, i = 0, maxPaid = 0, retraces = 0, wasRetracing = false, count = v.tether.length;
   const start = v.routeI;
   for (i = 0; i < 60 * 300; i++) {
@@ -497,6 +552,7 @@ export function runRouteBot(kit) {
   rows.push(...knockChecks(kit));
   rows.push(...pocketScan(kit));
   rows.push(...vacChecks(kit));
+  rows.push(...hearingChecks(kit));
   rows.push(...grandmaChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };

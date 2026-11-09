@@ -26,6 +26,7 @@ export class Debris {
     for (let i = 0; i < D.maxDecals; i++) this.decals.setMatrixAt(i, hide);
     scene.add(this.decals);
     this.live = []; // cubes still moving
+    this.all = []; this.decalInfo = []; // every cube and decal laid down, by instance index (cleaning needs them)
     this.nextCube = 0; this.nextDecal = 0;
     this.messes = []; // what the vac will come to clean
     this._cur = null;
@@ -42,7 +43,7 @@ export class Debris {
         vx: Math.cos(a) * sp, vy: rand(D.up[0], D.up[1]), vz: Math.sin(a) * sp,
         size: rand(sizeRange[0], sizeRange[1]), rx: rand(0, 6), ry: rand(0, 6), rz: rand(0, 6), wx: rand(-14, 14), wy: rand(-14, 14), wz: rand(-14, 14), bounces: 0,
       };
-      this.live.push(c);
+      this.live.push(c); this.all[c.i] = c;
       out.push(c.i);
     }
     return out;
@@ -57,9 +58,30 @@ export class Debris {
     _s.set(size, 1, size);
     this.decals.setMatrixAt(i, _m.compose(_p, _q, _s));
     this.decals.setColorAt(i, _c.setHex(color));
+    this.decalInfo[i] = { y: _p.y, x, z, size, yaw };
     this.decals.instanceMatrix.needsUpdate = true;
     this.decals.instanceColor.needsUpdate = true;
     return i;
+  }
+
+  /** One moment of a mess being sucked up. u: 0..1. The cubes fly to (hx, hy, hz) and shrink; the decal shrinks away. */
+  cleanStep(mess, u, hx, hy, hz) {
+    const e = u * u;
+    for (const i of mess.cubes) {
+      const c = this.all[i], k = this.live.indexOf(c);
+      if (k >= 0) { c.vx = c.vz = 0; this.live.splice(k, 1); }
+      _p.set(c.x + (hx - c.x) * e, c.y + (hy - c.y) * e, c.z + (hz - c.z) * e);
+      _q.setFromEuler(_e.set(c.rx + e * 8, c.ry + e * 8, c.rz));
+      _s.setScalar(c.size * Math.max(0, 1 - e));
+      this.cubes.setMatrixAt(i, _m.compose(_p, _q, _s));
+    }
+    this.cubes.instanceMatrix.needsUpdate = true;
+    if (mess.decal >= 0) {
+      const d = this.decalInfo[mess.decal];
+      _p.set(d.x, d.y, d.z); _q.setFromAxisAngle(_up, d.yaw); _s.set(d.size * (1 - u), 1, d.size * (1 - u));
+      this.decals.setMatrixAt(mess.decal, _m.compose(_p, _q, _s));
+      this.decals.instanceMatrix.needsUpdate = true;
+    }
   }
 
   /** Per fixed tick. */

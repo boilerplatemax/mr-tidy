@@ -148,6 +148,14 @@ export const TUNING = {
     speed: [0.8, 1.4, 2.4], // m/s by anger level 1, 2, 3
     turnRate: 2.4, // rad/s
     arrive: 0.14, // m from a waypoint at which he moves on
+    angerAt: [5, 10], // knock-overs that raise him to anger 2 and 3
+    hearNear: 7, // m: at anger 1 he only investigates crashes this close. From anger 2 he hears them anywhere
+    hearSteps: 4, // m: at anger 3 he also hears running footsteps and heavy landings this close. Slink and walk are silent to him
+    investigateMul: 1.25, // he goes to a noise this much faster than he patrols
+    cleanTime: 2.2, // s to suck up a mess: the player's window to get away or set up the next crash
+    cleanSee: 1.4, // m: a mess this close, in plain sight, stops him to clean it
+    cleanReach: 2.2, // m: when he arrives at a noise, a mess within this is what he cleans
+    spotEvery: 0.25, // s between looking around for messes
     model: {
       scaleY: 0.45, scaleXZ: 0.58, // the model is 1 unit tall and 0.78 wide: this makes it a squat 0.45 m drum, 0.45 m across
       holeY: 0.115, holeR: 0.09, holeZ: 0.2225, // the black mouth (m): height, radius, how far forward

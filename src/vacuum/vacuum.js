@@ -1,5 +1,5 @@
-// Mr. Tidy. For now he patrols: he glides his fixed loop round the house on the waypoint graph, on the end of his cord. The
-// other states (INVESTIGATE, CLEAN, CHASE, SEARCH, HOSE_REACH, CATCH) join in later steps.
+// Mr. Tidy. He patrols his loop round the house on the waypoint graph, on the end of his cord; he goes to noises he can
+// hear, and cleans the messes he finds. Cleaning is cosmetic: the noise already reached Grandma.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { LEVEL } from '../data/level.js';
@@ -13,8 +13,10 @@ const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 const _s = new THREE.Vector3();
 
 export class Vacuum {
-  constructor({ scene, world, camera }) {
-    this.world = world;
+  constructor({ scene, world, camera, noise, knock, debris }) {
+    this.world = world; this.knock = knock; this.debris = debris; this.camera = camera;
+    noise.on((ev) => this._hear(ev));
+    this.pending = null; this.mess = null; this.cleanT = 0; this.spotT = 0; this.slurp = null; this._h = { x: 0, y: 0, z: 0 }; this._a = { x: 0, y: 0, z: 0 }; this._b = { x: 0, y: 0, z: 0 };
     this.model = buildVacuum();
     scene.add(this.model.root);
     this.nav = new Nav();
@@ -138,6 +140,7 @@ export class Vacuum {
    * back along it to the nearest point from which there is. Going back over the cord reels it in.
    */
   planTo(target) {
+    if (this._retracing()) this.tether.pop(); // changed his mind mid-reel-in: that stretch is already back on the reel
     const T = this.tether, nav = this.nav, along = [0];
     for (let i = 1; i < T.length; i++) along.push(along[i - 1] + nav.lengthOf([T[i - 1], T[i]]));
     const top = T.length - 1;
@@ -161,6 +164,83 @@ export class Vacuum {
     this.pathI = 0;
   }
 
+  // ---- hearing, investigating, cleaning
+  /** Where the middle of the hole is, in the world. */
+  _hole() {
+    const h = this._h, M = V.model;
+    h.x = this.x + Math.sin(this.heading) * M.holeZ; h.y = M.holeY; h.z = this.z + Math.cos(this.heading) * M.holeZ;
+    return h;
+  }
+
+  _hear(ev) {
+    if (this.off || this.plugState !== 'in') return;
+    if (ev.kind === 'crash') { // every knock-over can raise his anger, whether he hears it or not
+      const c = this.knock.count, want = c >= V.angerAt[1] ? 3 : c >= V.angerAt[0] ? 2 : 1;
+      if (want > this.anger) this.setAnger(want);
+    }
+    const d = Math.hypot(ev.x - this.x, ev.z - this.z);
+    const heard = ev.kind === 'crash' ? this.anger >= 2 || d <= V.hearNear : this.anger >= 3 && d <= V.hearSteps;
+    if (heard) this._investigate(ev.x, ev.z);
+  }
+
+  _investigate(x, z) {
+    if (this.state === 'CLEAN') { this.pending = { x, z }; return; } // he finishes the job in hand first
+    this.state = 'INVESTIGATE';
+    this.routeTo(this.nav.nearest(x, z));
+  }
+
+  routeTo(node) { this.path = this.planTo(node); this.pathI = 0; }
+
+  /** Back to the patrol, at whichever stop of the loop is nearest. */
+  _resumePatrol() {
+    this.state = 'PATROL';
+    let best = 0, bd = Infinity;
+    this.route.forEach((n, i) => { const d = (n.x - this.x) ** 2 + (n.z - this.z) ** 2; if (d < bd) { bd = d; best = i; } });
+    this.routeI = best;
+    this.routeTo(this.route[best]);
+  }
+
+  _nearestMess(radius, needSight) {
+    let best = null, bd = radius;
+    for (const m of this.debris.messes) {
+      if (m.cleaned) continue;
+      const d = Math.hypot(m.x - this.x, m.z - this.z);
+      if (d >= bd) continue;
+      if (needSight) { const a = this._a, b = this._b; a.x = this.x; a.y = 0.3; a.z = this.z; b.x = m.x; b.y = 0.1; b.z = m.z; if (this.world.countOccluders(a, b, 1, true)) continue; }
+      bd = d; best = m;
+    }
+    return best;
+  }
+
+  _startClean(m) {
+    this.state = 'CLEAN'; this.mess = m; this.cleanT = 0;
+    this.slurp = audio.play('vac.slurp', { follow: this.model.hoseSocket, rolloff: 0, gain: 1 });
+  }
+
+  _tickClean(dt) {
+    this.cleanT += dt / V.cleanTime;
+    const u = Math.min(1, this.cleanT), h = this._hole();
+    this.debris.cleanStep(this.mess, u, h.x, h.y, h.z);
+    if (u < 1) return;
+    this.mess.cleaned = true; this.mess = null;
+    this.state = 'PATROL'; // (done cleaning, whatever comes next)
+    this.slurp?.stop(0.15); this.slurp = null;
+    const p = this.pending; this.pending = null;
+    if (p) { this._investigate(p.x, p.z); return; }
+    const near = this._nearestMess(V.cleanSee, true);
+    if (near) this._startClean(near); else this._resumePatrol();
+  }
+
+  /** The end of the route he was on. */
+  _routeEnd() {
+    if (this.state === 'INVESTIGATE') {
+      const m = this._nearestMess(V.cleanReach, false);
+      if (m) this._startClean(m); else this._resumePatrol();
+      return;
+    }
+    this._nextLeg();
+  }
+
   /** Reached a waypoint: the cord now lies to here, or, if he came back over it, has reeled in to here. */
   _arrived(n) {
     const T = this.tether;
@@ -175,10 +255,17 @@ export class Vacuum {
     if (this.plugLock > 0) this.plugLock -= dt;
     if (this.plugState !== 'in' && !this.off) { this._tickPlug(dt); return; }
     if (this.frozen || this.off) return;
+    if (this.state === 'CLEAN') { this._tickClean(dt); return; }
+    this.spotT -= dt;
+    if (this.spotT <= 0) { // a mess right in front of him stops him on his way
+      this.spotT = V.spotEvery;
+      const m = this._nearestMess(V.cleanSee, true);
+      if (m) { this._startClean(m); return; }
+    }
     let target = this.path[this.pathI];
     if (Math.hypot(target.x - this.x, target.z - this.z) < V.arrive) {
       this._arrived(target);
-      if (this.pathI >= this.path.length - 1) this._nextLeg();
+      if (this.pathI >= this.path.length - 1) { this._routeEnd(); if (this.state === 'CLEAN') return; }
       else this.pathI++;
       target = this.path[this.pathI];
     }
@@ -186,7 +273,7 @@ export class Vacuum {
     const want = Math.atan2(dx, dz), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
     this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
     // he glides: full speed when pointed the right way, and swings round almost on the spot when he isn't
-    const speed = V.speed[this.anger - 1] * Math.max(0, Math.cos(diff));
+    const speed = V.speed[this.anger - 1] * (this.state === 'INVESTIGATE' ? V.investigateMul : 1) * Math.max(0, Math.cos(diff));
     this.x += Math.sin(this.heading) * speed * dt;
     this.z += Math.cos(this.heading) * speed * dt;
   }
