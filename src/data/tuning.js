@@ -192,7 +192,7 @@ export const TUNING = {
     windup: 0.5, // s for the nozzle to get into position before it can catch you
     reach: 1.2, minR: 0.45, // m: the sweep passes at the cat's distance, within these
     arc: 0.9, rate: [0, 0, 2.6, 3.6], speed: 5, // rad either side of where he faces; how fast it swings, by stage; m/s the nozzle can move
-    pullRadius: 0.8, pull: 1.2, // m from the nozzle that drags a cat on the ground in, and m/s at its strongest. A run beats it; a slink doesn't
+    pullRadius: 0.8, pull: 0.8, // m from the nozzle that drags a cat on the ground in, and m/s at its strongest. A run beats it; a slink doesn't
   },
   blast: { // the dust blast: he spits a glob of dirt at a cat he can see (src/vacuum/blast.js)
     minAnger: 3, cooldown: [0, 0, 8, 5], // from the angry stage; s between blasts by stage
@@ -216,7 +216,7 @@ export const TUNING = {
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
     restReach: 0.7, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up
     track: 34, trailStep: 0.06, // 1/s: how fast the body settles onto its trail; m between trail points
-    cell: 0.12, clearance: 0.03, searchLimit: 6000, // the 3D grid: m per cell, m kept clear of surfaces, the most cells one search may look at
+    cell: 0.12, clearance: 0.03, searchLimit: 20000, // the 3D grid: m per cell, m kept clear of surfaces, the most cells one search may look at
     replan: 0.2, arch: 0.3, arcPoints: 8, // s between re-thinking its route; how far under the tip it comes up from; points on that curve
     retractSpeed: 7, // m/s reeling back in
     reachH: 2.2, reachTop: 1.8, // m: how far out from the hole, and how high a cat it will go for. Above reachTop is safe
@@ -235,8 +235,13 @@ export const TUNING = {
     cleanSpeed: 3, cleanTimeout: 2.0, // m/s the nozzle goes out to a mess; s he'll wait for it to get there before he just starts
   },
   catch: { // the catch: the most important moment in the game (src/vacuum/catch.js)
-    drag: 0.7, // s along the hose, speeding up
-    shake: 0.03, // m of screen shake at the start of the drag
+    // The ride: you're reeled across the floor along a route of its own that keeps the camera out of everything.
+    rideSpeed: 3.0, rideMin: 0.55, rideMax: 1.6, // m/s on average; shortest and longest it can take (s)
+    clearance: 0.12, minY: 0.12, // m the camera keeps from every surface (more than the near plane reaches); m it stays above the floor
+    smooth: 4, step: 0.04, // the route is resampled every step m and averaged over this many samples either way, to round its corners
+    lookAhead: 0.35, lookEase: 9, lookFaceFrom: 0.35, // m ahead it looks; 1/s how fast the view follows; share of the ride after which the view starts turning to his face
+    shake: 0.006, // m of screen shake at the start of the ride
+    hoseBelow: 0.07, hoseAhead: 0.05, // m: where the nozzle sits on you during the ride
     turn: 0.16, // s to turn and face him at the end of it
     hold: 1.2, // s held on his face
     faceJitter: 0.0035, // m his face trembles

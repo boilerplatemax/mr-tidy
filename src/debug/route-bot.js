@@ -449,17 +449,19 @@ function catchChecks(kit) {
   const startPos = cam.position.clone(), hosePts = v.hose.pts.map((p) => p.clone());
   v._catch('hose');
   report('control locks and the camera starts moving', Q.active && Q.phase === 'drag' && P.frozen && v.caught);
-  const froze = v.hose.pts.every((p, i) => p.distanceTo(hosePts[i]) < 1e-6);
+  const clearOf = (p, r) => kit.world.penetration(p.x, p.z, r, p.y - r, p.y + r, null, p.y - r) <= 0;
   kit.tick(dt);
-  report('the hose holds still for the ride', froze && v.hose.pts.every((p, i) => p.distanceTo(hosePts[i]) < 1e-6));
-  let dragT = 0, away = 0, last = cam.position.distanceTo(Q.end), nearHose = 1e9, rolled = false;
+  report('the hose is still during game ticks: the ride moves it', v.hose.pts.every((p, i) => p.distanceTo(hosePts[i]) < 1e-6));
+  let dragT = 0, away = 0, last = cam.position.distanceTo(Q.end), nearHose = 1e9, rolled = false, hit = 0, top = 0, prev = cam.position.clone();
   while (Q.phase === 'drag' && dragT < 3) {
     Q.update(dt); dragT += dt;
     const d = cam.position.distanceTo(Q.end); if (d > last + 0.2) away++; last = d;
-    for (const p of hosePts) nearHose = Math.min(nearHose, cam.position.distanceTo(p));
-    if (Math.abs(cam.rotation.z) > 0.3) rolled = true;
+    nearHose = Math.min(nearHose, v.hose.tip.distanceTo(cam.position));
+    if (!clearOf(cam.position, 0.05)) hit++;
+    top = Math.max(top, cam.position.distanceTo(prev) / dt); prev.copy(cam.position);
+    if (Math.abs(cam.rotation.z) > 0.6) rolled = true;
   }
-  report('dragged along the real hose path in about 0.7 s', Math.abs(dragT - K.drag) < 0.05 && nearHose < 0.1 && away <= 1, `${dragT.toFixed(2)} s, passes ${nearHose.toFixed(3)} m from the hose`);
+  report('reeled in calmly, on a route clear of everything', dragT >= K.rideMin - 0.05 && dragT <= K.rideMax + 0.05 && hit === 0 && top < 8 && nearHose < 0.2 && away <= 1, `${dragT.toFixed(2)} s, top speed ${top.toFixed(1)} m/s, nozzle ${nearHose.toFixed(2)} m away, ${hit} clips`);
   report('no spinning on the way', !rolled);
   let holdT = 0; while (Q.phase === 'hold' && holdT < 4) { Q.update(dt); holdT += dt; }
   report('holds on his face for 1.2 s', Math.abs(holdT - K.hold) < 0.05, `${holdT.toFixed(2)} s`);
@@ -467,11 +469,22 @@ function catchChecks(kit) {
   v.model.root.updateMatrixWorld(true);
   const toVac = new (cam.position.constructor)().setFromMatrixPosition(v.model.root.matrixWorld).setY((TUNING.vac.model.faceY + TUNING.vac.model.holeY) / 2).sub(cam.position).normalize();
   report('and it is looking straight at him', dir.dot(toVac) > 0.98, dir.dot(toVac).toFixed(3));
+  { const h = v.heading, want = Math.atan2(Q.end.x - v.x, Q.end.z - v.z); report('he has turned to face you', Math.abs(Math.atan2(Math.sin(h - want), Math.cos(h - want))) < 0.05); }
   report('face furious, in front of the hole', v.model.face.material.map === v.model.faces[4] && cam.position.distanceTo(Q.end) < 0.001);
   report('hard cut to black', !Q.cut.hidden && Q.phase === 'black');
   let beat = 0; while (Q.phase === 'black' && beat < 3) { Q.update(dt); beat += dt; }
   report('a beat, then Try again', Math.abs(beat - K.beat) < 0.05 && !kit.endScreen.el.hidden && Q.phase === 'done');
   void startPos; void end0;
+  // the ride from every awkward place: the camera never enters anything
+  { let bad = 0, rides = 0; const spots = [[8.5, 0.751, 2.9], [10.4, 0.901, 3.7], [4.05, 1.701, 5.1], [10.35, 1.721, 4.95], [7.1, 0.001, 4.35], [11.7, 0.001, -0.45], [13.2, 1.101, 3.5], [1.2, 1.701, 0.55], [3.0, 2.051, 5.11], [5.55, 1.951, 5.2]];
+    const nodes = ['K4', 'K3', 'L5', 'K2', 'Ld', 'Hs', 'S1', 'L3', 'L4', 'L1'];
+    spots.forEach(([x, y, z], i) => {
+      Q.reset(); kit.endScreen.el.hidden = true; freshVac(kit, nodes[i], 3); P.noclip = false; P.frozen = false; P.resetMotion(); P.teleport(x, y, z, i); P.tick(dt); P.render(1); cam.updateMatrixWorld(true); v.frame(1);
+      v._catch('hose'); rides++;
+      for (let k = 0; k < 200 && Q.phase === 'drag'; k++) { Q.update(dt); if (!clearOf(cam.position, 0.04) && Q.t > 0.12) bad++; }
+      Q.reset(); v.caught = false;
+    });
+    report('ridden from ten awkward spots, the camera never enters anything', bad === 0, `${rides} rides, ${bad} clips`); }
   // tidy up for the win check that follows
   Q.reset(); kit.endScreen.el.hidden = true; kit.audio.resume(); P.frozen = false; v.caught = false; freshVac(kit, 'L1', 1); P.noclip = true;
   return rows;

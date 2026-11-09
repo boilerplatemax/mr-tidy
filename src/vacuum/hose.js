@@ -55,6 +55,15 @@ export class Hose {
     for (let i = 0; i <= this.n; i++) { this.pts[i].copy(this.want[i]); this.prev[i].copy(this.want[i]); }
   }
 
+  /** The catch: the hose is simply this list of points, from the hole out to the nozzle. */
+  lay(points) {
+    this.trail.length = 0; this.active = true; this.plan = null;
+    for (const p of points) this.trail.push(p.clone());
+    this.tipPos.copy(points[points.length - 1]);
+    this._resample();
+    for (let i = 0; i <= this.n; i++) { this.pts[i].copy(this.want[i]); this.prev[i].copy(this.want[i]); this.old[i].copy(this.want[i]); }
+  }
+
   _begin(base, s, c) { // from where the nozzle was lying
     this.active = true; this.plan = null; this.planT = 0; this.arrived = this.maxed = this.stuck = false; this.len = 0;
     this.trail.length = 0;
