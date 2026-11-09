@@ -172,8 +172,39 @@ export const TUNING = {
     barWidth: 100, barBottom: 12, // HUD px
     barHold: 0.5, // s the bar stays after refilling
   },
+  // ---------------------------------------------------------------- the swipe and knockable physics (src/world/knockables.js)
+  swipe: {
+    reach: 0.55, // m from the eye to an object's centre
+    cone: 0.68, // cos of the half-angle: how far off-centre an object can be and still get hit
+    time: 0.24, // s: the whole swipe animation
+    impactAt: 0.07, // s into the swipe when objects get hit
+    cooldown: 0.32, // s between swipes
+    impulse: 0.6, // shove strength: speed = impulse / mass. Light things fly, heavy things inch
+    maxSpeed: 3.2, // m/s: a cap, so a very light thing doesn't launch across the house
+    sideBias: 0.18, // how much the shove also goes the way the paw sweeps (to the left)
+  },
+  knock: {
+    friction: 3.2, // m/s² of sliding slowdown. Higher: objects stop sooner, more swipes to reach an edge
+    stopSpeed: 0.03, // m/s: slower than this and it's at rest
+    supportR: 0.01, // m: an object is supported if its centre is over a surface. This is the "centre passes the edge" test
+    wallBounce: 0.3, objBounce: 0.3, // how much speed survives hitting a wall / another object
+    gravity: 18, // m/s²
+    tipTime: 0.12, tipRate: 5, tipSpeed: 0.45, tipGravity: 0.45, // tipping over an edge: s, rad/s, m/s minimum outward, share of gravity
+    spin: 14, // rad/s of random tumble as it falls
+    bounce: 0.3, bounceMin: 1.2, bounceKeep: 0.55, // first-hit bounce: share of impact speed, least impact to bounce, share of sideways speed kept
+  },
+  knockTypes: { // shape, size (m) and mass (kg-ish: only the ratio to swipe.impulse matters)
+    mug: { shape: 'cyl', r: 0.042, h: 0.095, mass: 0.2 },
+    plate: { shape: 'cyl', r: 0.1, h: 0.025, mass: 0.25 },
+    vase: { shape: 'cyl', r: 0.06, h: 0.24, mass: 0.55 },
+    book: { shape: 'box', w: 0.16, h: 0.04, d: 0.22, mass: 0.9 },
+  },
   paws: {
-    color: 0xa89a88, glow: 0x2a241e, // a little light of its own, so an underside is not black
+    color: 0xa89a88, glow: 0x2a241e, // a little light of its own, so an underside isn't black
+    idleX: 0.1, idleY: -0.08, idleZ: -0.19, idleLeg: 0.75, idleYaw: 0.25, // the paw at rest, bottom-right of the view (camera space)
+    swipeEndX: -0.09, swipeLift: 0.045, swipeReach: 0.07, swipeYaw: -0.9, swipeOut: 0.42, // the arc across the screen; swipeOut: share of the swipe spent going out
+    bobY: 0.6, bobX: 0.5, // how much of the head-bob the paw picks up
+    wiggleAmp: 0.0045, wiggleRate: 30, // m, rad/s: the pounce wiggle at full charge
     hangSpread: 0.055, hangIn: 0.03, hangLift: 0.014, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
     tremble: 0.0035, trembleRate: 46, // m, rad/s: the paws shake harder as stamina runs out
     drop: 0.08, ease: 18, // m below the lip as it appears, 1/s ease in and out
@@ -221,6 +252,7 @@ export const TUNING = {
       furniture: 0x8a857c, // sides of furniture
       ceiling: 0x77777c, ceilingLine: 0x3c3c42, ceilingGlow: 0.55, // the ceiling: tile colour, tile lines, how much it lights itself (nothing shines on it from below)
       wallTop: 0x3a3a3e, outside: 0x202024,
+      knockable: 0xece6d8, // anything you can knock over
       climb: '#2fb3a4', climbDark: '#17665e', // every climbable surface, whatever it is, is this colour
       grandmaDoor: 0x7a1414, doorStrip: 0xffd28a, outlet: 0xb8b4a8,
     },

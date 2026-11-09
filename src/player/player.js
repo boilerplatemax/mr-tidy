@@ -5,7 +5,7 @@ import { TUNING } from '../data/tuning.js';
 import { settings } from '../data/settings.js';
 import { audio } from '../audio/audio.js';
 
-const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge, C = TUNING.climb, ST = TUNING.stamina;
+const P = TUNING.player, J = TUNING.jump, L = TUNING.ledge, C = TUNING.climb, ST = TUNING.stamina, SW = TUNING.swipe;
 const expK = (rate, dt) => 1 - Math.exp(-rate * dt);
 
 export class Player {
@@ -34,6 +34,8 @@ export class Player {
     this.aim = { ok: false, kind: 'land', x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, col: null }; // where a jump released now would end (the target marker and shimmer read this)
     this._o = { x: 0, y: 0, z: 0 }; this._rd = { x: 0, y: 0, z: 0 }; this._solid = (c) => c.solid;
     this.groundCollider = null; // what the cat is standing on (null: the floor)
+    this.swipeT = -1; this.prevSwipeT = -1; this.swipeCd = 0; this.swipeHit = false;
+    this.onSwipe = null; // () when the paw connects: the knockables hook in here
     this.stamina = 1; this.clawLock = 0;
     this.climb = { col: null, x: 0, z: 0 };
     // 'move' | 'hang' | 'mantle' | 'climb' | 'slide'
@@ -86,6 +88,7 @@ export class Player {
 
   tick(dt) {
     this.prev.x = this.pos.x; this.prev.z = this.pos.z; this.prevEyeFeet = this.eyeFeet;
+    this.prevSwipeT = this.swipeT;
     this.prevSlink = this.slink; this.prevBobWeight = this.bobWeight; this.prevBobPhase = this.bobPhase; this.prevBobGait = this.bobGait;
     if (this.noclip) { this._fly(dt); return; }
     this._wish();
@@ -103,7 +106,21 @@ export class Player {
       if (this.mode === 'move' && !this.grounded) this._tryGrab();
       if (this.mode === 'move' && this.grounded) this.stamina = Math.min(1, this.stamina + ST.regen * dt);
     }
+    this._swipe(dt);
     this._eyeAndSteps(dt);
+  }
+
+  // Left click: the paw swipes across the view and bats whatever is in front of it.
+  _swipe(dt) {
+    if (this.swipeCd > 0) this.swipeCd -= dt;
+    if (this.swipeT >= 0) {
+      this.swipeT += dt;
+      if (!this.swipeHit && this.swipeT >= SW.impactAt) { this.swipeHit = true; this.onSwipe?.(); }
+      if (this.swipeT >= SW.time) this.swipeT = -1;
+    } else if (this.input.pressed('Mouse0') && this.swipeCd <= 0 && this.mode === 'move' && !this.frozen) {
+      this.swipeT = 0; this.swipeHit = false; this.swipeCd = SW.cooldown;
+      audio.play('paw.swipe', { rate: 0.95 + Math.random() * 0.15 });
+    }
   }
 
   /** The keys, as a move direction relative to the view (wfwd, wside) and a world-space unit wish (wx, wz). */

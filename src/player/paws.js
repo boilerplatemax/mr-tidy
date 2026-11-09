@@ -6,7 +6,8 @@ import { TUNING } from '../data/tuning.js';
 import { makePS1 } from '../render/ps1-material.js';
 import { LAYER_VIEWMODEL } from '../render/ps1-renderer.js';
 
-const V = TUNING.paws;
+const V = TUNING.paws, SW = TUNING.swipe;
+const ease = (t) => t * t * (3 - 2 * t);
 
 function buildPaw(mat) {
   const g = new THREE.Group();
@@ -55,14 +56,33 @@ export class Paws {
     paw.userData.leg.scale.z = V.hangLegLen; // ...and reaches down past the bottom of the view
   }
 
+  /** The right paw at rest bottom-right, or partway through a swipe across the view. */
+  _idle(player, alpha) {
+    const p = this.right, leg = p.userData.leg;
+    leg.rotation.x = V.idleLeg; leg.scale.z = 1;
+    let t = 0;
+    if (player.swipeT >= 0) {
+      const a = player.prevSwipeT >= 0 ? player.prevSwipeT + (player.swipeT - player.prevSwipeT) * alpha : player.swipeT;
+      const u = Math.min(1, a / SW.time);
+      t = u < V.swipeOut ? ease(u / V.swipeOut) : 1 - ease((u - V.swipeOut) / (1 - V.swipeOut));
+    }
+    const arc = Math.sin(t * Math.PI), c = player.charge;
+    const bob = player.bobA * player.bobW;
+    const bobY = -bob * V.bobY * (0.5 + 0.5 * Math.cos(player.bobPh * Math.PI));
+    const bobX = Math.sin(player.bobPh * Math.PI) * bob * V.bobX;
+    const wig = Math.sin(player.time * V.wiggleRate) * V.wiggleAmp * c; // the pounce wiggle (build prompt 4.2: on the paws, not the camera)
+    p.position.set(V.idleX + (V.swipeEndX - V.idleX) * t + bobX + wig, V.idleY + arc * V.swipeLift + bobY + Math.abs(wig), V.idleZ - arc * V.swipeReach);
+    p.rotation.set(0, V.idleYaw + (V.swipeYaw - V.idleYaw) * t, 0);
+  }
+
   /** Per rendered frame, after the camera is placed. hidden: third-person debug view. */
-  frame(player, dt, hidden = false) {
-    const gripping = player.mode === 'hang' || player.mode === 'mantle';
+  frame(player, dt, alpha, hidden = false) {
+    const gripping = (player.mode === 'hang' || player.mode === 'mantle') && !!player.hang.col;
     this.grip += ((gripping ? 1 : 0) - this.grip) * (1 - Math.exp(-V.ease * dt));
-    const show = this.grip > 0.02 && !hidden && !!player.hang.col;
-    this.left.visible = this.right.visible = show;
-    if (!show) return;
-    this._plant(this.left, player, -1);
-    this._plant(this.right, player, 1);
+    this.left.visible = gripping && !hidden;
+    this.right.visible = !hidden;
+    if (hidden) return;
+    if (gripping) { this._plant(this.left, player, -1); this._plant(this.right, player, 1); }
+    else this._idle(player, alpha);
   }
 }

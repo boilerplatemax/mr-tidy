@@ -46,5 +46,8 @@ export const SOUNDS = {
   'foot.land': { gen: v((sr) => thud(sr, 120, 0.14), 2), gain: 0.4 }, // a soft landing
   'cat.grab': { gen: v((sr) => thud(sr, 240, 0.08), 2), gain: 0.3 }, // claws catch the edge
   'cat.huff': { gen: v((sr) => thud(sr, 180, 0.1), 1), gain: 0.2 }, // a held jump given up
+  'paw.swipe': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.12, sr)), sr, 'bp', (t) => 900 + 1800 * t, 1.2), sr, 0.02, 0.03), 0.6), sr), 3), gain: 0.22 },
+  'knock.clink': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.07, sr)), sr, 'bp', rand(1800, 3000), 5), sr, 0.0005, 0.016), 0.8), sr), 4), gain: 0.4 },
+  'knock.thud': { gen: v((sr) => thud(sr, 95, 0.2, 0.3), 3), gain: 0.7 },
   'foot.thud': { gen: v((sr) => thud(sr, 62, 0.28), 2), gain: 0.75 }, // a big drop: the vac can hear this one
 };

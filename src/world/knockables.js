@@ -129,8 +129,9 @@ export class Knockables {
     this._spin(o, dt);
     o.x += o.vx * dt; o.z += o.vz * dt;
     o.vy -= K.gravity * dt; o.y += o.vy * dt;
-    this.world.resolve(o, o.r, o.y + 0.012, o.y + o.h, this._clip, 3, o.y);
+    // landing first: on the tick it passes a surface's top, that surface is under it, not a wall to be pushed out of
     this._landing(o, dt);
+    if (o.state === 'fall') this.world.resolve(o, o.r, o.y + 0.012, o.y + o.h, this._clip, 3, o.y);
   }
 
   /** Coming down onto the floor or any surface below (it lands on a chair or a lower shelf, it doesn't clip through). */

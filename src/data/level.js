@@ -121,6 +121,17 @@ export const LEVEL = {
 
   // The links a player must be able to jump, checked against TUNING (src/world/route-check.js). Every one is two-way
   // unless oneWay. grab: true means a clean jump isn't enough, the link is meant to need a ledge grab.
+  // Knockables: { id, type (TUNING.knockTypes), on (a solid's id), x, z }. Height comes from the surface, so nothing floats.
+  // A test set for step 7; the full 20, weighted toward the far end of the hallway, arrive with breaking in step 8.
+  knockables: [
+    { id: 'mug1', type: 'mug', on: 'coffeeTable', x: 3.15, z: 2.35 },
+    { id: 'mug2', type: 'mug', on: 'c1', x: 7.2, z: 0.5 },
+    { id: 'book1', type: 'book', on: 'c1', x: 7.7, z: 0.35 },
+    { id: 'vase1', type: 'vase', on: 'sideTable', x: 10.35, z: -1.1 },
+    { id: 'plate1', type: 'plate', on: 'book4', x: 1.76, z: 5.18 },
+    { id: 'mug3', type: 'mug', on: 'k1', x: 7.1, z: 5.18 },
+  ],
+
   // Links that need a ledge grab (a clean jump can't reach). from: a solid id, or 'floor' with a start point.
   grabLinks: [
     ['floor', 'plantStand', { x: 15.0, z: -0.62 }],

@@ -17,6 +17,7 @@ import { HudLayer } from './ui/pixel-label.js';
 import { Menu } from './ui/menu.js';
 import { DevOverlay } from './ui/dev-overlay.js';
 import { buildHouse } from './world/house.js';
+import { Knockables } from './world/knockables.js';
 import { Debug } from './debug/debug.js';
 import { LandingMarker } from './player/landing-marker.js';
 import { Paws } from './player/paws.js';
@@ -44,6 +45,8 @@ const player = new Player(camera, world, input);
 const house = buildHouse({ scene, world });
 PS1.setLightZones(house.zones);
 PS1.setIndoorBoxes(house.indoor);
+const knock = new Knockables({ scene, world, byId: house.byId });
+player.onSwipe = () => knock.swipe(player, camera);
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
@@ -84,6 +87,7 @@ function tick(dt) {
   debug.tick();
   if (input.live) {
     player.tick(dt);
+    knock.tick(dt);
     house.tick(dt, player.pos);
   }
   input.consumeEdges();
@@ -102,7 +106,8 @@ function frame(alpha, dt, frameMs) {
     debug.frame();
     marker.update(player.aim);
     shimmer.update(player.aim, wallTime);
-    paws.frame(player, dt, debug.thirdPerson);
+    paws.frame(player, dt, input.live ? alpha : 1, debug.thirdPerson);
+    knock.frame(input.live ? alpha : 1);
     staminaBar.frame(player, dt);
   }
   env.update(camera);
@@ -119,7 +124,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

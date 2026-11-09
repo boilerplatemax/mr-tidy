@@ -78,6 +78,43 @@ function grabAttempt(kit, from, to, start, charge) {
   return { ok: id === to.id, on: id, caught };
 }
 
+/** The swipe and knockable physics with the real objects. */
+function knockChecks(kit) {
+  const P = kit.player, I = kit.input, K = kit.knock, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} KNOCK ${name}${note ? ' (' + note + ')' : ''}`);
+  const settle = (o) => { for (let i = 0; i < 300 && o.state !== 'rest'; i++) kit.tick(dt); };
+  const stand = (x, y, z, yaw, pitch = 0) => { I.keys.clear(); I.edges.clear(); P.frozen = false; P.resetMotion(); P.teleport(x, y + 0.001, z, yaw); P.yaw = yaw; P.pitch = pitch; for (let i = 0; i < 6 && !P.grounded; i++) kit.tick(dt); P.render(1); kit.camera.updateMatrixWorld(); };
+
+  // a real click: the paw knocks a mug off the coffee table
+  const mug = K.byId.get('mug1');
+  stand(3.42, 0.42, 2.35, Math.PI / 2, -0.25);
+  I.edges.add('Mouse0'); kit.tick(dt);
+  for (let i = 0; i < 12; i++) kit.tick(dt);
+  const hit = mug.state !== 'rest';
+  settle(mug);
+  report('click swipes a mug off the table', hit && mug.y === 0, `ended at ${mug.x.toFixed(2)}, ${mug.y.toFixed(2)}, ${mug.z.toFixed(2)}`);
+
+  // a heavy book only inches: it takes several swipes to reach the edge
+  const book = K.byId.get('book1');
+  let swipes = 0;
+  while (swipes < 20 && book.y > 0.5) {
+    stand(book.x - 0.3, 0.9, book.z, -Math.PI / 2, -0.3);
+    K.swipe(P, kit.camera); swipes++;
+    settle(book);
+  }
+  report('a heavy book takes several swipes', swipes >= 2 && swipes <= 8 && book.y === 0, `${swipes} swipes`);
+
+  // falling onto a lower surface: it lands there, it doesn't clip through
+  const plate = K.byId.get('plate1');
+  K.shove(plate, -1, 0, 1.2);
+  settle(plate);
+  report('plate lands on the lower shelf', Math.abs(plate.y - 1.4) < 0.01, `ended at height ${plate.y.toFixed(2)}`);
+
+  // nothing is left in a broken state
+  report('every object has finite numbers', K.list.every((o) => Number.isFinite(o.x + o.y + o.z + o.q.w)));
+  return rows;
+}
+
 /** Claw climbing with the real controller: to the top, out of stamina, and a kick-off. */
 function climbChecks(kit) {
   const P = kit.player, I = kit.input, dt = 1 / 60, rows = [];
@@ -171,6 +208,7 @@ export function runRouteBot(kit) {
     }
   }
   rows.push(...climbChecks(kit));
+  rows.push(...knockChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
 }

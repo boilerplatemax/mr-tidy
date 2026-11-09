@@ -24,8 +24,10 @@ Open <http://localhost:8080> and click **Begin**.
 | Space (hold, release) | Charge and jump. Tap for a hop. An outline marks where a charged jump will land |
 | Space while hanging | Pull up |
 | S or C while hanging | Let go |
-| W into a striped surface | Claw climb (uses stamina) |
+| W into a teal striped surface | Climb: W up, S down, A / D sideways, stamina drains (holding still drains slowly) |
 | Space while climbing | Kick off, the way you're looking or with A / D to the side |
+| C while climbing | Let go |
+| Left click | Swipe: bats whatever is in front of you |
 | Esc | Pause and settings |
 
 Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F9** key list.
