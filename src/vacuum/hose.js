@@ -137,6 +137,23 @@ export class Hose {
     this.stuck = true;
   }
 
+  _sweep(dt, cmd) { // swinging from side to side: the nozzle goes straight for the goal, and the hose is the way back to the hole
+    _d.copy(cmd.goal).sub(this.tipPos);
+    const l = _d.length(), t = this.tipPos, T = this.trail;
+    this.arrived = l < 0.02; this.maxed = false; this.stuck = false;
+    if (l > 1e-5) {
+      const d = this.dir.copy(_d).multiplyScalar(1 / l), step = Math.min(l, cmd.speed * dt);
+      for (const [mx, my, mz] of SLIDE) {
+        _a.set(t.x + d.x * step * mx, t.y + d.y * step * my, t.z + d.z * step * mz);
+        if (!this.vox.blocked(_a.x, _a.y, _a.z)) { t.copy(_a); break; }
+      }
+    }
+    if (this.vox.lineFree(T[0], t)) { T.length = 1; T.push(t.clone()); } // (a clear line: all that's left of any earlier route)
+    else if (T.length < 2 || !this.vox.lineFree(T[T.length - 2], t)) { const r = this.vox.path(T[0], t); if (r && r.length >= 2) { T.length = 0; T.push(...r); } }
+    let L = 0; for (let i = 1; i < T.length; i++) L += T[i].distanceTo(T[i - 1]);
+    this.len = L;
+  }
+
   _retract(dt) { // reeling back along its own path
     const T = this.trail;
     let rem = H.retractSpeed * dt;
@@ -234,6 +251,7 @@ export class Hose {
     this.trail[0].set(base.x, base.y, base.z);
     if (!cmd) { this._retract(dt); if (!this.active) return; } // (fully back in: it lies at rest from next tick)
     else if (cmd.mode === 'home') this._home(dt, cmd);
+    else if (cmd.mode === 'sweep') this._sweep(dt, cmd);
     else this._approach(dt, cmd);
     if (this.trail.length > 1) this.trail[this.trail.length - 1].copy(this.tipPos);
     this._resample();

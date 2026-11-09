@@ -186,6 +186,14 @@ export const TUNING = {
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
     },
   },
+  suck: { // really close, he plants himself and sweeps the nozzle back and forth with the suction on (src/vacuum/vacuum.js)
+    minAnger: 3, // from the angry stage
+    enter: 1, exit: 1.3, maxY: 1.2, // m from the hole that starts it and ends it; m up, above which he goes back to the strike
+    windup: 0.5, // s for the nozzle to get into position before it can catch you
+    reach: 1.2, minR: 0.45, // m: the sweep passes at the cat's distance, within these
+    arc: 0.9, rate: [0, 0, 2.6, 3.6], speed: 5, // rad either side of where he faces; how fast it swings, by stage; m/s the nozzle can move
+    pullRadius: 0.8, pull: 1.2, // m from the nozzle that drags a cat on the ground in, and m/s at its strongest. A run beats it; a slink doesn't
+  },
   blast: { // the dust blast: he spits a glob of dirt at a cat he can see (src/vacuum/blast.js)
     minAnger: 3, cooldown: [0, 0, 8, 5], // from the angry stage; s between blasts by stage
     range: 7, minRange: 1.2, // m: how far it's aimed from

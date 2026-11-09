@@ -38,6 +38,7 @@ export class Player {
     this.groundCollider = null; // what the cat is standing on (null: the floor)
     this.dashT = 0; this.dashCd = 0; this.dashX = 0; this.dashZ = 0; this.airDashUsed = false; this.fovKick = 0; this.prevFovKick = 0;
     this.dust = 0; this.sneezeT = 0; this.onSneeze = null; // dusted: slowed, and a sneeze on the way
+    this.pullX = 0; this.pullZ = 0; // m/s of suction dragging the cat along the ground, set by the vac each tick
     this.wedgedT = 0;
     this.swipeT = -1; this.prevSwipeT = -1; this.swipeCd = 0; this.swipeHit = false;
     this.onSwipe = null; // () when the paw connects: the knockables hook in here
@@ -67,7 +68,7 @@ export class Player {
     else if (this.mode === 'climb' || this.mode === 'slide') this._offWall();
   }
 
-  resetMotion() { this.dust = 0; this.sneezeT = 0; this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
+  resetMotion() { this.pullX = this.pullZ = 0; this.dust = 0; this.sneezeT = 0; this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
 
   /** Put the feet at (x, y, z) facing yaw (rad, 0 = toward −z), with no interpolation from the old spot. */
   teleport(x, y, z, yaw = this.yaw) {
@@ -328,6 +329,8 @@ export class Player {
     }
     let tx = this.wx * speed, tz = this.wz * speed;
     let rate = this.wlen > 0 ? P.accel : P.decel;
+    if (this.grounded) { tx += this.pullX; tz += this.pullZ; }
+    this.pullX = this.pullZ = 0;
     if (!this.grounded) {
       // In the air the keys steer, but the leap's own speed is the limit: distance comes from the charge.
       const cap = Math.max(J.airSteerMin, this.launchSpeed);

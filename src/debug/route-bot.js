@@ -85,7 +85,7 @@ function freshVac(kit, id, anger = 1) {
   for (const m of kit.debris.messes) m.cleaned = true;
   if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
   v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
-  v._endReach(); v._endBlast(); v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
+  v._endReach(); v._endBlast(); v._endSuck(); v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
   v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
   v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
   return v;
@@ -352,6 +352,50 @@ function attackChecks(kit) {
     }
   }
   report('strikes from eight awkward spots: the tube never clips anything', strikes > 100 && clips === 0, `${clips} of ${verts} surface points inside something`);
+
+  // really close: he plants himself and sweeps
+  { const SU = TUNING.suck, hit0 = H.hit, stub = P.tick, still = () => { P.tick = () => {}; };
+    const near = (anger, x = 3.0) => { put('L4', anger, 1.57, x, 0, 4.2); hunt(x, 4.2); };
+    near(3); hold(0.2, () => v.state === 'SUCK');
+    const sucking = v.state === 'SUCK'; let t = 0;
+    while (t < 4 && !caughtBy) { kit.tick(dt); t += dt; }
+    report('really close he stops and sweeps, and a cat that stays there gets caught', sucking && caughtBy === 'hose' && t >= SU.windup * 0.9, `${t.toFixed(2)} s`);
+    near(2); hold(0.3);
+    report('not while annoyed', v.state !== 'SUCK' && !caughtBy, v.state);
+    // the arc
+    H.hit = -1; near(3); hold(0.2, () => v.state === 'SUCK'); still();
+    let lo = 9, hi = -9;
+    for (let i = 0; i < 150; i++) { kit.tick(dt); if (v.suckT > SU.windup + 0.3) { const h = v._hole(), a = Math.atan2(v.hose.tip.x - h.x, v.hose.tip.z - h.z); lo = Math.min(lo, a); hi = Math.max(hi, a); } }
+    report('the nozzle really swings from side to side', v.state === 'SUCK' && hi - lo > 1.2, `${(hi - lo).toFixed(2)} rad`);
+    P.tick = stub;
+    // the suction
+    near(3); hold(0.2, () => v.state === 'SUCK');
+    const x0 = P.pos.x, z0 = P.pos.z; hold(1.4);
+    report('the suction drags a cat in with no keys held', Math.hypot(P.pos.x - x0, P.pos.z - z0) > 0.04, `${Math.hypot(P.pos.x - x0, P.pos.z - z0).toFixed(2)} m`);
+    H.hit = hit0;
+    // getting out
+    near(3); hold(0.2, () => v.state === 'SUCK'); P.yaw = -Math.PI / 2; I.keys.add('KeyW'); I.keys.add('ShiftLeft');
+    hold(1, () => v.state !== 'SUCK'); I.keys.clear();
+    report('running gets you out of it', v.state !== 'SUCK' && !caughtBy, v.state);
+    near(3); hold(0.2, () => v.state === 'SUCK'); still(); P.grounded = false; P.feetY = 0.45;
+    hold(2.5);
+    report('jumping goes over the nozzle', !caughtBy && v.state === 'SUCK', v.state);
+    P.tick = stub; P.feetY = 0; P.grounded = true;
+    // close to walls, doors and furniture
+    H.hit = -1; let suckClips = 0, suckTicks = 0;
+    for (const [id, h, x, z] of [['H2', 0, 5.6, 0.1], ['Ld', 1.57, 6.25, 4.35], ['K4', 1.57, 9.3, 1.4], ['Hs', 1.57, 14.6, -0.45], ['S1', 0, 13.75, 2.8], ['K5', -1.57, 5.95, 1.7]]) {
+      put(id, 3, h, x, 0, z); hunt(x, z); still();
+      for (let i = 0; i < 180; i++) {
+        kit.tick(dt); v.frame(1);
+        if (v.state === 'SUCK') suckTicks++;
+        const a = v.hose.mesh.geometry.attributes.position;
+        for (let k = 0; k < a.count; k += 3) if (inside(a.getX(k), a.getY(k), a.getZ(k))) suckClips++;
+      }
+      P.tick = stub;
+    }
+    H.hit = hit0;
+    report('sweeping next to walls and furniture, the tube never clips anything', suckTicks > 300 && suckClips === 0, `${suckClips} points inside, ${suckTicks} ticks of sweeping`);
+  }
 
   // the blast: out of hose range, at a cat it can see
   put('H2', 3, 1.57, 10.0, 0, -0.45, 0); hunt(10.0, -0.45);
