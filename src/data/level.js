@@ -90,6 +90,7 @@ export const LEVEL = {
     box('tree2', 'living', 0.35, 0.85, 0.95, 1.45, 0.82, 0.90),
     box('tree3', 'living', 0.35, 0.85, 0.30, 0.80, 1.22, 1.30),
     box('tree4', 'living', 0.95, 1.45, 0.30, 0.80, 1.62, 1.70), // dead end
+    box('tree4rim', 'living', 0.95, 1.45, 0.3, 0.335, 1.64, 1.71, { land: false, collide: false, tex: 'fabric_carpet' }), // (the tray's fourth side)
     box('tree1post', 'living', 1.15, 1.25, 1.15, 1.25, 0, 0.37, { land: false }),
     box('tree2post', 'living', 0.55, 0.65, 1.15, 1.25, 0, 0.82, { land: false }),
     box('tree3post', 'living', 0.55, 0.65, 0.50, 0.60, 0, 1.22, { land: false }),
@@ -133,6 +134,7 @@ export const LEVEL = {
 
     // ------------------------------------------------------------ hallway: the dangerous crossing
     box('sideTable', 'hall', 10.0, 10.7, -1.4 + IN, -0.875, 0, 0.7),
+    box('hallTable', 'hall', 0.15, 0.85, -0.42, -IN, 0, 0.78, { noVisual: true }), // the little table under Biscuit
     box('plantStand', 'hall', 14.8, 15.2, -1.3, -0.9, 0, 1.1, { tex: 'wood_walnut' }),
 
     // ------------------------------------------------------------ storage: ledges 1.1 m apart (a jump alone can't do it)
@@ -198,7 +200,7 @@ export const LEVEL = {
     { model: 'cattree_platform_60', fit: ['tree1'] }, { model: 'cattree_platform_60', fit: ['tree2'] }, { model: 'cattree_platform_60', fit: ['tree3'] }, { model: 'cattree_perch_tray', fit: ['tree4'], rot: 180 },
     { model: 'cattree_post_80', fit: ['tree1post'] }, { model: 'cattree_post_80', fit: ['tree2post'] }, { model: 'cattree_post_80', fit: ['tree3post'] }, { model: 'cattree_post_80', fit: ['tree4post'] },
     { model: 'psx_nightstand_oak', fit: ['book1'], rot: 180 }, { model: 'bookcase', fit: ['book2'], rot: 180 }, { model: 'bookcase', fit: ['book3'], rot: 180 }, { model: 'bookcase', fit: ['book4'], rot: 180 },
-    { model: 'tv_console', fit: ['tvUnit'], rot: -90, h: 0.8 / 1.05 * 0.8, tv: true },
+    { model: 'tv_console', fit: ['tvUnit'], rot: -90, h: 0.8, tv: true }, // (scaled so its top is the collider's top)
     { model: 'psx_rug_braided', at: [3.0, 0.002, 1.6] }, { model: 'psx_floor_lamp', at: [0.35, 0, 4.55], rot: 180 }, { model: 'ceiling_light', at: [3, 0.6, 2.7] },
     // kitchen
     { model: 'counter_module', fit: ['c1'], h: 0.9 }, { model: 'counter_module', fit: ['c2a'], h: 0.9 }, { model: 'counter_module', fit: ['c2b'], rot: -90, h: 0.9 }, { model: 'counter_module', fit: ['c3'], rot: -90, h: 0.9 },
@@ -206,11 +208,11 @@ export const LEVEL = {
     { model: 'shelf_floating_120', fit: ['k1'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['k2'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['shelfD2'], top: true },
     { model: 'ceiling_light', at: [8.4, 0.6, 2.7] },
     // hallway
-    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'grandma_door', at: [18, 0, -0.7], rot: -90, door: true },
+    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'side_table', fit: ['hallTable'], rot: 180, h: 0.78 }, { model: 'grandma_door', at: [18, 0, -0.7], rot: -90, door: true },
     { model: 'ceiling_light', at: [5, 0.6, -0.7] }, { model: 'ceiling_light', at: [13, 0.6, -0.7] },
     // storage
     { model: 'psx_wardrobe_oak', fit: ['w2'], rot: 90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['e2'], rot: -90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['s2'], rot: 180, h: 2.07 },
-    { model: 'psx_box_open', at: [14.3, 0, 0.7] },
+    { model: 'psx_box', fit: ['sBox'] },
     // dining room
     { model: 'dining_table', at: [3, 0, -4] },
     { model: 'dining_chair', at: [3, 0, -4.75] }, { model: 'dining_chair', at: [3, 0, -3.25], rot: 180 }, { model: 'dining_chair', at: [1.9, 0, -4], rot: 90 }, { model: 'dining_chair', at: [4.1, 0, -4], rot: -90 },
@@ -316,7 +318,7 @@ export const LEVEL = {
     { id: 'cup1', type: 'teacup', on: 'coffeeTable', x: 3.15, z: 2.35 },
     { id: 'lamp', type: 'table_lamp', on: 'coffeeTable', x: 3.65, z: 2.75 },
     { id: 'globe', type: 'snow_globe', on: 'book4', x: 1.82, z: 5.18 },
-    { id: 'clock', type: 'mantel_clock', on: 'book3', x: 1.42, z: 5.18 },
+    { id: 'clock', type: 'mantel_clock', on: 'book3', x: 1.42, z: 5.18, yaw: Math.PI }, // (facing the room)
     { id: 'figurine', type: 'cat_figurine', on: 'book2', x: 0.98, z: 5.18 },
     { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.62, z: 1.85, yaw: -1.57 },
     { id: 'treeYarn', type: 'yarn_ball', on: 'tree4', x: 1.2, z: 0.55 },
@@ -333,6 +335,7 @@ export const LEVEL = {
     { id: 'pepper', type: 'pepper_shaker', on: 'k2', x: 8.98, z: 5.2 },
     { id: 'k2Plate', type: 'dinner_plate', on: 'k2', x: 8.5, z: 5.18 },
     // hallway: louder the closer to Grandma's door
+    { id: 'hallVase', type: 'vase', on: 'hallTable', x: 0.5, z: -0.25 },
     { id: 'phone', type: 'rotary_phone', on: 'sideTable', x: 10.4, z: -1.1 },
     { id: 'glasses', type: 'glasses', on: 'sideTable', x: 10.12, z: -1.05 },
     { id: 'standJar', type: 'vase', on: 'plantStand', x: 15.0, z: -1.1 },

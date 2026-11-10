@@ -1,4 +1,4 @@
-// Stamina: a little moon at the bottom of the screen that wanes as you tire, shown only while stamina is being used or refilling.
+// Stamina: a little clock at the bottom of the screen that runs down as you tire, shown only while stamina is being used or refilling.
 import { TUNING } from '../data/tuning.js';
 
 const S = TUNING.stamina;

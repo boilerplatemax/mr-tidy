@@ -75,6 +75,7 @@ export class Knockables {
     if (SPLIT[name]) return this._shaker(name);
     if (name === 'button_jar') return this._jarFill();
     if (name === 'urn') return this._urn();
+    if (name === 'yarn_ball') return this._yarn();
     if (name.startsWith('tidy_')) return this._tidy(name);
     if (name === 'wall_clock' && this.clockLib) { const c = this.clockLib.clone(true); c.position.y = -1.638; return c; } // (modelled hanging at its height on the wall)
     const n = this.lib?.getObjectByName(name);
@@ -109,6 +110,21 @@ export class Knockables {
     return g;
   }
 
+  /** A ball of wool: wound strands round a core, and an end hanging loose. */
+  _yarn() {
+    if (!this.yarnMat) {
+      const c = document.createElement('canvas'); c.width = 32; c.height = 32; const g = c.getContext('2d');
+      g.fillStyle = '#9a3048'; g.fillRect(0, 0, 32, 32);
+      for (let i = -32; i < 64; i += 3) { g.fillStyle = i % 2 ? '#d85a78' : '#b8405c'; for (let y = 0; y < 32; y++) g.fillRect((i + y * 0.6) & 31, y, 2, 1); }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; pixelTexture(t);
+      this.yarnMat = makePS1(new THREE.MeshLambertMaterial({ map: t })); this.yarnWrap = makePS1(new THREE.MeshLambertMaterial({ color: 0xd85a78 }));
+    }
+    const g = new THREE.Group(), r = 0.046, ball = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), this.yarnMat); ball.position.y = 0.049; g.add(ball);
+    [[0.4, 0.2], [1.3, -0.5], [2.1, 0.9]].forEach(([a, b]) => { const w = new THREE.Mesh(new THREE.TorusGeometry(r * 1.01, 0.0045, 4, 18), this.yarnWrap); w.position.y = 0.049; w.rotation.set(a, b, 0); g.add(w); });
+    const end = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.003, 3, 10, 3.6), this.yarnWrap); end.position.set(0.035, 0.012, 0.03); end.rotation.set(1.4, 0.3, 0); g.add(end);
+    return g;
+  }
+
   /** Grandpa: a brass urn with a lid and a little knob. */
   _urn() {
     const brass = this.urnMat ??= makePS1(new THREE.MeshLambertMaterial({ color: 0xb08a3a })), dark = this.urnDark ??= makePS1(new THREE.MeshLambertMaterial({ color: 0x3a2a12 }));
@@ -116,7 +132,9 @@ export class Knockables {
     const g = new THREE.Group(), body = new THREE.Mesh(new THREE.LatheGeometry(pts, 10), brass);
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.02, 10), brass); lid.position.y = 0.23;
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 4), brass); knob.position.y = 0.25;
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.071, 0.012, 10), dark); band.position.y = 0.13;
+    if (!this.urnBand) { const c = document.createElement('canvas'); c.width = 128; c.height = 16; const g2 = c.getContext('2d'); g2.fillStyle = '#3a2a12'; g2.fillRect(0, 0, 128, 16); g2.fillStyle = '#e8c878'; g2.font = 'bold 12px serif'; g2.textAlign = 'center'; g2.fillText('GRANDPA', 32, 12); g2.fillText('GRANDPA', 96, 12); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t); this.urnBand = makePS1(new THREE.MeshLambertMaterial({ map: t })); }
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0715, 0.0715, 0.03, 16, 1, true), this.urnBand); band.position.y = 0.13; // (engraved)
+    void dark;
     g.add(body, lid, knob, band);
     return g;
   }

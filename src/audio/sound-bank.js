@@ -249,7 +249,7 @@ export const SOUNDS = {
   'vac.surgeBuzz': { gen: surgeBuzz, gain: 1.1, subtitle: 'the house hums, louder and louder', bus: 'voice' },
   'power.out': { gen: (sr) => { const x = thud(sr, 48, 0.7, 0.8); S.mix(x, S.env(S.saw(S.buffer(0.9, sr), sr, (t) => 120 - 100 * t), sr, 0.004, 0.3), 0.5); return S.normalise(x, 0.95); }, gain: 1.2, subtitle: 'the power goes out' },
   'vac.arc': { gen: (sr) => { const x = S.buffer(1.3, sr); S.grains(x, sr, 44, 0.006, 1.25, 0); S.biquad(x, sr, 'hp', 1800); S.mix(x, S.saw(S.buffer(1.3, sr), sr, 100), 0.05); return S.normalise(S.loopable(x, sr, 0.2), 0.6); }, loop: true, gain: 0.3 },
-  'tv.show': { gen: (sr) => { const x = S.buffer(3.2, sr), notes = [523, 659, 784, 659, 880, 784, 659, 523]; notes.forEach((f, i) => { const v = S.env(S.saw(S.buffer(0.34, sr), sr, f), sr, 0.005, 0.12); S.mix(x, S.biquad(v, sr, 'lp', 1400), 0.8, Math.round(i * 0.38 * sr)); }); return S.declick(S.normalise(x, 0.5), sr); }, gain: 0.5, subtitle: 'a cheerful little jingle' },
+  'tv.show': { gen: (sr) => { const x = S.buffer(3.2, sr), notes = [523, 659, 784, 659, 880, 784, 659, 523]; notes.forEach((f, i) => { const v = S.env(S.saw(S.buffer(0.34, sr), sr, f), sr, 0.005, 0.12); S.mix(x, S.biquad(v, sr, 'lp', 1400), 0.8, Math.round(i * 0.38 * sr)); }); return S.declick(S.normalise(x, 0.5), sr); }, gain: 0.5 },
   'grandma.mumble1': { gen: (sr) => mumble(sr), gain: 0.5, subtitle: '"...Biscuit?..."' },
   'grandma.mumble2': { gen: (sr) => mumble(sr), gain: 0.5, subtitle: '"...who\'s there..."' },
   'knock.soft': { gen: v((sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(0.1, sr)), sr, 'lp', 420), sr, 0.006, 0.03), 0.5), sr), 3), gain: 0.16 },

@@ -33,9 +33,9 @@ export const TABS = {
     ['Head-bob', 'headBob', 'check'],
     ['Volume', 'volume', 'range', [0, 1, 0.05, pct]],
     ['Subtitles', 'subtitles', 'check'],
+    ['Tail peeks as you turn', 'tailPeek', 'check'],
   ],
   Display: [
-    ['Look', 'look', 'cycle', [['authored', 'Authored (PS1)'], ['clean', 'Clean (comfort)'], ['custom', 'Custom']]],
     ['Brightness', 'brightness', 'range', [0.7, 1.6, 0.05, (v) => v.toFixed(2)]],
     ['Framing', 'framing', 'cycle', [['fill', 'Fill screen'], ['4:3', '4:3 (pillarboxed)']]],
     ['Vertex jitter', 'jitter', 'check'], ['   amount', 'jitterAmount', 'range', [0.25, 3, 0.25, (v) => v.toFixed(2)]],

@@ -160,7 +160,7 @@ function huntChecks(kit) {
   report('loses you, searches, returns to patrol', sawSearch && sawSweep && v.state === 'PATROL', `${t.toFixed(1)} s`);
 
   // busy cleaning, he only notices you closer; seeing you still beats the mess
-  reset('H2', 3); v.heading = 1.57; cat(9.8, -0.45);
+  reset('H2', 3); v.heading = 1.57; cat(11.75, -0.45);
   const patrolSees = v._canSee(); v.state = 'CLEAN'; const cleanSees = v._canSee(); v.state = 'PATROL';
   report('a clean narrows his sight', patrolSees && !cleanSees);
   reset('H2', 3); v.heading = 1.57; cat(7.2, -0.45);
@@ -224,14 +224,10 @@ function hoseChecks(kit) {
   report('at rest against a wall, it stays out of the wall', inside === 0, `${inside}`);
   v.hose.reset();
 
-  // the hose is never short: nozzle close or at rest, the links still add up, the excess hanging aside
-  const chainLen = () => { let L = 0; for (let i = 1; i < v.hose.pts.length; i++) L += v.hose.pts[i].distanceTo(v.hose.pts[i - 1]); return L; };
-  const b3 = new V3(5.0, 0.115, -0.45), near = new V3(5.5, 0.2, -0.45);
-  v.hose.reset(); for (let i = 0; i < 120; i++) v.hose.tick(dt, b3, 1.57, null);
-  const restLen = chainLen(), bow = Math.max(...v.hose.pts.map((p) => Math.abs(p.z - b3.z)));
-  v.hose.reset(); for (let i = 0; i < 120; i++) v.hose.tick(dt, b3, 1.57, { mode: 'approach', goal: near, speed: 3 });
-  const closeLen = chainLen();
-  report('never shorter than its minimum: the excess moves aside', restLen >= H.minLength * 0.9 && closeLen >= H.minLength * 0.9 && bow > 0.1, `at rest ${restLen.toFixed(2)} m, tip close ${closeLen.toFixed(2)} m, bowed ${bow.toFixed(2)} m aside`);
+  // at rest it's a short trunk out of the front of him, never back into him
+  { const b3 = new V3(5.0, 0.115, -0.45); v.hose.reset(); for (let i = 0; i < 5; i++) v.hose.tick(dt, b3, 1.57, null);
+    const ahead = v.hose.pts.every((p) => (p.x - b3.x) * 1 >= -0.001), tip = v.hose.tip.x - b3.x;
+    report('at rest the hose sticks out in front of him like a trunk', ahead && tip > 0.4, `${tip.toFixed(2)} m out`); }
   v.hose.reset();
 
   // cleaning: he faces the mess and the nozzle goes to it before anything is sucked up

@@ -148,7 +148,7 @@ export const TUNING = {
 
   curb: { x: 40, z: 0, camY: 0.32, from: 3.2, to: 1.05, push: 7.5, eyes: [[8.6, 8.85], [9.2, 9.6]], length: 10.4, lamp: 14 }, // the secret ending, out the front: where; the camera's height and how it creeps in (m, s); when his eyes come on (s); how long it lasts; the streetlamp
   bonus: { anger: 1 }, // each of his spare parts you break: knock-overs added toward his anger (they never wake Grandma)
-  tutorial: { zoomFov: 30, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch)
+  tutorial: { zoomFov: 21, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch)
     arriveAfter: 3, show: 17 }, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
   // ---------------------------------------------------------------- the ending (src/world/ending.js)
   ending: {
@@ -166,14 +166,14 @@ export const TUNING = {
   vac: {
     radius: 0.24, height: 0.45, // m: the body, for navigation and (later) catching the cat
     // Anger has four stages: 1 neutral (nothing broken yet), 2 annoyed (looks and sounds it, still harmless), 3 angry (hunts you), 4 furious. Arrays below are by stage.
-    speed: [0.7, 0.8, 1.4, 2.4, 2.7], // m/s
+    speed: [0.9, 1.1, 1.6, 2.5, 2.8], // m/s
     turnRate: 2.4, // rad/s
     arrive: 0.14, // m from a waypoint at which he moves on
-    angerAt: [1, 5, 9, 13], // knock-overs that raise him to stages 2, 3 and 4. The first break sets him off
+    angerAt: [1, 4, 7, 11], // knock-overs that raise him to stages 2, 3 and 4. The first break sets him off
     hearNear: 7, // m: annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
-    hearSteps: 4, hearWalk: 1.8, // m: angry or worse, he hears a cat running or walking on the floor this close. Slinking is silent
+    hearSteps: 5.5, hearWalk: 2.6, // m: angry or worse, he hears a cat running or walking on the floor this close. Slinking is silent
     hearLand: [3.5, 8], quietLand: 0.25, // m he hears a landing from (soft, heavy), from the annoyed stage up; share of that if you land holding C
-    sightRange: [0, 0, 6.5, 9, 10], // m he can see the cat. Neutral and annoyed he doesn't hunt
+    sightRange: [0, 0, 6.5, 10, 11], // m he can see the cat. Neutral and annoyed he doesn't hunt
     harmlessAt: 2, // at this stage and below, touching him does nothing
     hearSneeze: 9, // m he hears a sneeze from
     sightCos: 0.82, // cos of half his view: about 70° in all
@@ -181,14 +181,14 @@ export const TUNING = {
     slinkNotice: 2.5, // ...and he takes this many times longer to react
     sneakAnger: 3, // at this stage or below, a crouching cat he can't see can brush right past him
     perchSight: 0.7, // he's a floor machine: a cat up on something is harder to notice
-    cleanSight: 0.6, // busy with a mess, he only notices you closer: a clean is still your window
+    cleanSight: 0.9, // busy with a mess, he only notices you closer: a clean is still your window
     hideLose: 0.8, // s to lose track of a slinking cat that's out of sight (otherwise loseTime)
     campTime: 6, ignoreTime: 5, // s staring at a cat above his reach before he gives up; s after that before he'll notice it again
-    noticeTime: [0.7, 0.7, 0.45, 0.25, 0.2], // s of being seen before he reacts: a fair moment to duck
+    noticeTime: [0.7, 0.7, 0.35, 0.2, 0.15], // s of being seen before he reacts: a fair moment to duck
     loseTime: 2.5, // s out of sight before he gives up the chase and searches
     searchTime: 3.2, // s he looks around where he last saw you
     searchTurn: 2.0, searchArc: 1.1, // how fast he looks around; rad either side
-    chaseSpeed: [1.3, 1.3, 2.3, 3.1, 3.35], // m/s. The cat runs at 3.6, so it can always just outrun him
+    chaseSpeed: [1.3, 1.3, 2.6, 3.2, 3.4], // m/s. The cat runs at 3.6, so it can always just outrun him
     replan: 0.15, // s between re-thinking the route while chasing
     catchReach: 0.26, // m past his body at which he catches the cat
     solidShare: 0.85, // how much of the cat's radius his body keeps out: it can brush him, not go through him
@@ -228,9 +228,9 @@ export const TUNING = {
     stingEvery: 16, // s between heard-you stingers
   },
   roam: { // the patrol isn't a circuit: he picks where to go next, and changes his mind
-    think: [5, 11], // s between second thoughts
+    think: [4, 8], // s between second thoughts
     pauseChance: 0.32, backChance: [0.2, 0.2, 0.3, 0.35, 0.4], pause: [0.9, 2.4], // stops to look around; turns round and goes back, by stage; s
-    hunchChance: [0, 0, 0.16, 0.28, 0.4], // by stage: the odd hunch that takes him to the room you're in
+    hunchChance: [0, 0, 0.3, 0.45, 0.6], // by stage: the odd hunch that takes him to the room you're in
     noiseBonus: 18, randomWeight: 16, distWeight: 0.7, // how he scores a place: age in seconds, plus somewhere noisy, a dice roll, minus m away
     noiseLasts: 40, // s a crash keeps pulling him toward its room
     lookSpeed: 1.3, // rad/s looking around
@@ -285,7 +285,7 @@ export const TUNING = {
     length: 3.8, segments: 36, radius: 0.028, tubeSegments: 84, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
     camClear: 0.3, // m the hose and nozzle bend away from the camera, whatever they're doing
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
-    restReach: 0.7, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up
+    restReach: 0.55, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up
     track: 34, trailStep: 0.06, // 1/s: how fast the body settles onto its trail; m between trail points
     cell: 0.12, clearance: 0.03, searchLimit: 20000, // the 3D grid: m per cell, m kept clear of surfaces, the most cells one search may look at
     replan: 0.2, arch: 0.3, arcPoints: 8, // s between re-thinking its route; how far under the tip it comes up from; points on that curve
@@ -351,7 +351,7 @@ export const TUNING = {
     soundBehind: 0.6, // m behind the door the snoring comes from (the wall muffles it)
     refDistance: 4, rolloff: 0.8, // how her cues carry through the house
     snoreNear: 2, snoreFar: 7, // m from the door: full snoring within snoreNear, silent beyond snoreFar
-    labelNear: 2.2, // m from the door at which "Grandma's room" shows on screen
+    labelNear: 1.5, // m from the door at which "Grandma's room" shows on screen
   },
 
   // ---------------------------------------------------------------- the dash (src/player/player.js)

@@ -94,20 +94,20 @@ export class Vacuum {
   }
 
   /** A line from his repertoire, if he hasn't just spoken. Heard, and captioned, only near him. */
-  _say(group, force = false) {
+  _say(group, force = false, quiet = false) {
     const VO = TUNING.voice, set = LINES[group];
     if (!set || this.dormant || this.off || (!force && this.sayCd > 0)) return;
     this.sayCd = VO.every;
     let i = Math.floor(Math.random() * set[1].length); if (set[1].length > 1 && i === this.lastLine?.[group]) i = (i + 1) % set[1].length;
     (this.lastLine ??= {})[group] = i;
     audio.play(`vac.say.${group}.${i}`, { follow: this.model.hoseSocket, refDistance: 3, rolloff: 0.7 });
-    const L = audio.listenerPos; if (Math.hypot(this.x - L.x, this.z - L.z) < VO.hear) subtitles.line('Mr. Tidy', set[1][i], 3);
+    const L = audio.listenerPos; if (Math.hypot(this.x - L.x, this.z - L.z) < VO.hear) if (!quiet) subtitles.line(null, set[1][i], 3); // (no name: it's obviously him)
   }
 
   /** You broke one of his things: he's coming, whatever his mood, and he's angrier for it. */
   bonusBroken(o) {
     if (this.dormant || this.off) return;
-    this._say('mine', true);
+    this._say('mine', true, true); // (the caption for this one is the game's own, in one line)
     if (this.state !== 'CHASE' && !this._attacking()) { this.state = 'INVESTIGATE'; this.stalk = false; this.routeTo(this.nav.nearest(o.x, o.z)); }
   }
 

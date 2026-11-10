@@ -5,13 +5,14 @@
 // setting means, or changing a default you want everyone to get: bump VERSION and add a migration below.
 import { TUNING } from './tuning.js';
 
-const VERSION = 2;
+const VERSION = 3;
 const KEY = `${TUNING.game.storagePrefix}.settings`;
 const R = TUNING.render;
 
 /** MIGRATIONS[n] turns a version-n settings object into version n + 1. Example for a future v2:
  *  1: (s) => ({ ...s, warp: false }), // v1 → v2: warp became off by default for everyone */
 const MIGRATIONS = {
+  2: (s) => ({ ...s, ...LOOK_PRESETS.authored, look: 'authored' }), // v2 → v3: the comfort look is gone: everyone is back on the PS1 look
   1: (s) => ({ ...s, jitter: false }), // v1 → v2: vertex wobble off by default (it made floor edges hop as the cat walked)
 };
 
@@ -33,7 +34,8 @@ const DEFAULTS = {
   sensitivity: 1.0,
   invertY: false,
   headBob: true,
-  pawMode: 'natural', // always-visible paws while walking (an experiment: P cycles)
+  pawMode: 'natural',
+  tailPeek: true, // the tail shows at the edge of the view as you turn (an experiment) // always-visible paws while walking (an experiment: P cycles)
   subtitles: true, // captions for speech and important sounds
   volume: 1.0,
 };

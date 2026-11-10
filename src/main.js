@@ -224,7 +224,7 @@ function frame(alpha, dt, frameMs) {
   subtitles.update(dt);
   hudLayer.sync();
   wakeIcon?.set(grandma.stage);
-  { const near = !onTitle && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.grandma.labelNear; if (near !== roomShown) { roomShown = near; roomLabel.show(near); } }
+  { const near = !onTitle && player.pos.z > -1.4 && player.pos.z < 0 && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.grandma.labelNear; if (near !== roomShown) { roomShown = near; roomLabel.show(near); } }
   ps1.render(scene, camera);
   overlay.frame(frameMs, dt);
   window.__kitReady = true;

@@ -81,10 +81,11 @@ export class PixelLabel {
       for (let y = 0; y < D; y++) for (let x = 0; x < D; x++) {
         const dx = x - R - 1, dy = y - R - 1, inMoon = dx * dx + dy * dy <= R * R + 1;
         if (!inMoon) continue;
-        const sx = x - (R + 1 + v * 2 * R + 0.5), lit = sx * sx + dy * dy > R * R + 1 || v >= 0.999;
+        const ang = (Math.atan2(dx, -dy) + Math.PI * 2) % (Math.PI * 2), rim = dx * dx + dy * dy > (R - 1.2) ** 2, lit = rim || ang <= v * Math.PI * 2 + 1e-6; // a clock face: what's left runs clockwise from twelve, and the rim always shows
         g2.fillStyle = '#000'; g2.fillRect(x + 1, y + 1, 1, 1);
-        g2.fillStyle = lit && v > 0.001 ? (low ? '#d89058' : '#e8dfc6') : '#2c2a30'; g2.fillRect(x, y, 1, 1);
+        g2.fillStyle = rim ? '#8a826e' : lit && v > 0.001 ? (low ? '#d89058' : '#e8dfc6') : '#2c2a30'; g2.fillRect(x, y, 1, 1);
       }
+      g2.fillStyle = '#2c2a30'; g2.fillRect(R + 1, 1, 1, R - 1); // (a hand at twelve)
       void shadowX;
       this._size();
       return;

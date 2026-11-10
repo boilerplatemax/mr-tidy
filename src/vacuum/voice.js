@@ -11,12 +11,12 @@ export const LINES = {
   turn3: [3, ["...that's enough."]],
   turn4: [4, ['No more games.']],
   turn5: [5, ['LIGHTS OUT.']],
-  urn: [2, ['Sorry, Harold.']],
+  urn: [2, ['Sorry, Grandpa.']],
   mine: [3, ['Those are MINE.', 'Do not touch my things.', 'That was my spare!']],
 };
 
 /** The Mr. Tidy Hour: [seconds in, line]. Read by the same voice, at its friendliest. */
-export const SHOW = [[0.5, 'The Mister Tidy Hour!'], [3.4, 'Meet Mister Tidy. Your helpful friend!'], [7.4, 'He tidies up. Every mess. Every night.'], [11.4, 'A clean home is a happy home!'], [14.6, 'Every. Mess.']];
+export const SHOW = [[0.5, 'The Mister Tidy Hour!'], [3.4, 'Meet Mister Tidy. Your helpful friend!'], [7.4, 'He tidies up. Every mess. Every night.'], [11.4, 'A clean home is a happy home!'], [14.6, 'Sweet dreams.']];
 
 /** Every line as [slot, stage, text]. */
 export const ALL_LINES = [...SHOW.map(([, text], i) => [`tv.say.${i}`, i === SHOW.length - 1 ? 4 : 1, text])].concat(Object.entries(LINES).flatMap(([key, [stage, texts]]) => texts.map((text, i) => [`vac.say.${key}.${i}`, stage, text])));

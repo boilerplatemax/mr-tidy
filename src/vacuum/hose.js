@@ -252,10 +252,10 @@ export class Hose {
     P[0].set(base.x, base.y, base.z);
     if (cmd && !this.active) this._begin(base, s, c);
     this.maxLen = cmd?.maxLen ?? H.length;
-    if (!cmd && !this.active) { // at rest: the nozzle lies in front of him, the rest of it on the floor as it falls
-      P[n].lerp(this._restTarget(base, s, c, _b), expK(H.follow, dt));
-      for (let i = 1; i < n; i++) this.want[i].lerpVectors(P[0], P[n], i / n);
-      this._chain(dt, P[0].distanceTo(P[n]));
+    if (!cmd && !this.active) { // at rest: a short trunk, out of the intake and curving down to the floor in front of him. Part of him: it never lags
+      this._restTarget(base, s, c, _b);
+      _a.set(base.x + (_b.x - base.x) * 0.55, base.y + 0.02, base.z + (_b.z - base.z) * 0.55);
+      for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; P[i].set(u * u * base.x + 2 * u * t * _a.x + t * t * _b.x, u * u * base.y + 2 * u * t * _a.y + t * t * _b.y, u * u * base.z + 2 * u * t * _a.z + t * t * _b.z); this.old[i].copy(P[i]); }
       return;
     }
     this.trail[0].set(base.x, base.y, base.z);

@@ -31,7 +31,7 @@ let plainCloth = null;
 const SHOW_LEN = TUNING.tutorial.show;
 const show = { t: 0, canvas: null, g: null, tex: null, black: null, said: 0, last: -1 };
 function makeShow() {
-  const c = show.canvas = document.createElement('canvas'); c.width = 128; c.height = 96; show.g = c.getContext('2d');
+  const c = show.canvas = document.createElement('canvas'); c.width = 256; c.height = 192; show.g = c.getContext('2d'); show.g.setTransform(2, 0, 0, 2, 0, 0); // (drawn in 128 x 96, at twice the resolution: the words stay sharp)
   const t = show.tex = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; pixelTexture(t); t.repeat.set(4, 1);
   const b = document.createElement('canvas'); b.width = b.height = 4; const bg = b.getContext('2d'); bg.fillStyle = '#060708'; bg.fillRect(0, 0, 4, 4);
   show.black = new THREE.CanvasTexture(b); pixelTexture(show.black);
@@ -45,10 +45,13 @@ function vacPic(g, x, y, k, mood, wave = 0) {
   for (const s of [-1, 1]) { const ex = x + s * 6 * k, ey = y + 1 * k; g.fillStyle = mood === 'nice' ? '#f4efd8' : '#000'; g.beginPath(); g.arc(ex, ey, 3.2 * k, 0, 7); g.fill(); g.fillStyle = mood === 'nice' ? '#000' : '#d8e4ff'; g.beginPath(); g.arc(ex + 0.6 * k, ey + 0.6 * k, (mood === 'nice' ? 1.5 : 0.6) * k, 0, 7); g.fill(); }
   g.fillStyle = '#000'; g.beginPath(); g.arc(x, y + 5 * k, 2.4 * k, 0, 7); g.fill(); // the nose: where the hose goes
   g.beginPath(); g.moveTo(x - 9 * k, y + 7 * k); g.quadraticCurveTo(x, y + (mood === 'nice' ? 14 : 16) * k, x + 9 * k, y + 7 * k); g.quadraticCurveTo(x, y + 11 * k, x - 9 * k, y + 7 * k); g.fill(); // the smile
-  g.strokeStyle = '#141414'; g.lineWidth = 1.6 * k; g.beginPath(); g.moveTo(x + 2 * k, y + 5 * k); g.quadraticCurveTo(x + 18 * k, y + 2 * k, x + 20 * k, y - 10 * k - wave * 6 * k); g.stroke(); // the hose, waving
+  { const ex = x + 20 * k, ey = y - 10 * k - wave * 6 * k; g.strokeStyle = '#141414'; g.lineWidth = 2.2 * k; g.beginPath(); g.moveTo(x + 2 * k, y + 5 * k); g.quadraticCurveTo(x + 18 * k, y + 4 * k, ex, ey); g.stroke(); // the hose, waving
+    const dx = 0.25, dy = -1, l = Math.hypot(dx, dy), ux = dx / l, uy = dy / l, px = -uy, py = ux; // the nozzle: a grey flared tip on the end
+    g.fillStyle = '#9a9aa2'; g.beginPath(); g.moveTo(ex + px * 1.4 * k, ey + py * 1.4 * k); g.lineTo(ex + ux * 6 * k + px * 2.6 * k, ey + uy * 6 * k + py * 2.6 * k); g.lineTo(ex + ux * 6 * k - px * 2.6 * k, ey + uy * 6 * k - py * 2.6 * k); g.lineTo(ex - px * 1.4 * k, ey - py * 1.4 * k); g.fill();
+    g.fillStyle = '#2a2a2e'; g.fillRect(ex + ux * 6 * k - 2.2 * k, ey + uy * 6 * k - 0.6 * k, 4.4 * k, 1.2 * k); }
   R(-11, 12, 4, 2, '#701010'); R(7, 12, 4, 2, '#701010'); // feet
 }
-function catPic(g, x, y) { g.fillStyle = '#d07a30'; g.fillRect(x, y, 16, 8); g.fillRect(x + 12, y - 6, 9, 8); g.fillRect(x + 12, y - 9, 2, 3); g.fillRect(x + 19, y - 9, 2, 3); g.fillRect(x, y + 8, 3, 4); g.fillRect(x + 12, y + 8, 3, 4); g.fillRect(x - 5, y - 4, 6, 2); g.fillStyle = '#f4efd8'; g.fillRect(x + 14, y - 4, 2, 2); g.fillRect(x + 18, y - 4, 2, 2); g.fillStyle = '#000'; g.fillRect(x + 15, y - 3, 1, 1); g.fillRect(x + 19, y - 3, 1, 1); }
+function catPic(g, x, y) { g.fillStyle = '#d07a30'; g.fillRect(x, y, 16, 8); g.fillRect(x + 12, y - 6, 9, 8); g.fillRect(x + 12, y - 9, 2, 3); g.fillRect(x + 19, y - 9, 2, 3); g.fillRect(x, y + 8, 3, 4); g.fillRect(x + 12, y + 8, 3, 4); g.fillRect(x - 3, y - 7, 3, 9); g.fillRect(x - 5, y - 9, 4, 3); g.fillStyle = '#f4efd8'; g.fillRect(x + 14, y - 4, 2, 2); g.fillRect(x + 18, y - 4, 2, 2); g.fillStyle = '#000'; g.fillRect(x + 15, y - 3, 1, 1); g.fillRect(x + 19, y - 3, 1, 1); }
 function drawShow(u) {
   const g = show.g, W = 128, H = 96, text = (str, y, size = 10) => { g.textAlign = 'center'; g.font = 'bold ' + size + 'px monospace'; g.fillStyle = '#000'; g.fillText(str, W / 2 + 1, y + 1); g.fillStyle = '#f4efd8'; g.fillText(str, W / 2, y); };
   if (u < 3.2) { g.fillStyle = '#2b6fb0'; g.fillRect(0, 0, W, H); g.fillStyle = '#e0c040'; g.fillRect(6, 6, W - 12, H - 12); g.fillStyle = '#2b6fb0'; g.fillRect(10, 10, W - 20, H - 20); text('THE', 32); text('MR. TIDY', 52, 15); text('HOUR', 72); return; }
@@ -58,10 +61,10 @@ function drawShow(u) {
   drawWrong(g, Math.random() < 0.15);
 }
 /** The last frame, and what the set shows by itself in the dark: him, close, wrong. */
-function drawWrong(g, flick) {
+function drawWrong(g, flick, text = 'SWEET DREAMS.') {
   const W = 128, H = 96; g.fillStyle = flick ? '#1a0808' : '#000'; g.fillRect(0, 0, W, H);
   vacPic(g, 64, 50, 3.1, 'wrong');
-  g.textAlign = 'center'; g.font = 'bold 10px monospace'; g.fillStyle = '#f4efd8'; g.fillText('EVERY MESS.', 64, 92);
+  g.textAlign = 'center'; g.font = 'bold 10px monospace'; g.fillStyle = '#f4efd8'; g.fillText(text, 64, 92);
 }
 
 /** The set: 'on' (static), 'show' (the programme), 'off' (unplugged; but when the power goes it comes on by itself). */
@@ -99,7 +102,7 @@ export function tvTick(dt) {
   if (tv.state !== 'show') return;
   show.t -= dt;
   const u = SHOW_LEN - show.t;
-  while (show.said < SHOW.length && u >= SHOW[show.said][0]) { audio.play(`tv.say.${show.said}`, { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2.5 }); subtitles.line('TV', SHOW[show.said][1], 3.4); show.said++; }
+  while (show.said < SHOW.length && u >= SHOW[show.said][0]) { audio.play(`tv.say.${show.said}`, { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2.5 }); subtitles.line(null, SHOW[show.said][1], 3.4); show.said++; }
   if (show.t <= 0) tv.set('on');
 }
 
@@ -108,7 +111,12 @@ export function updateScreens(time, dt = 0, dark = 0) {
   const f = Math.floor(time * 12) % 4;
   if (tv.state === 'show' && Math.floor(time * 10) !== show.last) { show.last = Math.floor(time * 10); drawShow(SHOW_LEN - show.t); show.tex.needsUpdate = true; }
   const haunted = tv.state === 'off' && dark > 0.5;
-  if (haunted && Math.floor(time * 10) !== show.last) { show.last = Math.floor(time * 10); const face = (time % 2.6) < 0.22; if (face) drawWrong(show.g, false); else { const g = show.g; for (let i = 0; i < 300; i++) { const v = Math.random() * 200 | 0; g.fillStyle = 'rgb(' + v + ',' + v + ',' + (v + 20) + ')'; g.fillRect(Math.random() * 128 | 0, Math.random() * 96 | 0, 6, 3); } } show.tex.needsUpdate = true; }
+  if (haunted && Math.floor(time * 10) !== show.last) { // static, and then, clean, a cut to him
+    show.last = Math.floor(time * 10); const g = show.g, face = (time % 3.4) < 0.5;
+    if (face) drawWrong(g, false, 'I SEE YOU.');
+    else { g.fillStyle = '#000'; g.fillRect(0, 0, 128, 96); for (let y = 0; y < 96; y += 2) for (let x = 0; x < 128; x += 3) { const v = Math.random() * 210 | 0; g.fillStyle = 'rgb(' + v + ',' + v + ',' + (v + 16) + ')'; g.fillRect(x, y, 3, 2); } }
+    show.tex.needsUpdate = true;
+  }
   for (const e of screens) {
     e.tex.offset.x = f * 0.25;
     const want = tv.state === 'show' || haunted ? show.tex : tv.state === 'off' ? show.black : e.tex;
@@ -138,6 +146,7 @@ export function dressHouse(scene, byId) {
       for (let i = 0; i < p.count; i++) { const y = p.getY(i); p.setY(i, y >= top ? y + add : y * ((top + add) / top)); }
       p.needsUpdate = true; o.geometry = g;
     });
+    if (e.squash === undefined && e.model === 'psx_box') { /* (closed: a lid on it) */ }
     m.traverse((o) => { // lace goes to nothing as it shrinks with distance: a plain cloth holds up
       if (o.isMesh && o.material?.name === 'lace') { plainCloth = plainCloth || makePS1(new THREE.MeshLambertMaterial({ color: 0xe4dcc8, side: THREE.DoubleSide })); o.material = plainCloth; }
     });

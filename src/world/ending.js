@@ -99,7 +99,7 @@ export class Ending {
     this._at('yank', yankAt, () => this._clip('yankPlug', false));
     if (t >= pullAt && t < pullAt + 0.3) v.cord.setTrim(0.09 * (t - pullAt) / 0.3); // the plug flies out
     this._at('pull', pullAt, () => { audio.play('vac.unplug', { pos: v.cord.plugPos, gain: 1.4 }); v.powerDown(); v.model.dead = true; v.model.face.visible = true; v.model.slumped = true; });
-    this._at('words', pullAt + 1.1, () => subtitles.line('Grandma', 'Silly old thing, running all night.', 3.4));
+    this._at('words', pullAt + 1.1, () => subtitles.line(null, '"Silly old thing, running all night."', 3.4));
     if (t >= endAt) { this.active = false; this.done = true; this.onDone?.(); }
   }
 
