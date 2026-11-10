@@ -36,7 +36,7 @@ export const PROPS_2 = {
   "toothbrush_cup": {"mass":0.25,"swipes":1,"noise":3,"landing":"shatter","tint":"#a9d6c2","size":[0.072,0.09,0.072],"nodes":{"intact":"toothbrush_cup","parts":["toothbrush_cup__brushes"],"fx":["fx_shards"]},"lib":"plants"},
   "sugar_bowl": {"mass":0.35,"swipes":2,"noise":3,"landing":"shatter","tint":"#f4f1ea","size":[0.1,0.104,0.1],"nodes":{"intact":"sugar_bowl","fx":["fx_shards"]},"lib":"plants"},
   "measuring_jug": {"mass":0.45,"swipes":2,"noise":4,"landing":"shatter","tint":"#bcd6dc","size":[0.15,0.13,0.1],"nodes":{"intact":"measuring_jug","fx":["fx_shards"],"glass":["measuring_jug__glass"]},"lib":"plants"},
-  "cake_stand": {"mass":1.2,"swipes":3,"noise":5,"landing":"shatter","tint":"#bcd6dc","size":[0.22,0.24,0.22],"nodes":{"intact":"cake_stand","fx":["fx_shards"],"glass":["cake_stand__dome"]},"lib":"plants"},
+  "cake_stand": {"mass":1.2,"swipes":3,"noise":5,"landing":"shatter","tint":"#bcd6dc","size":[0.22,0.24,0.22],"nodes":{"intact":"cake_stand","fx":["fx_shards"],"glass":["cake_stand__dome"],"parts":["cake"]},"partsAt":{"cake":0.05},"lib":"plants"},
   "crystal_decanter": {"mass":1,"swipes":3,"noise":5,"landing":"shatter","tint":"#d8e6ea","size":[0.11,0.24,0.11],"nodes":{"intact":"crystal_decanter","parts":["crystal_decanter__stopper"],"fx":["fx_shards"],"glass":["crystal_decanter__glass"]},"lib":"plants"},
   "cactus_pot": {"mass":0.5,"swipes":2,"noise":3,"landing":"shatter","tint":"#c06a42","size":[0.088,0.07,0.088],"nodes":{"intact":"cactus_pot","parts":["cactus_pot__cactus"],"fx":["fx_shards"]},"lib":"plants"},
   "pincushion": {"mass":0.08,"swipes":1,"noise":1,"landing":"bounce","tint":"#c8463c","size":[0.097,0.074,0.09],"nodes":{"intact":"pincushion"},"lib":"plants"},

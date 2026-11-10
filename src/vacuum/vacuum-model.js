@@ -33,7 +33,7 @@ function drawHoles(g, wild, screaming) {
   g.fillStyle = '#000000';
   if (screaming) { blob(g, W / 2, Y(0.05), 0.15 * FA.pxPerM, 17, '#000000'); return; }
   // the smile: a crescent under the nose, clear of the eyes and the intake
-  const span = wild ? 0.225 : 0.165, top0 = 0.046, low0 = wild ? 0.018 : 0.028, rise = wild ? 0.06 : 0.05, riseLow = wild ? 0.098 : 0.078;
+  const span = wild ? 0.225 : 0.165, top0 = wild ? 0.046 : 0.054, low0 = wild ? 0.018 : 0.036, /* (stage 3's smile sits a little higher) */ rise = wild ? 0.06 : 0.05, riseLow = wild ? 0.098 : 0.078;
   for (let px = X(-span); px <= X(span); px++) {
     const k = ((px - W / 2) / FA.pxPerM / span) ** 2;
     const yU = top0 + k * rise + (wild ? Math.abs(Math.sin(px * 0.95)) * 0.005 : 0), yL = low0 + k * riseLow;

@@ -236,3 +236,12 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 #surge[hidden] { display: none; }
 #surge .pix { width: calc(var(--w) * 4px); height: calc(var(--h) * 4px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; animation: surge-wave .7s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px rgba(150, 200, 255, .75)); }
 @keyframes surge-wave { from { transform: translateY(-5px) skewX(-6deg); } to { transform: translateY(5px) skewX(6deg); } }
+
+/* the end screens, lined up: the plaque exactly the frame's width; the title level with the top of the frame, the button
+   level with the bottom of the plaque (or the frame, on a win), the words in between */
+#end .card { align-items: stretch; }
+#end .hang { justify-content: space-between; gap: calc(3px * var(--px)); }
+#end .rip { width: 100%; padding: calc(3px * var(--px)) 0; }
+#end .words { justify-content: space-between; gap: calc(2px * var(--px)); }
+#end .words .rule { margin: 0; }
+#end button { margin-top: 0; align-self: flex-start; }

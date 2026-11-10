@@ -226,7 +226,7 @@ function hoseChecks(kit) {
   v.hose.reset();
 
   // at rest it's a short trunk out of the front of him, never back into him
-  { const b3 = new V3(5.0, 0.115, -0.45); v.hose.reset(); for (let i = 0; i < 5; i++) v.hose.tick(dt, b3, 1.57, null);
+  { const b3 = new V3(6.3, 0.115, -0.7); v.hose.reset(); for (let i = 0; i < 5; i++) v.hose.tick(dt, b3, 1.57, null);
     const ahead = v.hose.pts.every((p) => (p.x - b3.x) * 1 >= -0.001), tip = v.hose.tip.x - b3.x;
     report('at rest the hose sticks out in front of him like a trunk', ahead && tip > 0.4, `${tip.toFixed(2)} m out`); }
   v.hose.reset();

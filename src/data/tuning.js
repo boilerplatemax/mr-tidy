@@ -293,6 +293,8 @@ export const TUNING = {
     minAnger: 3, chance: [0, 0, 0.35, 0.45, 0.5], first: 25, cooldown: 40, // by stage, odds on a second thought; s before the first; s between
     near: [3, 8], watch: [6, 11], // m from you he picks a spot (one with a clear view of you); s he stays
     lookCos: 0.95, stare: 1.0, sayChance: 0.6, // how squarely you must look at him; s of it before he slips away; odds he says something as he goes
+    cornerChance: 0.4, cornerNear: [1.6, 3.4], // odds he waits just round a corner from you instead (out of sight: peek round and he is there), and how close
+    jump: 1.5, jumpChance: 0.5, jumpEvery: 2, outView: 0.2, // once you have seen him: look right away (him outside this cos of your view) and he may be this much nearer when you look back (odds, s between)
     close: 2.2, creep: 0.3, dip: 0.9, hoseUp: 0.6, leaveSpeed: 1.4, // m: nearer than this and he comes for you; m/s he edges nearer while you aren't looking; how quiet the motor goes; m the hose stands up; speed he slips away at (share of his patrol)
   },
   creep: { // the hose comes for a cat hiding up high: slowly, from a long way off, with the motor nearly silent
@@ -368,7 +370,7 @@ export const TUNING = {
     hoseGap: 0.6, // m the end of the hose stays ahead of you as it reels in: never around the camera
     turn: 0.16, // s to turn and face him at the end of it
     hold: 2.0, // s held on his face (the laugh or the scream)
-    faceJitter: 0.0008, // m his face trembles
+    faceJitter: 0.003, // m he trembles (all of him, so his face never slides off his body)
     beat: 0.8, // s of black silence before the restart screen
     screamRate: 2.3, screamGain: 1.4, screamRamp: 0.9, // the motor at the end: pitch, loudness, s to get there
   },
@@ -521,7 +523,7 @@ export const TUNING = {
     // rad the paw is turned (toes up, toes swinging left, pad turning to face the way it bats); blendIn / blendOut: share
     // of the swipe spent leaving / going back to the planted paw; below: m under the view it rises from in the air
     swipe: { path: [[0.07, -0.13, -0.14], [0.085, -0.035, -0.15], [-0.06, -0.05, -0.17], [-0.02, -0.14, -0.13]], up: 0.3, across: 0.62, arc: 0.025, pitch: 0.55, yaw: [-0.2, 0.6], roll: [-0.5, -1.0], blendIn: 0.28, blendOut: 0.72, below: 0.14 },
-    darkTint: 0x5a2c10, // the paws' own glow in the blackout (it eases there from glow as the power goes): a dim ginger, so they're orange paws, not black or grey
+    darkGlow: 0.33, darkAt: 0.6, // in the blackout (past this much dark) the paws are drawn unlit in their own colours at this brightness, so the leg, pads and claws still show
      // a little light of their own, so an underside isn't black; m: the forearm's length in the model
     hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end
     keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)

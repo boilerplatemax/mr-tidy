@@ -83,7 +83,7 @@ export class Vacuum {
     this.sayCd = 0; this.huffCd = 0; this.stalk = false; this.huffMess = null; this.model.dead = false; this.model.maw = false; this.model.calm = false; this.spotted = 0; this.dark = 0; this.arcV?.stop(0.05); this.arcV = null; this.surgeT = 0; this.volley = 0; for (const b of this.blasts) b.reset(); this.stunT = 0; this.stunCd = 0; this.foundT = 0; this.fogCd = 0; this.creepCd = 0; this.greetCd = 0; this.chatCd = 0; this.lungeCd = 0; this.lungePhase = null; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseThen = null; this.seenAt.clear(); this.noises.length = 0; this.lastStop = null; this.model.shriekT = 0; this.model.flick = 0;
     this.lurkCd = LK.first; this.lurkPhase = null; this.lurkT = 0; this.lookT = 0;
     this.heat = 0; this.calms = 0; this.calmT = 0; this.rushed = false; this.rush = false; this.searchLeft = 0; this.pokeCd = 0; this.shhCd = 0; this.searchSayCd = 0; this.turnFaced = true; this.arcFade = 0;
-    this.model.face.visible = true;
+    this.model.face.visible = true; this.tremble = 0;
     this.anger = 1; this.setAnger(1); this.model.setFace(1); // (quietly: no "all tidy" tune at the start of a run)
     this.sayCd = TUNING.voice.quietStart; this.greetCd = TUNING.voice.quietStart + 1; // a moment's peace before he says anything
     this.streak = []; this.burstT = 0; this.burstCd = 0; this.lostFor = 0; this.peekT = 0; this.peekCd = 0; this.peekSide = 1; this.ambush = false; this.ambushCd = AM.first;
@@ -473,19 +473,19 @@ export class Vacuum {
   _startLurk() {
     const P = this.player;
     if (P.noclip || this.anger < LK.minAnger || this.cloud.active) return false;
-    const a = this._a, b = this._b, picks = [];
+    const a = this._a, b = this._b, picks = [], corner = Math.random() < LK.cornerChance, near = corner ? LK.cornerNear : LK.near;
     b.x = P.pos.x; b.y = P.feetY + 0.15; b.z = P.pos.z;
     for (const n of this.nav.nodes.values()) {
       const d = Math.hypot(n.x - P.pos.x, n.z - P.pos.z);
-      if (d < LK.near[0] || d > LK.near[1]) continue;
+      if (d < near[0] || d > near[1]) continue;
       a.x = n.x; a.y = 0.35; a.z = n.z;
-      if (this.world.countOccluders(a, b, 1, true)) continue; // he must be able to see you from there
+      if (!!this.world.countOccluders(a, b, 1, true) !== corner) continue; // in plain view of you, or (round the corner) just out of it: look round and he's already there
       picks.push(n);
     }
     while (picks.length) {
       const n = picks.splice(Math.floor(Math.random() * picks.length), 1)[0], path = this.planTo(n);
       if (path.length < 2) continue;
-      this.state = 'LURK'; this.lurkPhase = 'go'; this.lurkCd = LK.cooldown; this.lookT = 0; this.stalk = true;
+      this.state = 'LURK'; this.lurkPhase = 'go'; this.lurkCd = LK.cooldown; this.lookT = 0; this.stalk = true; this.lurkCorner = corner; this.seenLurk = false; this.jumpCd = 0;
       this.path = path; this.pathI = 0;
       return true;
     }
@@ -533,7 +533,7 @@ export class Vacuum {
     this.heading = wrap(this.heading + Math.max(-turn, Math.min(turn, diff)));
     this.lurkT -= dt;
     if (this._watched()) { // seen: dead still
-      this.lookT += dt;
+      this.lookT += dt; this.seenLurk = true;
       if (this.lookT >= LK.stare) { // and away he goes, out of sight
         if (Math.random() < LK.sayChance) this._say(this.anger >= 5 ? 'lurk5' : 'lurk', true);
         this.lurkPhase = 'leave'; if (this.direct) this._rejoin();
@@ -544,7 +544,15 @@ export class Vacuum {
       return;
     }
     if (this.lookT > 0) this.lookT = Math.max(0, this.lookT - dt * 0.5);
-    if (d > LK.close + 0.4 && Math.abs(diff) < 0.5 && this._paid() < C.length - 0.3) { // not looking? he's a little nearer
+    if (this.jumpCd > 0) this.jumpCd -= dt;
+    { // you looked at him, then away: and when you look back he's a good deal nearer (never where it would catch you)
+      const c = this.camera, f = c.getWorldDirection(_s), dx = this.x - c.position.x, dz = this.z - c.position.z, l = Math.hypot(dx, dz) || 1, outOfView = (dx * f.x + dz * f.z) / l < LK.outView;
+      if (this.seenLurk && outOfView && this.jumpCd <= 0 && d > LK.close + 0.6 && (this.jumpCd = LK.jumpEvery) && Math.random() < LK.jumpChance) { // (a roll every jumpEvery s while you look away)
+        const go = Math.min(LK.jump, d - LK.close - 0.4), hx = (P.pos.x - this.x) / d, hz = (P.pos.z - this.z) / d, tx = this.x + hx * go, tz = this.z + hz * go;
+        if (go > 0.3 && this._clear(tx, tz) && this._paid() + go < C.length - 0.3) { this.x = this.px = tx; this.z = this.pz = tz; this.heading = this.prevHeading = Math.atan2(hx, hz); this.direct = true; this._guardCord(); this.hose.reset(); }
+      }
+    }
+    if (!this.lurkCorner && d > LK.close + 0.4 && Math.abs(diff) < 0.5 && this._paid() < C.length - 0.3) { // not looking? he's a little nearer
       const tx = this.x + Math.sin(this.heading) * 0.3, tz = this.z + Math.cos(this.heading) * 0.3;
       if (this._clear(tx, tz)) { this.x += Math.sin(this.heading) * LK.creep * dt; this.z += Math.cos(this.heading) * LK.creep * dt; this.world.resolve(this, V.radius - 0.02, 0.03, V.height, null, 2, 0.03); this._guardCord(); this.direct = true; }
     }
@@ -1418,6 +1426,7 @@ export class Vacuum {
     this.cloud.frame(dt, this.camera.position);
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;
+    if (this.caught && this.tremble) { r.position.x += (Math.random() - 0.5) * 2 * this.tremble; r.position.z += (Math.random() - 0.5) * 2 * this.tremble; }
     { const B = this.hose.body || (this.hose.body = {}); B.x = r.position.x; B.z = r.position.z; B.r = V.model.bodyR * (this.model.w ?? 1); B.top = V.height * this.model.k; }
     this.hose.frame(alpha, this.camera.position);
     for (const b of this.blasts) b.frame(alpha);

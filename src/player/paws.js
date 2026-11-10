@@ -32,7 +32,7 @@ function fillPaw(paw, lib, side) {
 const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _cq = new THREE.Quaternion(), _m = new THREE.Matrix4(), _r = new THREE.Quaternion();
 const _a = new THREE.Vector3(), _zAxis = new THREE.Vector3(0, 0, 1), _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-const _col = new THREE.Color(), _h = new THREE.Vector3(), _t = new THREE.Vector3(), _s = new THREE.Vector3(), _sq = new THREE.Quaternion(), _e = new THREE.Euler();
+const _col = new THREE.Color(), _own = new THREE.Color(), _h = new THREE.Vector3(), _t = new THREE.Vector3(), _s = new THREE.Vector3(), _sq = new THREE.Quaternion(), _e = new THREE.Euler();
 
 export class Paws {
   constructor(camera) {
@@ -41,8 +41,9 @@ export class Paws {
     this.rig = null; this.mixer = null; this.swipeClip = null; // the whole rig, for the swipe's own animation
     camera.add(this.left, this.right);
     loadGLB(TUNING.assets.forelegs).then((g) => {
-      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive.setHex(V.glow); if (!this.mats.includes(o.material)) this.mats.push(o.material); o.material.fog = false; o.layers.set(LAYER_VIEWMODEL); } o.frustumCulled = false; }); // (a little light of their own, so an underside isn't black)
+      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive.setHex(V.glow); if (!this.mats.includes(o.material)) { this.mats.push(o.material); this.darkOf.set(o.material, new THREE.MeshBasicMaterial({ map: o.material.map, vertexColors: o.material.vertexColors, color: o.material.color.clone().multiplyScalar(V.darkGlow), fog: false })); } o.material.fog = false; o.layers.set(LAYER_VIEWMODEL); } o.frustumCulled = false; }); // (a little light of their own, so an underside isn't black)
       fillPaw(this.left, g.scene, 'L'); fillPaw(this.right, g.scene, 'R');
+      for (const p of [this.left, this.right]) p.traverse((o) => { if (o.isMesh && this.darkOf.has(o.material)) this.meshes.push([o, o.material, this.darkOf.get(o.material)]); }); // (the paws you see are clones: they share the materials)
       this.rig = g.scene; this.rig.visible = false;
       camera.add(this.rig);
       this.mixer = new THREE.AnimationMixer(this.rig);
@@ -55,7 +56,7 @@ export class Paws {
     this.side = 0; // 0 .. 1: how much the climb is going sideways
     this.acts = {}; this.move = 0; this.drop = 0; this.linger = 0; this._w = new Map();
     this.world = null; this._g = { y: 0, surface: '', collider: null }; this.nextPaw = 1; this.swipeU = -1; this.walkVisible = false;
-    this.dark = 0; this.mats = []; // (in the blackout they keep a little light of their own, or they'd be black shapes)
+    this.dark = 0; this.mats = []; this.meshes = []; this.dk = false; this.darkOf = new Map(); // (in the blackout they keep a little light of their own, or they'd be black shapes)
   }
 
   /** Put a paw at a world position and orientation (from its basis), in the camera's space. */
@@ -249,7 +250,8 @@ export class Paws {
 
   /** Per rendered frame, after the camera is placed. hidden: third-person debug view. */
   frame(player, dt, alpha, hidden = false) {
-    if (this.mats.length) { _col.setHex(V.glow).lerp(this._dark || (this._dark = new THREE.Color(V.darkTint)), Math.min(1, this.dark)); for (const m of this.mats) m.emissive.copy(_col); } // (lit like the tail: a faint warm glow, a little more of it, in ginger, when the lights are out)
+    // lit like the tail (a faint warm glow). In the blackout each part shows its own colours, dimmed (the ginger leg, the pale pads): unlit, so they aren't lost
+    if (this.meshes.length) { const dk = this.dark > V.darkAt; if (dk !== this.dk) { this.dk = dk; for (const [o, lit, dark] of this.meshes) o.material = dk ? dark : lit; } for (const m of this.mats) m.emissive.setHex(V.glow); }
     if (this.rig) this.rig.visible = false; // (the rig's own swipe clip is retired: the walking paw does the swipe itself)
     const gripping = (player.mode === 'hang' || player.mode === 'mantle') && !!player.hang.col;
     const climbing = !gripping && (player.mode === 'climb' || player.mode === 'slide') && !!player.climb.col;

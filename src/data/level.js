@@ -132,7 +132,7 @@ export const LEVEL = {
 
     // ------------------------------------------------------------ hallway: the dangerous crossing
     box('sideTable', 'hall', 10.0, 10.7, -1.4 + IN, -0.875, 0, 0.7),
-    box('hallTable', 'hall', 0.95, 1.65, -0.42, -IN, 0, 0.78, { noVisual: true }), // the little table under Biscuit
+    box('hallTable', 'hall', 4.78, 5.48, -0.42, -IN, 0, 0.78, { noVisual: true }), // (under Duchess and Pepper: the end of the hall is left clear for the front door) // the little table under Biscuit
     box('plantStand', 'hall', 14.8, 15.2, -1.3, -0.9, 0, 1.1, { tex: 'wood_walnut' }),
 
     // ------------------------------------------------------------ the laundry room: linen cupboards and boxes of old linen, 1.1 m apart (a jump alone can't do it)
@@ -290,7 +290,7 @@ export const LEVEL = {
     { id: 'kitchen2', room: 'kitchen', pos: [8.0, 0.3, 5.4 - IN], n: [0, 0, -1], node: 'K2' },
     { id: 'storage1', room: 'storage', pos: [12.8, 0.3, IN], n: [0, 0, 1], node: 'Sd' },
     { id: 'parlour1', room: 'parlour', pos: [18 - IN, 0.3, 3.0], n: [-1, 0, 0], node: 'Q2' },
-    { id: 'hall1', room: 'hall', pos: [5.5, 0.3, -IN], n: [0, 0, -1], node: 'H2' },
+    { id: 'hall1', room: 'hall', pos: [5.85, 0.3, -IN], n: [0, 0, -1], node: 'H2' },
     { id: 'hall2', room: 'hall', pos: [13.0, 0.3, -1.4 + IN], n: [0, 0, 1], node: 'H3' },
     { id: 'dining1', room: 'dining', pos: [6 - IN, 0.3, -3.2], n: [-1, 0, 0], node: 'D5' },
     { id: 'bath1', room: 'bath', pos: [9.6 - IN, 0.3, -2.0], n: [-1, 0, 0], node: 'B2' },
@@ -303,7 +303,7 @@ export const LEVEL = {
   waypoints: {
     L1: [4.85, 1.1], L2: [3.05, 1.0], L3: [1.8, 2.0], L4: [2.0, 4.2], L5: [4.4, 3.7], Ld: [5.5, 4.35], // living room
     Kd: [6.6, 4.35], K1: [6.8, 4.0], K2: [9.5, 4.2], K3: [9.55, 2.3], K4: [8.5, 1.4], K5: [6.7, 1.7], // kitchen
-    Hw: [1.2, -0.88], Hl: [3.05, -0.45], H2: [5.6, -0.45], Hb: [7.95, -0.45], Hk: [8.5, -0.45], H3: [11.2, -0.45], Hz: [12.05, -0.45], Hs: [13.75, -0.45], Ht: [16.35, -0.45], H4: [16.8, -0.45], // hallway
+    Hw: [1.2, -0.45], Hl: [3.05, -0.45], H2: [5.6, -0.86], Hb: [7.95, -0.45], Hk: [8.5, -0.45], H3: [11.2, -0.45], Hz: [12.05, -0.45], Hs: [13.75, -0.45], Ht: [16.35, -0.45], H4: [16.8, -0.45], // hallway
     Sd: [13.75, 0.5], S1: [13.75, 2.4], S2: [12.3, 2.4], Sk: [11.3, 2.3], S3: [14.2, 3.5], Sq: [15.0, 3.7], // laundry room
     Qd: [15.4, 3.7], Q2: [16.5, 3.6], Q1: [16.3, 2.0], Qh: [16.0, 0.4], Hq: [16.0, -0.45], // parlour, and the hall outside it
     Dd: [3.05, -1.85], D1: [1.2, -2.4], D2: [1.2, -5.2], D3: [3.0, -5.6], D4: [5.0, -5.4], D5: [5.0, -2.6], // dining room
@@ -363,7 +363,7 @@ export const LEVEL = {
     { id: 'geranium', type: 'geranium_pot', on: 'c3', x: 10.45, z: 4.2 },
     { id: 'jade', type: 'jade_plant', on: 'c2b', x: 10.45, z: 1.2 },
     // hallway: louder the closer to Grandma's door
-    { id: 'hallVase', type: 'vase', on: 'hallTable', x: 1.3, z: -0.25 },
+    { id: 'hallVase', type: 'vase', on: 'hallTable', x: 5.13, z: -0.25 },
     { id: 'phone', type: 'rotary_phone', on: 'sideTable', x: 10.4, z: -1.1 },
     { id: 'glasses', type: 'glasses', on: 'sideTable', x: 10.12, z: -1.05 },
     { id: 'standPlant', type: 'snake_plant', on: 'plantStand', x: 15.0, z: -1.1 },

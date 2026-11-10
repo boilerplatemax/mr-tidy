@@ -202,7 +202,7 @@ export class Knockables {
     const n = o.t.nodes, group = new THREE.Group();
     group.position.y = -o.h / 2; // (the group's origin is the middle of the object; the models stand on their base)
     group.add(this._clone(n.intact));
-    for (const part of n.parts || []) group.add(this._clone(part));
+    for (const part of n.parts || []) { const c = this._clone(part); c.position.y += o.t.partsAt?.[part] ?? 0; group.add(c); } // (partsAt: a part that sits up on the thing, like the cake on its stand)
     for (const g of n.glass || []) if (g !== n.intact) group.add(this._clone(g));
     o.node = group; o.mesh.add(group);
   }

@@ -131,7 +131,7 @@ export class CatchSequence {
       cam.position.copy(this.end);
       if (this.eat) { const u = Math.max(0, (this.t - C.hold * 0.4) / (C.hold * 0.6)); _p.copy(this.faceAt).sub(this.end).setY(0).normalize(); cam.position.addScaledVector(_p, TUNING.eat.into * u * u); cam.position.y -= 0.06 * u; } // in, between the teeth
       cam.updateMatrixWorld();
-      f.position.set(this.faceBase.x + rnd() * C.faceJitter, this.faceBase.y + rnd() * C.faceJitter, this.faceBase.z); // trembling with rage
+      v.tremble = C.faceJitter; // trembling with rage: all of him (the face stays on his body)
       if (this.t >= C.hold) this._toCut();
       return;
     }
@@ -153,7 +153,7 @@ export class CatchSequence {
   _toCut() {
     this.phase = 'black'; this.t = 0;
     this.cut.hidden = false;
-    this.vac.model.face.position.copy(this.faceBase);
+    this.vac.model.face.position.copy(this.faceBase); this.vac.tremble = 0;
     this.vac.silence();
     audio.suspend();
   }
