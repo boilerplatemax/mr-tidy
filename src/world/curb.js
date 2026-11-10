@@ -23,8 +23,8 @@ function sign() {
 }
 
 export class Curb {
-  constructor({ scene, camera, vac, env }) {
-    Object.assign(this, { camera, vac, env });
+  constructor({ scene, camera, vac, env, knock }) {
+    Object.assign(this, { camera, vac, env, knock });
     this.active = false; this.t = 0; this.onDone = null;
     const g = this.group = new THREE.Group(), X = C.x, Z = C.z;
     const plane = (w, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), mat); m.position.set(x, y, z); g.add(m); return m; };
@@ -50,6 +50,11 @@ export class Curb {
     v.frozen = true; v.dormant = false; v.powerDown(); v.setHidden(false); v.hose.mesh.visible = v.hose.nozzle.visible = false; v.cord.mesh.visible = v.cord.plug.visible = false;
     v.noCord = true; v.x = v.px = X; v.z = v.pz = Z + 0.2; v.heading = v.prevHeading = 0; v.model.dead = false; v.model.calm = true; v.model.slumped = false; v.model.face.visible = false;
     this.sign.position.set(X + 0.3, 0.13, Z + 0.32); this.sign.rotation.set(-0.3, -0.35, 0.08); // (propped against him)
+    if (!this.stuffies && this.knock?._stuffy) { // and his collection, lined up beside him: they're going too
+      this.stuffies = new THREE.Group();
+      ['bear', 'bunny', 'frog', 'pig', 'elephant'].forEach((k, i) => { const m = this.knock._stuffy(k); m.position.set(X - 0.4 - i * 0.165, 0.002, Z + 0.28 + (i % 2) * 0.06); m.rotation.y = 0.25 - i * 0.12; m.scale.setScalar(1.1); this.stuffies.add(m); });
+      this.group.add(this.stuffies);
+    }
   }
 
   /** Per rendered frame while active. */

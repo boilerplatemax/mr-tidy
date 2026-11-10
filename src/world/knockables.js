@@ -30,9 +30,11 @@ const SHAKER = (side, tint) => ({ mass: 0.1, swipes: 1, noise: 1, landing: 'boun
 PROPS.wall_clock = { mass: 0.9, swipes: 1, noise: 5, landing: 'break', tint: '#6a4628', size: [0.324, 0.324, 0.06], nodes: { intact: 'wall_clock' } };
 PROPS.urn = { mass: 0.9, swipes: 2, noise: 5, landing: 'shatter', tint: '#8a8782', size: [0.14, 0.26, 0.14], nodes: { intact: 'urn', fx: ['fx_shards', 'fx_puff'] } }; // Grandpa
 PROPS.salt_shaker = SHAKER('salt_shaker', '#f4f1ea');
-// His spare parts: yellow and red, MR. TIDY on each. Bonus things: no noise toward Grandma, and he takes it personally.
-const TIDY = (name, size, landing, label) => ({ mass: 0.3, swipes: 1, noise: 0, landing, tint: '#e8c02a', size, bonus: label, nodes: { intact: name } });
-Object.assign(PROPS, { tidy_bag: TIDY('tidy_bag', [0.16, 0.12, 0.1], 'thud', 'his spare dust bags'), tidy_manual: TIDY('tidy_manual', [0.15, 0.03, 0.2], 'thud', 'his instruction manual'), tidy_filter: TIDY('tidy_filter', [0.1, 0.1, 0.1], 'bounce', 'his spare filter'), tidy_nozzle: TIDY('tidy_nozzle', [0.06, 0.16, 0.06], 'bounce', 'his spare nozzle'), tidy_card: TIDY('tidy_card', [0.12, 0.02, 0.08], 'thud', 'his warranty card') }); PROPS.pepper_shaker = SHAKER('pepper_shaker', '#2a2a2a');
+// His collection: little bean-filled plush animals, each with a red heart tag, hidden up high round the house. Bonus things:
+// no noise toward Grandma, and he takes it personally. Knock all five down and...
+const STUFFY = (label) => ({ mass: 0.12, swipes: 1, noise: 0, landing: 'thud', tint: '#c8a070', size: [0.1, 0.13, 0.09], bonus: label });
+for (const [k, label] of [['bear', 'his beanie bear'], ['bunny', 'his beanie bunny'], ['frog', 'his beanie frog'], ['pig', 'his beanie pig'], ['elephant', 'his beanie elephant']]) PROPS['stuffy_' + k] = { ...STUFFY(label), nodes: { intact: 'stuffy_' + k } };
+PROPS.pepper_shaker = SHAKER('pepper_shaker', '#2a2a2a');
 
 function buildType(id) {
   const p = PROPS[id], [w, h, d] = p.size;
@@ -76,7 +78,7 @@ export class Knockables {
     if (name === 'button_jar') return this._jarFill();
     if (name === 'urn') return this._urn();
     if (name === 'yarn_ball') return this._yarn();
-    if (name.startsWith('tidy_')) return this._tidy(name);
+    if (name.startsWith('stuffy_')) return this._stuffy(name.slice(7));
     if (name === 'wall_clock' && this.clockLib) { const c = this.clockLib.clone(true); c.position.y = -1.638; return c; } // (modelled hanging at its height on the wall)
     const n = this.lib?.getObjectByName(name);
     if (!n) { console.warn(`knockables: no node ${name}`); return new THREE.Group(); }
@@ -100,13 +102,36 @@ export class Knockables {
     return new THREE.Mesh(this.shakerGeo[name], src.material);
   }
 
-  /** One of his spare parts: a yellow thing with a red MR. TIDY stripe. */
-  _tidy(name) {
-    const t = PROPS[name], [w, h, d] = t.size, g = new THREE.Group();
-    const yellow = this.tidyY ??= makePS1(new THREE.MeshLambertMaterial({ color: 0xe8c02a })), red = this.tidyR ??= makePS1(new THREE.MeshLambertMaterial({ color: 0xb01818 }));
-    const geo = name === 'tidy_filter' ? new THREE.CylinderGeometry(w / 2, w / 2, h, 10) : name === 'tidy_nozzle' ? new THREE.CylinderGeometry(w * 0.3, w / 2, h, 8) : new THREE.BoxGeometry(w, h, d);
-    const body = new THREE.Mesh(geo, yellow); body.position.y = h / 2; g.add(body);
-    const stripe = new THREE.Mesh(name === 'tidy_filter' || name === 'tidy_nozzle' ? new THREE.CylinderGeometry(w / 2 + 0.002, w / 2 + 0.002, h * 0.22, 10) : new THREE.BoxGeometry(w + 0.004, h * 0.3, d + 0.004), red); stripe.position.y = h * 0.55; g.add(stripe);
+  /** One of his beanie babies: soft lumps of plush, bead eyes, a red heart tag on one ear. Sitting up, facing +z. */
+  _stuffy(kind) {
+    if (!this.plush) { // a speckled fabric, tinted per animal
+      const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d');
+      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const v = Math.min(255, 205 + ((x * 7 + y * 13) % 5) * 10 + (Math.random() * 20 | 0)); g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; g.fillRect(x, y, 1, 1); }
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; pixelTexture(t);
+      this.plush = { tex: t, mats: new Map(), ball: new THREE.SphereGeometry(1, 8, 6), bead: makePS1(new THREE.MeshLambertMaterial({ color: 0x0c0c0e })), tag: makePS1(new THREE.MeshLambertMaterial({ color: 0xc81e2a })) };
+    }
+    const P = this.plush, g = new THREE.Group();
+    const mat = (hex) => { if (!P.mats.has(hex)) P.mats.set(hex, makePS1(new THREE.MeshLambertMaterial({ color: hex, map: P.tex }))); return P.mats.get(hex); };
+    const lump = (hex, x, y, z, sx, sy = sx, sz = sx, rx = 0, rz = 0) => { const m = new THREE.Mesh(P.ball, mat(hex)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.set(rx, 0, rz); g.add(m); return m; };
+    const bead = (x, y, z, sx, sy = sx, sz = sx) => { const e = new THREE.Mesh(P.ball, P.bead); e.scale.set(sx, sy, sz); e.position.set(x, y, z); g.add(e); };
+    const heart = (x, y, z) => { const h = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.004), P.tag); h.position.set(x, y, z); h.rotation.z = Math.PI / 4; g.add(h); };
+    const [main, light] = { bear: [0x8a5a34, 0xc89a6a], bunny: [0xd8ccc4, 0xf0c8d0], frog: [0x4f9a3a, 0xc8d88a], pig: [0xe8a0ac, 0xd07888], elephant: [0x8a98b8, 0xb8c4dc] }[kind] || [0xb08a60, 0xd8b890];
+    // the body, sitting, the feet sticking out in front, the arms
+    lump(main, 0, 0.04, 0, 0.042, 0.044, 0.036);
+    lump(main, -0.022, 0.012, 0.026, 0.016, 0.012, 0.022); lump(main, 0.022, 0.012, 0.026, 0.016, 0.012, 0.022);
+    lump(main, -0.04, 0.05, 0.012, 0.012, 0.024, 0.012, 0, 0.5); lump(main, 0.04, 0.05, 0.012, 0.012, 0.024, 0.012, 0, -0.5);
+    if (kind === 'frog') { // squat and wide, no neck: eyes on top
+      lump(main, 0, 0.09, 0.004, 0.044, 0.03, 0.036); lump(light, 0, 0.078, 0.03, 0.03, 0.012, 0.012);
+      for (const sx of [-1, 1]) { lump(main, sx * 0.022, 0.118, 0.012, 0.014); bead(sx * 0.022, 0.12, 0.025, 0.007); }
+      heart(0.036, 0.1, 0.02);
+      return g;
+    }
+    const hy = 0.103; lump(main, 0, hy, 0.004, 0.034, 0.032, 0.032); // the head
+    for (const sx of [-1, 1]) bead(sx * 0.013, hy + 0.008, 0.033, 0.006);
+    if (kind === 'bear') { lump(light, 0, hy - 0.008, 0.03, 0.014, 0.011, 0.01); for (const sx of [-1, 1]) lump(main, sx * 0.025, hy + 0.027, 0, 0.012, 0.012, 0.007); bead(0, hy - 0.004, 0.04, 0.006, 0.004, 0.004); heart(0.03, hy + 0.033, 0.006); }
+    if (kind === 'bunny') { for (const sx of [-1, 1]) { lump(main, sx * 0.013, hy + 0.048, -0.004, 0.009, 0.03, 0.006, 0, sx * -0.2); lump(light, sx * 0.013, hy + 0.048, 0.002, 0.005, 0.022, 0.002, 0, sx * -0.2); } lump(light, 0, hy - 0.01, 0.03, 0.012, 0.009, 0.008); lump(0xf4f0ea, 0, 0.03, -0.038, 0.012); heart(0.022, hy + 0.06, 0.006); }
+    if (kind === 'pig') { const sn = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.013, 0.012, 8).rotateX(Math.PI / 2), mat(light)); sn.position.set(0, hy - 0.006, 0.034); g.add(sn); for (const sx of [-1, 1]) lump(main, sx * 0.022, hy + 0.028, 0.006, 0.01, 0.012, 0.005, 0.4, sx * -0.4); heart(0.03, hy + 0.034, 0.008); }
+    if (kind === 'elephant') { for (const sx of [-1, 1]) lump(main, sx * 0.036, hy + 0.002, -0.004, 0.006, 0.026, 0.024); const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.011, 0.04, 6), mat(main)); tr.position.set(0, hy - 0.022, 0.036); tr.rotation.x = 0.35; g.add(tr); heart(0.04, hy + 0.024, 0.01); }
     return g;
   }
 
@@ -214,7 +239,7 @@ export class Knockables {
       const cx = o.x - eye.x, cy = o.y + o.h / 2 - eye.y, cz = o.z - eye.z, d = Math.hypot(cx, cy, cz);
       if (d > S.reach + o.r || d < 1e-3 || (cx * _v.x + cy * _v.y + cz * _v.z) / d < S.cone) continue;
       // heavy things take a few hits: the early ones only rock them
-      o.hits++; if (o.t.id === 'yarn_ball') this._softHit = true;
+      o.hits++; if (o.t.id === 'yarn_ball' || o.t.bonus) this._softHit = true;
       const free = o.hits >= o.t.swipes, speed = free ? Math.max(S.minSpeed, Math.min(S.maxSpeed, S.impulse / o.mass)) : S.nudge;
       this.shove(o, dx, dz, speed);
       hits++;
@@ -290,7 +315,7 @@ export class Knockables {
     if (t.breakable) {
       o.state = 'gone'; o.mesh.visible = false; o.vx = o.vy = o.vz = 0;
       audio.play('knock.break', { pos: o, rate: (chunks ? 0.7 : 0.9) + Math.random() * 0.25 });
-    } else if (t.id === 'yarn_ball') audio.play('knock.soft', { pos: o });
+    } else if (t.id === 'yarn_ball' || t.bonus) audio.play('knock.soft', { pos: o, gain: t.bonus ? 1.4 : 1 }); // (wool, plush: a soft flump)
     else if (t.id === 'rubber_duck') audio.play('knock.squeak', { pos: o, rate: 0.9 + Math.random() * 0.25 });
     else audio.play('knock.thud', { pos: o, gain: 0.6 });
     if (t.bonus) { this.bonus++; this.onBonus?.(o); } // (one of his things)

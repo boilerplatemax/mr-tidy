@@ -133,14 +133,14 @@ const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime
 const tvProxy = { get state() { return tv?.state; }, set: (st) => tv?.set(st), pokeRemote: (c) => tv?.pokeRemote(c), pokePlug: (c) => tv?.pokePlug(c) };
 var tutorialRun = false; // (the tutorial runs once, on the first run of a session)
 const tutorial = new Tutorial({ hud: hudLayer, player, camera, input, vac, tv: tvProxy, world, scene, knock, byId: house.byId });
-const curb = new Curb({ scene, camera, vac, env });
-const ending = new Ending({ scene, camera, vac, getDoor: () => grandmaDoor(), strip: house.doorStrip, onDone: () => {
-  if (knock.bonus >= knock.bonusTotal && knock.bonusTotal > 0) curb.play(() => endScreen.show('Good Kitty', [...stats(), 'Secret ending: kicked to the kerb'])); // all of his things: he's out
+const curb = new Curb({ scene, camera, vac, env, knock });
+const ending = new Ending({ scene, camera, vac, onDone: () => {
+  if (knock.bonus >= knock.bonusTotal && knock.bonusTotal > 0) { ending.clearFade(); curb.play(() => endScreen.show('Good Kitty', [...stats(), 'Secret ending: kicked to the kerb'])); } // all of his things: he's out
   else endScreen.show('Good Kitty', stats());
 } });
 knock.onBonus = (o) => { // one of his things: no help with Grandma, and he knows it was you
   knock.count += TUNING.bonus.anger; vac.bonusBroken(o);
-  subtitles.show(`That was ${o.t.bonus}. Grandma slept through it, but he didn't. (${knock.bonus} of ${knock.bonusTotal})`, 'bonus' + knock.bonus, 4.5, '', true);
+  subtitles.show(`You knocked down ${o.t.bonus} (${knock.bonus} of ${knock.bonusTotal}). Grandma slept through it. He didn't.`, 'bonus' + knock.bonus, 4.5, '', true);
 };
 ending.instant = params.has('play'); // (the headless checks go straight to the end screen)
 grandma.onWin = () => {
@@ -151,6 +151,7 @@ grandma.onWin = () => {
 const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
   endScreen.show('Mr. Tidy keeps a clean house.', stats(), 'Try again', { small: true, images: [['game-assets/textures/portraits/portrait_09_empty.png', 64], ['game-assets/textures/portraits/nameplate_player_dead.png', 64]] });
 } });
+ending.vox = catchSeq.vox; // (free space, to put the camera in front of him)
 vac.onCatch = (how) => { ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
 grandma.onScreen = () => endScreen.show('Good Kitty', stats());
 const menu = new Menu(() => input.requestLock()); // the click is a user gesture: lock + (first time) start audio

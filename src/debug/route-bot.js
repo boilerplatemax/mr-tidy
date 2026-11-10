@@ -1017,16 +1017,24 @@ async function endingChecks(kit) {
   kit.resetRun(); E.instant = false; kit.player.noclip = false;
   G.add(200);
   report('waking her starts the scene', E.active && kit.ended);
-  let t = 0, near = 9, offAt = -1, doorMax = 0; const o = LEVEL.outlets[0];
-  while (E.active && t < 25) { E.update(dt); v.frame(1, dt); t += dt; if (E.nan?.visible) near = Math.min(near, Math.hypot(E.nan.position.x - o.pos[0], E.nan.position.z - o.pos[2])); if (v.off && offAt < 0) offAt = t; doorMax = Math.max(doorMax, Math.abs(E.getDoor()?.rotation.y ?? 0)); }
-  report('her door opens, she walks to the outlet and pulls the plug', doorMax > 1 && near < 0.7 && offAt > 3 && E.nan?.visible, `${t.toFixed(1)} s, she gets within ${near.toFixed(2)} m, power off at ${offAt.toFixed(1)} s`);
+  v.dark = 1; // (as if the power had gone: it should come back)
+  let t = 0, near = 9, offAt = -1, room = false, inHand = false, camOk = true; const vx = v.x, vz = v.z;
+  while (E.active && t < 30) {
+    E.update(dt); v.frame(1, dt); t += dt;
+    if (E.set.group.visible) { room = true; if (E.nan?.visible) near = Math.min(near, Math.hypot(E.nan.position.x - E.to.x, E.nan.position.z - E.to.y)); if (E.set.plug.parent !== E.set.group) inHand = true; }
+    if (v.off && offAt < 0) { offAt = t; camOk = Math.hypot(kit.camera.position.x - v.x, kit.camera.position.z - v.z) > 0.5 && !E.vox.blocked(kit.camera.position.x, kit.camera.position.y, kit.camera.position.z); }
+  }
+  report('she gets up in her room, goes to the wall and pulls the plug: it comes away in her hand', room && near < 0.05 && inHand, `she gets within ${near.toFixed(2)} m`);
+  report('then he dies where he is, filmed from open space in front of him', offAt > 4 && v.model.dead && v.x === vx && v.z === vz && camOk, `power off at ${offAt.toFixed(1)} s`);
+  report('and the lights come back on', v.dark < 0.01, v.dark.toFixed(2));
   report('then Good Kitty', E.done && !kit.endScreen.el.hidden);
   // the secret ending: all of his things broken first
   kit.resetRun(); E.instant = false; K2.bonus = K2.bonusTotal; G.add(200); t = 0;
-  while ((E.active || kit.curb.active) && t < 40) { if (E.active) E.update(dt); else kit.curb.update(dt); t += dt; }
-  report('with all his spare parts broken, the ending goes on to the kerb', kit.endScreen.el.textContent !== null && !kit.curb.active && t > 15, `${t.toFixed(1)} s`);
+  let seen = false, black = false;
+  while ((E.active || kit.curb.active) && t < 40) { if (E.active) E.update(dt); else { kit.curb.update(dt); seen = true; if (Number(E.fade.style.opacity) > 0.01) black = true; } t += dt; }
+  report('with all his things knocked over, the ending goes on to the kerb, and you can see it', seen && !black && !kit.curb.active && t > 15, `${t.toFixed(1)} s`);
   kit.resetRun(); E.instant = true;
-  report('and a new run puts it all back', !E.active && !E.nan?.visible && (E.getDoor()?.rotation.y ?? 0) === 0 && !v.off);
+  report('and a new run puts it all back', !E.active && !E.nan?.visible && !E.set.group.visible && !v.off && !v.model.dead);
   return rows;
 }
 
@@ -1059,8 +1067,8 @@ function bonusChecks(kit) {
   const K = kit.knock, G = kit.grandma, v = kit.vac, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} BONUS ${name}${note ? ' (' + note + ')' : ''}`);
   kit.resetRun(); v.frozen = false;
-  const w0 = G.wake, c0 = K.count, o = K.byId.get('tidyCard'); K._knockOver(o);
-  report('breaking one of his things does not wake Grandma', G.wake === w0, `wake ${G.wake}`);
+  const w0 = G.wake, c0 = K.count, o = K.byId.get('stuffyElephant'); K._knockOver(o);
+  report('knocking down one of his beanie babies does not wake Grandma', G.wake === w0, `wake ${G.wake}`);
   report('but it counts toward his anger, and he comes for it', K.count === c0 + 1 + TUNING.bonus.anger && K.bonus === 1 && (v.state === 'INVESTIGATE' || v.state === 'ALERT'), `${K.count}, ${v.state}`);
   report('there are five of them', K.bonusTotal === 5);
   kit.resetRun(); v.frozen = true;

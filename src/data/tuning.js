@@ -153,13 +153,15 @@ export const TUNING = {
     arriveAfter: 3, show: 17 }, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
   // ---------------------------------------------------------------- the ending (src/world/ending.js)
   ending: {
-    cut: 0.5, doorAt: 0.9, turn: 0.5, pull: 0.45, after: 4.4, fadeOut: 1.1, // s: the cut to black; the door starts; she turns to the wall; into the yank when the plug comes out; from then until it's over; the fade
-    walkSpeed: 0.5, startX: 17.55, handSide: 0.12, handReach: 0.45, // m/s she shuffles at; m in front of the door she starts; where she stands so that her hand is at the outlet
-    holdX: 15.42, holdY: 0.92, holdZ: -0.86, lookX: 16.7, lookY: 0.32, lookZ: -0.55, // the cat, up in the air on the end of his hose, facing him; where it looks
-    vacX: 16.1, vacZ: -0.86, vacHeading: -Math.PI / 2, // he's got you, right in front of her door
-    drop: 0.4, eye: 0.25, // s the fall takes; the cat's eye height when it lands
-    doorSwing: 1.3, // rad: into her room
-    light: 5, lightColor: 0xffc27a, // the warm light from her room
+    cut: 1.1, fadeIn: 0.6, idle: 0.7, turn: 0.5, pull: 0.15, grip: 0.02, toVac: 0.6, die: 0.45, after: 4.6, fadeOut: 1.2, // s: the fade from the house; up into her room; she stands a moment; turns to the wall; into the yank when the plug comes out, and when it's in her hand; then the cut to him; how long he keeps going on screen; from then until it's over; the fade at the end
+    wordsAfter: 1.2, lightsAfter: 0.6, lightsBack: 1.6, // s after he dies: her line; the lights coming back on (if they were out)
+    walkSpeed: 0.5, handSide: 0.12, handReach: 0.45, // m/s she shuffles at; where she stands so that her (left) hand is at the outlet
+    set: [40, -20], room: [1.8, 1.7], doorZ: [0.2, 1.05], // her room, out past the end of the house: where; half its size (m); the door in its east wall
+    outlet: [0.66, 0.36], lampAt: [-0.3, 0.69, -1.45], lamp: 3.2, lightColor: 0xffc27a, // on the south wall; the bedside lamp, on the nightstand
+    start: [-0.35, 0.75], startHeading: Math.PI / 2, // she's just got out of bed
+    camFrom: [1.3, 1.45, -0.95], lookFrom: [-0.45, 0.6, 0.55], camTo: [1.1, 0.85, 0.15], lookTo: [0.48, 0.38, 1.45], // the camera in her room, easing in
+    props: [{ model: 'psx_bed_single_oak', at: [-1.15, 0, -0.6] }, { model: 'psx_nightstand_oak', at: [-0.3, 0, -1.45] }, { model: 'psx_wardrobe_oak', at: [1.2, 0, -1.36] }, { model: 'psx_rug_braided', at: [-0.1, 0.002, 0.55] }, { model: 'psx_picture_landscape', at: [-1.15, 0.1, -1.69] }, { model: 'door_wood', at: [1.86, 0, 0.625], rot: 90 }],
+    vacDist: [1.15, 0.9, 0.7], vacUp: 0.08, push: 0.18, sink: [0.16, 0.08], vacAngles: [0.45, -0.45, 0.8, -0.8, 0.15, -0.15, 1.2, -1.2], // rad off his heading the camera tries, in order. sink: m the camera and where it looks drop as he slumps (to keep his dead face in view) // m: how far in front of him the camera can stand (it tries the first, then closer); above his face; how far it creeps in
   },
   assets: { tail: 'game-assets/models/cat_tail.glb', grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in
 
