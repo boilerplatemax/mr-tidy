@@ -15,8 +15,9 @@ html, body {
 
 #loading {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  color: #6f6858; letter-spacing: .3em; background: #000;
+  color: #6f6858; letter-spacing: .3em; background: #000; z-index: 30; transition: opacity .6s ease-out;
 }
+#loading.gone { opacity: 0; pointer-events: none; }
 #loading[hidden] { display: none; }
 
 /* captions (src/ui/subtitles.js) */

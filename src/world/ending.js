@@ -99,7 +99,7 @@ export class Ending {
     this.active = true; this.done = false; this.t = 0; this.fired = {};
     this.fade.hidden = false; this.fade.style.opacity = '0';
     const v = this.vac;
-    v.frozen = true; v._endReach(); v._endBlast(); v._endSuck(); v._endCreep(); v._endFog(); v.cloud.thin(); v.state = 'PATROL';
+    v.frozen = true; v.hush(0.3); v.cloud.thin(); v.state = 'PATROL'; // (only the motor goes on, until she pulls the plug)
   }
 
   /** The black's gone (the kerb comes next, and it needs to be seen). */

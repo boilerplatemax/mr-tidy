@@ -646,7 +646,6 @@ export class Player {
       const x = x0 + Math.cos((a / 16) * Math.PI * 2) * d, z = z0 + Math.sin((a / 16) * Math.PI * 2) * d;
       if (W.penetration(x, z, r * 1.05, lowY, highY, null, this.feetY) === 0) { this.pos.x = x; this.pos.z = z; this.prev.x = x; this.prev.z = z; this.vel.x = this.vel.z = 0; this.wedgedT = 0; return; }
     }
-    this.dust = 0; this.sneezeT = 0; this.onSneeze = null; // dusted: slowed, and a sneeze on the way
     this.wedgedT = 0;
   }
 

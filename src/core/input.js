@@ -15,7 +15,7 @@ export class Input {
     this.paused = true;
     this.started = false; // the first click has happened (audio may start)
     this.allowUnlocked = false; // headless / tests: run without pointer lock (?play)
-    this.listeners = { pause: [], resume: [], firstClick: [] };
+    this.listeners = { pause: [], resume: [], firstClick: [], lockFailed: [] };
 
     window.addEventListener('keydown', (e) => {
       // F1–F9 are debug keys: without this F5 reloads the page and F3 / F6 / F7 trigger browser actions.
@@ -39,6 +39,7 @@ export class Input {
       this.locked = document.pointerLockElement === this.canvas;
       if (this.locked) this.setPaused(false); else { this.keys.clear(); this.setPaused(true); }
     });
+    document.addEventListener('pointerlockerror', () => this.listeners.lockFailed.forEach((f) => f()));
     document.addEventListener('visibilitychange', () => { if (document.hidden) this.setPaused(true); });
   }
 
@@ -46,7 +47,7 @@ export class Input {
   requestLock() {
     if (!this.started) { this.started = true; this.listeners.firstClick.forEach((f) => f()); }
     const p = this.canvas.requestPointerLock?.({ unadjustedMovement: true });
-    if (p?.catch) p.catch(() => this.canvas.requestPointerLock()); // unadjustedMovement unsupported → plain lock
+    if (p?.catch) p.catch(() => { const q = this.canvas.requestPointerLock(); q?.catch?.(() => this.listeners.lockFailed.forEach((f) => f())); }); // unadjustedMovement unsupported → plain lock
   }
 
   setPaused(v) {

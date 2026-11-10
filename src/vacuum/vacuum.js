@@ -59,8 +59,8 @@ export class Vacuum {
   /** Back to the start, for a new run. */
   reset() {
     const start = this.nav.nodes.get(LEVEL.vacStart), o = LEVEL.outlets[0];
-    this.slurp?.stop(0.05); this.slurp = null;
-    this._endReach();
+    this.hush(0.05);
+    this.voice?.stop(0.05); this.voice = null; // (a fresh motor every run: whatever the last one was doing, it's gone)
     this.x = this.px = start.x; this.z = this.pz = start.z; this.heading = this.prevHeading = 0;
     this.state = 'PATROL'; this.off = false; this.caught = false; this.frozen = false; this.pending = null; this.mess = null;
     this.campT = 0; this.ignoreT = 0;
@@ -76,8 +76,7 @@ export class Vacuum {
     this.model.face.visible = true;
     this.setAnger(1);
     this.anger = 1; this.model.setFace(1);
-    if (!this.voice) this.startSound();
-    else { this.voice.fadeTo(this.droneLevel(10), 0.1); this.voice.setRate(D.rate[0], 0.1); }
+    this.startSound();
   }
 
   /** Anger level 1–3: his face, his speed, the pitch of his motor. */
@@ -232,10 +231,21 @@ export class Vacuum {
     this.voice.setRate((D.rate[this.anger - 1] + D.nearRate * near) * (1 - A.rateDip * (this.dip / A.dip)), D.update * 2);
   }
 
+  /**
+   * Every sound of his except the motor: the slurp (it loops, and would go on for ever if he was cleaning when he was
+   * stopped), the creep, the arcing, and anything else still riding on his hose or nozzle.
+   */
+  hush(fade = 0.15) {
+    this.slurp?.stop(fade); this.slurp = null; this.mess = null;
+    this.arcV?.stop(fade); this.arcV = null;
+    this._endReach(); this._endBlast(); this._endSuck(); this._endCreep(); this._endFog();
+    const mine = [this.model.hoseSocket, this.hose.nozzle];
+    for (const v of [...audio.voices]) if (v !== this.voice && mine.includes(v.follow)) v.stop(fade);
+  }
+
   /** Everything stops: the motor winds down and the face goes dark. */
   powerDown() {
-    this.arcV?.stop(0.2); this.arcV = null;
-    this._endReach(); this._endBlast(); this._endSuck(); this._endCreep(); this._endFog(); this.cloud.thin();
+    this.hush(0.2); this.cloud.thin();
     this.off = true; this.state = 'OFF'; this.model.face.visible = false;
     if (this.voice) { this.voice.setRate(0.2, D.windDown); this.voice.stop(D.windDown); this.voice = null; }
   }

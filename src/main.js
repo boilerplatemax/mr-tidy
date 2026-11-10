@@ -100,9 +100,12 @@ audio.onCaption = (label, pos, slot) => { if (CAPTIONED.test(slot)) subtitles.so
 audio.onStart.push(() => {
   house.startSound(); grandma.startSound(); vac.startSound();
   staticVoice = null;
-  clockVoice = audio.play('amb.clock', { pos: { x: 5.9, y: 1.6, z: -4.5 }, refDistance: 3, rolloff: 0.7 }); // somewhere, never quite placeable
+  startClock();
   staticVoice = audio.play('amb.static', { pos: { x: 5.55, y: 0.5, z: 2.3 }, refDistance: 1.4, rolloff: 1.4 }); // the television, left on
 });
+
+/** The clock ticking somewhere, never quite placeable (it stops when it's knocked down, and starts again next run). */
+function startClock() { clockVoice?.stop(0.05); clockVoice = audio.play('amb.clock', { pos: { x: 5.9, y: 1.6, z: -4.5 }, refDistance: 3, rolloff: 0.7 }); }
 
 // ---------------------------------------------------------------- UI
 const hudLayer = new HudLayer(canvas);
@@ -121,7 +124,7 @@ function resetRun() {
   blackout.reset(); ending.reset(); grandma.holdScreen = false;
   ended = false; runTime = 0;
   catchSeq.reset(); endScreen.hide();
-  audio.resume();
+  audio.resume(); startClock();
   knock.reset(); debris.reset(); grandma.reset(); vac.reset();
   player.frozen = false; player.noclip = false; player.resetMotion();
   player.teleport(S.x, S.y, S.z, S.yaw); player.pitch = 0;
@@ -158,6 +161,7 @@ const menu = new Menu(() => input.requestLock()); // the click is a user gesture
 input.on('firstClick', () => { audio.start(THREE.Vector3); if (!params.has('play') && !tutorialRun) { tutorialRun = true; tutorial.start(); } else introT = 0; });
 input.on('pause', () => { if (ended) return; menu.show(input.started); audio.suspend(); }); // (the end screen takes the mouse back itself)
 input.on('resume', () => { menu.hide(); audio.resume(); });
+input.on('lockFailed', () => { if (!ended && input.paused) { menu.show(input.started); audio.suspend(); } }); // (the browser said no to the mouse, e.g. a click too soon after letting it go: the menu, so one more click starts it)
 menu.show(false);
 
 if (params.has('play')) { // headless / tests: no click, no pointer lock
@@ -236,7 +240,27 @@ function frame(alpha, dt, frameMs) {
 
 const loop = new FixedLoop({ tick, frame, live: () => input.live });
 loop.start();
-document.getElementById('loading').hidden = true;
+reveal();
+
+/**
+ * The title appears all at once: the black LOADING screen stays up until every model and texture is in and the shaders
+ * are compiled (it all used to pop in piece by piece behind the menu), then fades away.
+ */
+async function reveal() {
+  const el = document.getElementById('loading'), M = THREE.DefaultLoadingManager, n = { done: 0, all: 0 };
+  const count = (url, done, all) => { n.done = done; n.all = all; };
+  M.onStart = count; M.onProgress = count; M.onError = (url) => { n.done++; };
+  const until = (f, max = 20000) => new Promise((ok) => { const t0 = performance.now(), c = () => (f() || performance.now() - t0 > max ? ok() : setTimeout(c, 50)); c(); });
+  await until(() => house.dressed);
+  await Promise.all([house.dressed, knock.ready, ending.ready].map((p) => Promise.resolve(p).catch(() => {})));
+  await until(() => vac.ready);
+  let calm = 0; await until(() => { calm = n.done >= n.all ? calm + 1 : 0; return calm >= 6; }); // (nothing left loading for a moment: late arrivals start loading off the back of others)
+  const R = ps1.renderer; // every shader built now, not as each thing first comes into view
+  if (R.extensions.has('KHR_parallel_shader_compile')) await R.compileAsync(scene, camera).catch(() => {}); else R.compile(scene, camera);
+  await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok))); // a couple of frames drawn underneath
+  el.classList.add('gone'); setTimeout(() => { el.hidden = true; }, 700);
+  window.__revealed = true;
+}
 
 // ---------------------------------------------------------------- dev / headless handles
 window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, tail, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };

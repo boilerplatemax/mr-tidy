@@ -86,7 +86,12 @@ export class Tutorial {
     this.tip.show(true);
   }
 
-  _next() { this.i++; this.t = 0; this._show(); audio.play('cat.grab', { gain: 0.4 }); }
+  _next() { this._goTo(this.i + 1); }
+
+  /** Straight to a step (a later one, if the cat has already done what the ones in between ask). */
+  _goTo(i) { this.i = i; this.t = 0; this._show(); audio.play('cat.grab', { gain: 0.4 }); }
+
+  _index(name) { return STEPS.findIndex((s) => s[0] === name); }
 
   /** Everything at once (Enter). */
   skip() {
@@ -115,7 +120,7 @@ export class Tutorial {
   /** The paw went out: the remote, then the plug. */
   onSwipe(camera) {
     if (!this.active) return;
-    if (this.step === 'remote' && this.tv.pokeRemote(camera)) { this._next(); this.player.resetMotion(); this.player.frozen = true; this.from.copy(camera.quaternion); this.watch = 0; }
+    if (this.i <= this._index('remote') && this.tv.pokeRemote(camera)) { this._goTo(this._index('show')); this.player.resetMotion(); this.player.frozen = true; this.from.copy(camera.quaternion); this.watch = 0; } // (however it got up there)
     else if (this.step === 'plug' && this.tv.pokePlug(camera)) this._next();
   }
 
@@ -128,11 +133,15 @@ export class Tutorial {
     if (this.input.pressed('Enter')) { this.skip(); return; }
     this.t += dt;
     const P = this.player, on = P.grounded ? P.groundCollider?.id : null;
-    if (this.step === 'move') { this.moved += Math.hypot(P.pos.x - P.prev.x, P.pos.z - P.prev.z); if (this.moved > T.moveFor) this._next(); }
-    else if (this.step === 'jump' && ['book1', 'book2', 'book3', 'book4'].includes(on)) this._next();
-    else if (this.step === 'climb' && on === 'book4') this._next();
-    else if (this.step === 'leap' && on === 'rodW') this._next();
-    else if (this.step === 'show' && this.tv.state !== 'show' && this.t > 1) { // it's over: you can move again, looking the way you were made to
+    // the climb: each step is passed by doing it, and doing a later one passes all the ones before it (it goes by where the
+    // cat has got to, not by the order the lessons come in)
+    if (this.i <= this._index('leap')) {
+      const reached = on === 'rodW' ? 'leap' : on === 'book4' ? 'climb' : ['book1', 'book2', 'book3'].includes(on) ? 'jump' : null;
+      if (reached && this._index(reached) >= this.i) { this._goTo(this._index(reached) + 1); return; }
+      if (this.step === 'move') { this.moved += Math.hypot(P.pos.x - P.prev.x, P.pos.z - P.prev.z); if (this.moved > T.moveFor) this._next(); }
+      return;
+    }
+    if (this.step === 'show' && this.tv.state !== 'show' && this.t > 1) { // it's over: you can move again, looking the way you were made to
       const e = new THREE.Euler().setFromQuaternion(this.camera.quaternion, 'YXZ');
       P.yaw = e.y; P.pitch = e.x; P.frozen = false; this._next();
     } else if (this.step === 'go' && this.t > T.arriveAfter) this._finish();

@@ -106,7 +106,7 @@ export class Debris {
     for (let i = 0; i < D.maxCubes; i++) this.cubes.setMatrixAt(i, hide);
     for (const m of this.decalPool) m.visible = false;
     this.cubes.instanceMatrix.needsUpdate = true;
-    for (const b of this.bits) this.scene.remove(b.mesh);
+    for (const b of this.bits) { this.scene.remove(b.mesh); if (b.ribbon) { b.mesh.geometry.dispose(); b.mesh.material.dispose(); } } // (a ribbon is its own mesh: everything else shares the library's)
     this.bits.length = 0;
     this.live.length = 0; this.all.length = 0; this.decalInfo.length = 0; this.messes.length = 0;
     this.nextCube = 0; this.nextDecal = 0;
