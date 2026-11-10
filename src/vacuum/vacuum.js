@@ -105,6 +105,13 @@ export class Vacuum {
     const L = audio.listenerPos; if (Math.hypot(this.x - L.x, this.z - L.z) < VO.hear) subtitles.line('Mr. Tidy', set[1][i], 3);
   }
 
+  /** You broke one of his things: he's coming, whatever his mood, and he's angrier for it. */
+  bonusBroken(o) {
+    if (this.dormant || this.off) return;
+    this._say('mine', true);
+    if (this.state !== 'CHASE' && !this._attacking()) { this.state = 'INVESTIGATE'; this.stalk = false; this.routeTo(this.nav.nearest(o.x, o.z)); }
+  }
+
   /** Stage 3 arrives: he stops dead, the lights stutter, his face goes, and he says so. */
   _startTurn() {
     this._endReach(); this._endBlast(); this._endSuck(); this._endCreep();
@@ -190,7 +197,7 @@ export class Vacuum {
     const a = time * 0.55, cx = 1.95, cz = 2.55, r = 0.5;
     this.x = this.px = cx + Math.cos(a) * r; this.z = this.pz = cz + Math.sin(a) * r; this.heading = this.prevHeading = Math.atan2(-Math.sin(a), Math.cos(a));
     if (this.model.stage !== 1) this.setAnger(1);
-    this.cord.mesh.visible = false; this.cord.plug.visible = false; this.model.root.visible = true; this.hose.mesh.visible = this.hose.nozzle.visible = true;
+    this.cord.mesh.visible = false; this.cord.plug.visible = false; this.model.root.visible = true; this.hose.mesh.visible = this.hose.nozzle.visible = false; // (no hose trailing across the title)
     this.hose.tick(dt, this._hole(), this.heading, null);
   }
 
@@ -1073,6 +1080,6 @@ export class Vacuum {
     this.model.cordSocket.getWorldPosition(_s);
     const T = this.tether;
     this.cord.frame(T, this._retracing() ? T.length - 1 : T.length, r.position.x, r.position.z, _s.x, _s.y, _s.z);
-    if (this.hidden) { this.cord.mesh.visible = false; this.cord.plug.visible = false; }
+    if (this.hidden || this.noCord) { this.cord.mesh.visible = false; this.cord.plug.visible = false; }
   }
 }

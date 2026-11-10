@@ -8,7 +8,7 @@ import { makePS1 } from '../render/ps1-material.js';
 const D = TUNING.debug, V_SIGHT_COS = TUNING.vac.sightCos;
 const LOOKS = ['authored', 'clean'];
 const HELP = () => [
-  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F4 anger +1', 'F5 wake +20', 'F6 trigger the catch', 'F7 dust cloud', 'F8 freeze the vac', 'F9 this list',
+  'Debug keys', 'F1 overlay', 'F2 third-person camera', 'F3 noclip (WASD, Space, C, Shift)', 'F4 anger +1', 'F5 wake +20', 'F6 trigger the catch', 'F7 dust cloud', 'F10 the secret ending', 'F8 freeze the vac', 'F9 this list',
   'With the overlay open:', 'L light preset', '1 / 2 / 3 jitter / warp / dither', '4 look: authored <-> clean',
   'URL: ?dev ?play',
 ].join('\n');

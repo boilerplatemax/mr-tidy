@@ -29,7 +29,10 @@ const SPLIT = { salt_shaker: -1, pepper_shaker: 1 };
 const SHAKER = (side, tint) => ({ mass: 0.1, swipes: 1, noise: 1, landing: 'bounce', tint, size: [0.04, 0.075, 0.04], nodes: { intact: side } });
 PROPS.wall_clock = { mass: 0.9, swipes: 1, noise: 5, landing: 'break', tint: '#6a4628', size: [0.324, 0.324, 0.06], nodes: { intact: 'wall_clock' } };
 PROPS.urn = { mass: 0.9, swipes: 2, noise: 5, landing: 'shatter', tint: '#8a8782', size: [0.14, 0.26, 0.14], nodes: { intact: 'urn', fx: ['fx_shards', 'fx_puff'] } }; // Grandpa
-PROPS.salt_shaker = SHAKER('salt_shaker', '#f4f1ea'); PROPS.pepper_shaker = SHAKER('pepper_shaker', '#2a2a2a');
+PROPS.salt_shaker = SHAKER('salt_shaker', '#f4f1ea');
+// His spare parts: yellow and red, MR. TIDY on each. Bonus things: no noise toward Grandma, and he takes it personally.
+const TIDY = (name, size, landing, label) => ({ mass: 0.3, swipes: 1, noise: 0, landing, tint: '#e8c02a', size, bonus: label, nodes: { intact: name } });
+Object.assign(PROPS, { tidy_bag: TIDY('tidy_bag', [0.16, 0.12, 0.1], 'thud', 'his spare dust bags'), tidy_manual: TIDY('tidy_manual', [0.15, 0.03, 0.2], 'thud', 'his instruction manual'), tidy_filter: TIDY('tidy_filter', [0.1, 0.1, 0.1], 'bounce', 'his spare filter'), tidy_nozzle: TIDY('tidy_nozzle', [0.06, 0.16, 0.06], 'bounce', 'his spare nozzle'), tidy_card: TIDY('tidy_card', [0.12, 0.02, 0.08], 'thud', 'his warranty card') }); PROPS.pepper_shaker = SHAKER('pepper_shaker', '#2a2a2a');
 
 function buildType(id) {
   const p = PROPS[id], [w, h, d] = p.size;
@@ -39,6 +42,7 @@ function buildType(id) {
 export class Knockables {
   constructor({ scene, world, byId, noise, debris }) {
     this.world = world; this.noise = noise; this.debris = debris; this.scene = scene;
+    this.bonus = 0; this.bonusTotal = LEVEL.knockables.filter((d) => PROPS[d.type]?.bonus).length; // his spare parts broken, and how many there are
     this.count = 0; // knock-overs so far (the vac's anger and the win screen read this)
     this.list = [];
     this.byId = new Map();
@@ -71,6 +75,7 @@ export class Knockables {
     if (SPLIT[name]) return this._shaker(name);
     if (name === 'button_jar') return this._jarFill();
     if (name === 'urn') return this._urn();
+    if (name.startsWith('tidy_')) return this._tidy(name);
     if (name === 'wall_clock' && this.clockLib) { const c = this.clockLib.clone(true); c.position.y = -1.638; return c; } // (modelled hanging at its height on the wall)
     const n = this.lib?.getObjectByName(name);
     if (!n) { console.warn(`knockables: no node ${name}`); return new THREE.Group(); }
@@ -92,6 +97,16 @@ export class Knockables {
       this.shakerGeo[name] = g;
     }
     return new THREE.Mesh(this.shakerGeo[name], src.material);
+  }
+
+  /** One of his spare parts: a yellow thing with a red MR. TIDY stripe. */
+  _tidy(name) {
+    const t = PROPS[name], [w, h, d] = t.size, g = new THREE.Group();
+    const yellow = this.tidyY ??= makePS1(new THREE.MeshLambertMaterial({ color: 0xe8c02a })), red = this.tidyR ??= makePS1(new THREE.MeshLambertMaterial({ color: 0xb01818 }));
+    const geo = name === 'tidy_filter' ? new THREE.CylinderGeometry(w / 2, w / 2, h, 10) : name === 'tidy_nozzle' ? new THREE.CylinderGeometry(w * 0.3, w / 2, h, 8) : new THREE.BoxGeometry(w, h, d);
+    const body = new THREE.Mesh(geo, yellow); body.position.y = h / 2; g.add(body);
+    const stripe = new THREE.Mesh(name === 'tidy_filter' || name === 'tidy_nozzle' ? new THREE.CylinderGeometry(w / 2 + 0.002, w / 2 + 0.002, h * 0.22, 10) : new THREE.BoxGeometry(w + 0.004, h * 0.3, d + 0.004), red); stripe.position.y = h * 0.55; g.add(stripe);
+    return g;
   }
 
   /** Grandpa: a brass urn with a lid and a little knob. */
@@ -158,7 +173,7 @@ export class Knockables {
 
   /** Back as it was, for a new run. */
   reset() {
-    this.count = 0;
+    this.count = 0; this.bonus = 0;
     for (const o of this.list) {
       o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z;
       o.vx = o.vy = o.vz = 0; o.wx = o.wy = o.wz = 0; o.startQ ? (o.q.copy(o.startQ), o.pq.copy(o.startQ)) : (o.q.identity(), o.pq.identity());
@@ -259,6 +274,7 @@ export class Knockables {
     } else if (t.id === 'yarn_ball') audio.play('knock.soft', { pos: o });
     else if (t.id === 'rubber_duck') audio.play('knock.squeak', { pos: o, rate: 0.9 + Math.random() * 0.25 });
     else audio.play('knock.thud', { pos: o, gain: 0.6 });
+    if (t.bonus) { this.bonus++; this.onBonus?.(o); } // (one of his things)
     this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.points, room, objectId: o.id });
     if (X.rollers[t.id]) this._startRoll(o, bits);
   }

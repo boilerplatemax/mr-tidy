@@ -678,7 +678,7 @@ function grandmaChecks(kit) {
   const G = kit.grandma, K = kit.knock, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} WAKE ${name}${note ? ' (' + note + ')' : ''}`);
   // how many knock-overs a run takes, from the real numbers
-  const values = K.list.map((o) => G.valueOf(o.start.x, o.start.z, o.t.points)).sort((a, b) => b - a);
+  const values = K.list.filter((o) => !o.t.bonus).map((o) => G.valueOf(o.start.x, o.start.z, o.t.points)).sort((a, b) => b - a); // (his spare parts don't count toward waking her)
   const total = values.reduce((a, b) => a + b, 0), avg = total / values.length;
   let best = 0, sum = 0; while (sum < 100 && best < values.length) sum += values[best++];
   let worst = 0; sum = 0; for (let i = values.length - 1; i >= 0 && sum < 100; i--) { sum += values[i]; worst++; }
@@ -1015,7 +1015,7 @@ function propChecks(kit) {
 
 /** The whole ending, by hand: door, Grandma, plug, the screen. */
 async function endingChecks(kit) {
-  const E = kit.ending, G = kit.grandma, v = kit.vac, dt = 1 / 60, rows = [];
+  const E = kit.ending, G = kit.grandma, v = kit.vac, K2 = kit.knock, dt = 1 / 60, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} ENDING ${name}${note ? ' (' + note + ')' : ''}`);
   await E.ready; await kit.house.dressed;
   kit.resetRun(); E.instant = false; kit.player.noclip = false;
@@ -1025,6 +1025,10 @@ async function endingChecks(kit) {
   while (E.active && t < 25) { E.update(dt); v.frame(1, dt); t += dt; if (E.nan?.visible) near = Math.min(near, Math.hypot(E.nan.position.x - o.pos[0], E.nan.position.z - o.pos[2])); if (v.off && offAt < 0) offAt = t; doorMax = Math.max(doorMax, Math.abs(E.getDoor()?.rotation.y ?? 0)); }
   report('her door opens, she walks to the outlet and pulls the plug', doorMax > 1 && near < 0.7 && offAt > 3 && E.nan?.visible, `${t.toFixed(1)} s, she gets within ${near.toFixed(2)} m, power off at ${offAt.toFixed(1)} s`);
   report('then Good Kitty', E.done && !kit.endScreen.el.hidden);
+  // the secret ending: all of his things broken first
+  kit.resetRun(); E.instant = false; K2.bonus = K2.bonusTotal; G.add(200); t = 0;
+  while ((E.active || kit.curb.active) && t < 40) { if (E.active) E.update(dt); else kit.curb.update(dt); t += dt; }
+  report('with all his spare parts broken, the ending goes on to the kerb', kit.endScreen.el.textContent !== null && !kit.curb.active && t > 15, `${t.toFixed(1)} s`);
   kit.resetRun(); E.instant = true;
   report('and a new run puts it all back', !E.active && !E.nan?.visible && (E.getDoor()?.rotation.y ?? 0) === 0 && !v.off);
   return rows;
@@ -1049,6 +1053,19 @@ async function tutorialChecks(kit) {
   report('swiping the plug turns it off', T.tv.state === 'off' && T.step === 'go', T.tv.state);
   for (let i = 0; i < 60 * (TUNING.tutorial.arriveAfter + 0.5); i++) kit.tick(dt);
   report('and then he arrives, by her door', !T.active && !v.dormant && v.model.root.visible && Math.hypot(v.x - 16.8, v.z + 0.45) < 0.5);
+  kit.resetRun(); v.frozen = true;
+  return rows;
+}
+
+/** His spare parts: they don't wake Grandma, they count toward his anger, and he comes. */
+function bonusChecks(kit) {
+  const K = kit.knock, G = kit.grandma, v = kit.vac, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} BONUS ${name}${note ? ' (' + note + ')' : ''}`);
+  kit.resetRun(); v.frozen = false;
+  const w0 = G.wake, c0 = K.count, o = K.byId.get('tidyCard'); K._knockOver(o);
+  report('breaking one of his things does not wake Grandma', G.wake === w0, `wake ${G.wake}`);
+  report('but it counts toward his anger, and he comes for it', K.count === c0 + 1 + TUNING.bonus.anger && K.bonus === 1 && (v.state === 'INVESTIGATE' || v.state === 'ALERT'), `${K.count}, ${v.state}`);
+  report('there are five of them', K.bonusTotal === 5);
   kit.resetRun(); v.frozen = true;
   return rows;
 }
@@ -1091,6 +1108,7 @@ export async function runRouteBot(kit) {
   rows.push(...grandmaChecks(kit));
   rows.push(...restartChecks(kit));
   rows.push(...await tutorialChecks(kit));
+  rows.push(...bonusChecks(kit));
   rows.push(...await endingChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };

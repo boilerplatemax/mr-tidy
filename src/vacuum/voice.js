@@ -12,6 +12,7 @@ export const LINES = {
   turn4: [4, ['No more games.']],
   turn5: [5, ['LIGHTS OUT.']],
   urn: [2, ['Sorry, Harold.']],
+  mine: [3, ['Those are MINE.', 'Do not touch my things.', 'That was my spare!']],
 };
 
 /** The Mr. Tidy Hour: [seconds in, line]. Read by the same voice, at its friendliest. */

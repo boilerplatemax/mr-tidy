@@ -34,6 +34,7 @@ import { StaminaBar } from './ui/stamina-bar.js';
 import { Blackout } from './world/blackout.js';
 import { Ending } from './world/ending.js';
 import { Tutorial } from './world/tutorial.js';
+import { Curb } from './world/curb.js';
 import { tvParts } from './world/house.js';
 
 const params = new URLSearchParams(location.search);
@@ -112,6 +113,7 @@ let roomShown = false;
 const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
 /** A whole new run, without a reload. */
 function resetRun() {
+  if (curb.active) curb.stop();
   tutorial.reset(); if (tv && tutorialRun) tv.set('off');
   audio.stopOneShots(); // (nothing left over from the last run)
   blackout.reset(); ending.reset(); grandma.holdScreen = false;
@@ -129,7 +131,15 @@ const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime
 const tvProxy = { get state() { return tv?.state; }, set: (st) => tv?.set(st), pokeRemote: (c) => tv?.pokeRemote(c), pokePlug: (c) => tv?.pokePlug(c) };
 var tutorialRun = false; // (the tutorial runs once, on the first run of a session)
 const tutorial = new Tutorial({ hud: hudLayer, player, camera, input, vac, tv: tvProxy });
-const ending = new Ending({ scene, camera, vac, getDoor: () => grandmaDoor(), strip: house.doorStrip, onDone: () => endScreen.show('Good Kitty', stats()) });
+const curb = new Curb({ scene, camera, vac, env });
+const ending = new Ending({ scene, camera, vac, getDoor: () => grandmaDoor(), strip: house.doorStrip, onDone: () => {
+  if (knock.bonus >= knock.bonusTotal && knock.bonusTotal > 0) curb.play(() => endScreen.show('Good Kitty', [...stats(), 'Secret ending: kicked to the kerb'])); // all of his things: he's out
+  else endScreen.show('Good Kitty', stats());
+} });
+knock.onBonus = (o) => { // one of his things: no help with Grandma, and he knows it was you
+  knock.count += TUNING.bonus.anger; vac.bonusBroken(o);
+  subtitles.show(`That was ${o.t.bonus}. Grandma slept through it, but he didn't. (${knock.bonus} of ${knock.bonusTotal})`, 'bonus' + knock.bonus, 4.5, '', true);
+};
 ending.instant = params.has('play'); // (the headless checks go straight to the end screen)
 grandma.onWin = () => {
   ended = true; player.frozen = true;
@@ -161,6 +171,7 @@ let wallTime = 0;
 function tick(dt) {
   player.snapView(); // last tick's view offsets, so the frame can interpolate them (see src/core/loop.js)
   debug.tick();
+  if (input.pressed('F10') && !curb.active) { ended = true; player.frozen = true; curb.play(() => endScreen.show('Kicked to the kerb', ['(F10: the secret ending)'], 'Play again')); } // the secret ending, any time
   if (input.pressed('KeyP')) subtitles.show('paws: ' + paws.cycleMode(), 'pawmode', 1.6, '', true); // (the walking-paws experiment)
   if (introT >= 0 && input.live) { const b = introT; introT += dt; for (const [at, line] of INTRO) if (b < at && introT >= at) subtitles.show(line, line, 3.3, 'speech', true); if (introT > 9) introT = -1; } // (the words at the very start)
   if (input.live) {
@@ -185,6 +196,7 @@ function frame(alpha, dt, frameMs) {
   const onTitle = !menu.el.hidden && !menu.started;
   if (catchSeq.active) { catchSeq.update(dt); paws.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (catchSeq.phase === 'done') { /* black, the restart screen is up: hold the view */ }
+  else if (curb.active) { curb.update(dt); paws.hide(); }
   else if (ending.active) { ending.update(dt); paws.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (ending.done) { /* faded out, the Good Kitty screen is up */ }
   else if (onTitle) { // the title: a slow, still view of the scene, and him doing his happy little laps
@@ -223,7 +235,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

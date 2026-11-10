@@ -32,7 +32,7 @@ Open <http://localhost:8080> and click **Begin**.
 | P | Try the different ways of showing your paws while you walk (peek, low, full, off) |
 | Esc | Pause and settings |
 
-Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F4** anger +1 · **F5** wake +20 · **F6** trigger the catch · **F7** dust cloud · **F8** freeze the vac · **F9** key list.
+Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F4** anger +1 · **F5** wake +20 · **F6** trigger the catch · **F7** dust cloud · **F10** the secret ending · **F8** freeze the vac · **F9** key list.
 
 ## How to tune
 

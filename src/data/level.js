@@ -346,6 +346,12 @@ export const LEVEL = {
     { id: 's2Candle', type: 'candlestick', on: 's2', x: 14.2, z: 3.5 },
     // dining room
     { id: 'wallClock', type: 'wall_clock', on: 'clockPeg', x: 5.9, z: -4.5, yaw: -1.57 }, // jump at it and bat it on the way up
+    // his spare parts: they won't wake Grandma, and breaking them makes him furious. Break all five, though...
+    { id: 'tidyBag', type: 'tidy_bag', on: 'e2', x: 15.1, z: 2.1 },
+    { id: 'tidyManual', type: 'tidy_manual', on: 'tBookB', x: 16.07, z: -3.75 },
+    { id: 'tidyFilter', type: 'tidy_filter', on: 'sWardrobe', x: 12.2, z: -5.6 },
+    { id: 'tidyNozzle', type: 'tidy_nozzle', on: 'rodE', x: 4.9, z: 5.2 },
+    { id: 'tidyCard', type: 'tidy_card', on: 'k1', x: 7.4, z: 5.18 },
     { id: 'candle1', type: 'candlestick', on: 'dTable', x: 2.6, z: -3.9 },
     { id: 'cup2', type: 'teacup', on: 'dTable', x: 3.4, z: -3.8 },
     { id: 'frame', type: 'picture_frame', on: 'dShelf1', x: 2.6, z: -6.43 },
