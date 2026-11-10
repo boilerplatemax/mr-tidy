@@ -98,6 +98,8 @@ export class Ending {
 
   /** Her, in the room, under cover of the fade. */
   _stageRoom() {
+    const v = this.vac;
+    if (v.plugState !== 'in') { v._chooseOutlet(); v.plugState = 'in'; v.plugT = 0; v.cord.setTrim(0); v.model.face.visible = true; } // (the cat had unplugged him: he's plugged himself back in somewhere, under cover of the fade)
     this._plan();
     this.lamp.intensity = E.lamp;
     if (this.nan) { this.nan.visible = true; this.nan.position.set(this.from.x, 0, this.from.y); this.nan.rotation.y = Math.atan2(this.to.x - this.from.x, this.to.y - this.from.y); }

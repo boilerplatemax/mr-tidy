@@ -38,6 +38,7 @@ import { Curb } from './world/curb.js';
 import { Tail } from './player/tail.js';
 import { Closeup } from './vacuum/closeup.js';
 import { TodoList } from './ui/todo.js';
+import { Fallen3D } from './ui/fallen3d.js';
 
 const params = new URLSearchParams(location.search);
 { const w = document.querySelector('#loading .ld-word'); if (w) w.replaceChildren(pixText('LOADING', '#f0dca8', { bold: true }), ...[0, 1, 2].map(() => { const d = pixText('.', '#f0dca8', { bold: true }); d.classList.add('ld-dot'); return d; })); } // (the LOADING screen, in the game's own font)
@@ -69,7 +70,7 @@ const debris = new Debris(scene, world);
 const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
 player.onStep = (gait) => { if (pianoNote(gait === 'run' ? 0.9 : 0.6)) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: TUNING.vac.hearPiano[0] }); if (!player.groundCollider) noise.emit({ kind: 'step', gait, x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only on the floor: furniture is quiet, and slinking makes no steps at all
 player.onSneeze = () => noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: TUNING.vac.hearSneeze }); // a sneeze gives you away
-player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; if (pianoNote(quiet ? 0.6 : 1.2, quiet ? 1 : 3)) { noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearPiano[1] }); } /* (he hears it; she sleeps right through it) */ noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
+player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; if (pianoNote(quiet ? 0.6 : 1.2, quiet ? 1 : 3)) { noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearPiano[1] }); } /* (he hears it; she sleeps right through it) */ const LC = L.landClue, k = Math.max(0, Math.min(1, (LC.exact - impact) / (LC.exact - LC.vague))); noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: Math.min(LC.max, Math.max(L.hearLand[heavy ? 1 : 0], LC.near + LC.perImpact * impact)) * (quiet ? L.quietLand : 1), err: LC.error * k }); }; // (the harder you land, the further it carries and the more exactly he knows where)
 const grandma = new Grandma({ noise, house });
 /** On the piano's keys? Then a note for where you are along them: low at the left end, high at the right (as you face it). */
 const KEYS = LEVEL.solids.find((b) => b.id === 'pKeys');
@@ -136,6 +137,7 @@ const roomLabel = hudLayer.label('hud-room').place('center', 0, 0.14);
 roomLabel.set([{ text: "Grandma's room" }], 'center');
 let roomShown = false;
 const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
+endScreen.fall3d = new Fallen3D(knock); // (the win screen's backdrop: what you broke)
 /** A whole new run, without a reload. */
 function resetRun() {
   if (curb.active) curb.stop();

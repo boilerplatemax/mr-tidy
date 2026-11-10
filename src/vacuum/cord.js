@@ -34,6 +34,26 @@ export class Cord {
     this.trim = 0; // 0 = all the way to the outlet .. 1 = fully back at the vac
     this.setOutlet(this.outlet);
     this.pts = Array.from({ length: max }, () => ({ x: 0, y: 0, z: 0 }));
+    // sparks off the plug (the blackout: the cat touches it and it bites)
+    this.sparkPos = new Float32Array(10 * 5 * 6); const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(this.sparkPos, 3));
+    this.sparkMesh = new THREE.LineSegments(sg, new THREE.LineBasicMaterial({ color: 0xd8ecff, fog: false })); this.sparkMesh.frustumCulled = false; this.sparkMesh.visible = false; scene.add(this.sparkMesh);
+    this.sparkT = 0; this.sparkAt = new THREE.Vector3();
+  }
+
+  /** A crackling burst of sparks off the plug at p, for a moment. */
+  sparks(p) { this.sparkAt.set(p.x, p.y, p.z); this.sparkT = C.sparkTime; }
+
+  _sparks(dt) {
+    if (this.sparkT <= 0) { this.sparkMesh.visible = false; return; }
+    this.sparkT -= dt;
+    const a = this.sparkPos, o = this.sparkAt, [nx, , nz] = this.outlet.n; let w = 0;
+    for (let k = 0; k < 10; k++) { // jagged little arcs, flying out from the plate
+      let x = o.x + nx * 0.02, y = o.y, z = o.z + nz * 0.02;
+      const dx = nx * 0.03 + (Math.random() - 0.5) * 0.05, dy = (Math.random() - 0.4) * 0.05, dz = nz * 0.03 + (Math.random() - 0.5) * 0.05;
+      for (let i = 0; i < 5; i++) { const x1 = x + dx + (Math.random() - 0.5) * 0.02, y1 = y + dy + (Math.random() - 0.5) * 0.02, z1 = z + dz + (Math.random() - 0.5) * 0.02; a[w++] = x; a[w++] = y; a[w++] = z; a[w++] = x1; a[w++] = y1; a[w++] = z1; x = x1; y = y1; z = z1; }
+    }
+    this.sparkMesh.geometry.attributes.position.needsUpdate = true;
+    this.sparkMesh.visible = Math.random() < 0.85;
   }
 
   setOutlet(o) {
@@ -54,7 +74,8 @@ export class Cord {
    * Per rendered frame. nodes[0..count): the waypoints the cord lies along, from the outlet end.
    * (vx, vz): the vac on the floor. (sx, sy, sz): where it leaves the reel.
    */
-  frame(nodes, count, vx, vz, sx, sy, sz) {
+  frame(nodes, count, vx, vz, sx, sy, sz, dt = 1 / 60) {
+    this._sparks(dt);
     const P = this.pts, [ox, oy, oz] = this.outlet.pos, [nx, , nz] = this.outlet.n;
     let n = 0, s = 0;
     const add = (x, y, z) => { if (n < P.length) { const p = P[n++]; p.x = x; p.y = y; p.z = z; } };

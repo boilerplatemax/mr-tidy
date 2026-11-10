@@ -144,7 +144,7 @@ export function buildHouse({ scene, world }) {
 
   // ---- the strip of light under Grandma's door (the door itself is a model)
   const D = LEVEL.grandmaDoor;
-  boxFaces(B, [D.x - 0.04, 0, D.zMin], [D.x, D.strip, D.zMax], (name) => (name === 'e' ? null : mats.strip));
+  boxFaces(B, [D.x - 0.012, 0, D.zMin + 0.02], [D.x - 0.008, D.strip * 0.5, D.zMax - 0.02], (name) => (name === 'w' ? mats.strip : null)); // (only the slit itself, facing the hall: from above there's no bar)
 
   // ---- the hallway runner
   { const m = tex('runner_oriental', 0.7); B.quad(m, [0.1, 0.006, -0.35], [17.9, 0.006, -0.35], [17.9, 0.006, -1.05], [0.1, 0.006, -1.05], [0, 1, 0], [0.1, -0.35], [17.9, -1.05]); }
@@ -287,6 +287,19 @@ function furnishings(tex) {
       for (const [lx, lz] of [[bx0 + 0.03, bz0 + 0.03], [bx1 - 0.03, bz0 + 0.03], [bx0 + 0.03, bz1 - 0.03], [bx1 - 0.03, bz1 - 0.03]]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.013, by1 - 0.09, 6), frame); leg.position.set(lx, (by1 - 0.09) / 2, lz); g.add(leg); }
       boxM(frame, bx0 + 0.03, bx1 - 0.03, 0.12, 0.14, (bz0 + bz1) / 2 - 0.01, (bz0 + bz1) / 2 + 0.01); } // (a stretcher between the legs)
     boxM(lam(0xc9a44a), P.min[0] - 0.005, P.min[0], 0.95, 1.0, (P.min[2] + P.max[2]) / 2 - 0.2, (P.min[2] + P.max[2]) / 2 + 0.2); // a brass name strip
+  }
+  { // the front door: four raised panels (two tall above, two short below), a frame round it, a brass knob. It doesn't open
+    const x = 0.075, z0 = -1.12, z1 = -0.28, h = 2.02, paint = lam(0xe6dcc8), frame = lam(0xd8ccb4), shadow = lam(0xb8ab92), brass = lam(0xc9a44a);
+    boxM(paint, x, x + 0.035, 0, h, z0, z1); // the door
+    boxM(frame, x, x + 0.05, 0, h + 0.07, z0 - 0.07, z0); boxM(frame, x, x + 0.05, 0, h + 0.07, z1, z1 + 0.07); boxM(frame, x, x + 0.05, h, h + 0.07, z0, z1); // the frame
+    const w = (z1 - z0 - 0.3) / 2, top = [1.02, 1.88], low = [0.12, 0.86]; // two columns of panels, stiles and rails 0.1 wide
+    for (const [y0, y1] of [top, low]) for (let c = 0; c < 2; c++) {
+      const za = z0 + 0.1 + c * (w + 0.1), zb = za + w;
+      boxM(shadow, x + 0.035, x + 0.04, y0, y1, za, zb); // the moulding round it, in shadow
+      boxM(paint, x + 0.04, x + 0.046, y0 + 0.03, y1 - 0.03, za + 0.03, zb - 0.03); // the raised panel
+    }
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.028, 8, 6), brass); knob.position.set(x + 0.07, 0.95, z0 + 0.09); g.add(knob);
+    boxM(brass, x + 0.035, x + 0.042, 0.88, 1.02, z0 + 0.065, z0 + 0.115); // its plate
   }
   return g;
 }

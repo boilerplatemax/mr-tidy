@@ -189,6 +189,7 @@ export class Paws {
     _z.set(h.nx, 0, h.nz); // the paw's back runs out from the ledge; its toes point in over the top
     _y.copy(UP);
     _x.crossVectors(_y, _z);
+    _y.applyAxisAngle(_x, V.hangCurl); _z.applyAxisAngle(_x, V.hangCurl); // curled over the lip: the backs of the paws to you, the toes hooked up and over the edge (they are drawn over everything, so flat on top you saw their undersides through the ledge)
     const look = wrap(player.yaw - player._hangYaw()), lean = Math.min(1, Math.abs(look) / L.yawLimit);
     // along the edge: the point the eye is turned toward, and how far apart the paws sit
     let spread = V.hangSpread * (1 - V.hangNarrow * lean);

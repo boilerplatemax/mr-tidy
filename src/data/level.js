@@ -222,7 +222,7 @@ export const LEVEL = {
     { model: 'shelf_floating_120', fit: ['k1'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['k2'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['shelfD2'], top: true },
     { model: 'ceiling_light', at: [8.4, 0.6, 2.7] },
     // hallway
-    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'side_table', fit: ['hallTable'], rot: 180, h: 0.78 }, { model: 'grandma_door', at: [18, 0, -0.7], rot: -90, door: true }, { model: 'door_wood', at: [IN + 0.03, 0, -0.7], rot: -90 }, // (the front door: it doesn't open)
+    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'side_table', fit: ['hallTable'], rot: 180, h: 0.78 }, { model: 'grandma_door', at: [18, 0, -0.7], rot: -90, door: true, hide: ['light_leak', 'light_leak_back'] }, // (the front door: drawn in src/world/house.js, a four-panel one)
     { model: 'ceiling_light', at: [5, 0.6, -0.7] }, { model: 'ceiling_light', at: [13, 0.6, -0.7] },
     // storage
     { model: 'psx_wardrobe_oak', fit: ['e2'], rot: -90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['s2'], rot: 180, h: 2.07 },

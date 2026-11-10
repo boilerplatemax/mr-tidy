@@ -344,7 +344,8 @@ export class Vacuum {
     if (this.plugLock > 0) { audio.play('knock.clink', { pos: p }); return false; } // jammed in for now
     if (this.anger >= 5) { // the power's all his now: the plug's live, and it throws the cat back
       audio.play('vac.surgeBuzz', { pos: p, gain: 1.2 }); audio.play('vac.stun', { pos: p, rate: 1.6 });
-      this.model.arcsOn(1); this.arcFade = SG.arcAfter;
+      this.model.arcsOn(1); this.arcFade = SG.arcAfter; this.cord.sparks(p);
+      if ((this.shockSaid ?? 0) <= this.time) { this.shockSaid = this.time + 8; subtitles.show("It's live with his power now. You can't unplug him.", 'shock', 3.2, '', true); }
       const P = this.player; P.shock?.(eye.x - p.x, eye.z - p.z);
       this._investigate(p.x, p.z);
       return true;
@@ -531,6 +532,18 @@ export class Vacuum {
     for (let i = 0; i < steps && this.state === state && !this.sweep; i++) this._followPath(1 / 60, sp);
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading; this.lastPaid = this._paid(); this.hose.reset();
     this.uncannyCd = between(UN.every);
+  }
+
+  /** Now and then, nearby and out of sight, he simply knows where you are: the creeping hose comes from wherever he is. */
+  _tickTell(dt) {
+    if ((this.tellT = (this.tellT ?? AM.tellEvery) - dt) > 0) return;
+    this.tellT = AM.tellEvery;
+    const P = this.player, d = Math.hypot(P.pos.x - this.x, P.pos.z - this.z);
+    if (P.noclip || this.creepCd > 0 || d < AM.tellNear[0] || d > AM.tellNear[1] || !['PATROL', 'INVESTIGATE', 'SEARCH'].includes(this.state) || Math.random() >= AM.tellChance[this.anger - 1]) return;
+    const a = this._a, b = this._b; a.x = this.x; a.y = 0.35; a.z = this.z; b.x = P.pos.x; b.y = P.feetY + 0.15; b.z = P.pos.z;
+    if (!this.world.countOccluders(a, b, 1, true)) return; // (only when he can't see you: it's not a chase, it's a hunch)
+    if (this.direct) this._rejoin();
+    this.foundT = CR.maxTime; this.ambush = true; this.lastX = P.pos.x; this.lastZ = P.pos.z; this._startCreep();
   }
 
   /** Is the cat looking straight at him, with nothing in the way? */
@@ -746,14 +759,29 @@ export class Vacuum {
         : this.anger >= 3 && d <= (ev.gait === 'walk' ? V.hearWalk : V.hearSteps);
     if (!heard) return;
     if (ev.kind === 'crash') { const m = this.debris.messes.find((x) => x.id === ev.objectId); if (m) m.known = true; } // on his to-do list now
+    if (this.anger >= 3 && (ev.kind === 'crash' || ev.kind === 'thud') && this.state !== 'CHASE' && !this._attacking()) { this._clue(ev.kind === 'thud' && ev.err != null ? ev.err : V.clueError[this.anger - 1], ev.x, ev.z); return; } // (angry: it tells him where you are)
+    if (ev.err) { const a = Math.random() * Math.PI * 2, r = ev.err * Math.random(); this._investigate(ev.x + Math.cos(a) * r, ev.z + Math.sin(a) * r); return; }
     this._investigate(ev.x, ev.z);
+  }
+
+  /** A clue to where you are (a crash, a landing): from angry on he goes looking for you there, not for the mess. err: m out. */
+  _clue(err, x = null, z = null) {
+    const P = this.player;
+    if (P.noclip) { if (x != null) { this.state = 'INVESTIGATE'; this.routeTo(this.nav.nearest(x, z)); } return; } // (no cat to find: the noise itself)
+    if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
+    if (this.direct) this._rejoin();
+    const a = Math.random() * Math.PI * 2, r = err * Math.sqrt(Math.random());
+    this.lastX = P.pos.x + Math.cos(a) * r; this.lastZ = P.pos.z + Math.sin(a) * r;
+    this.ambush = false; this.rush = false;
+    if (P.feetY >= CR.minHeight && this.creepCd <= 0 && Math.random() < 0.5 && Math.hypot(P.pos.x - this.x, P.pos.z - this.z) < CR.range) { this.foundT = CR.maxTime; this.ambush = true; this._startCreep(); return; } // (up on something: the hose comes looking)
+    this._startSearch();
   }
 
   _investigate(x, z) {
     this.ambush = false; // (a noise takes him off whatever he was setting up)
     if (this.state === 'CHASE') { if (!this.seesCat) { this.lastX = x; this.lastZ = z; } return; } // something to go on while he has lost sight of you
     if (this._attacking()) return; // busy: a crash doesn't pull him off an attack (his own can cause one)
-    if (this.state === 'CLEAN') { this.pending = { x, z }; return; } // he finishes the job in hand first
+    if (this.state === 'CLEAN') { if (this.anger < 2) { this.pending = { x, z }; return; } this.slurp?.stop(0.1); this.slurp = null; this.mess = null; } // cheerful, he finishes the job in hand first; after that, the new one can't wait
     if (this.state === 'ALERT') { this.alertX = x; this.alertZ = z; return; } // (already listening: it's that way)
     if (this.alertCd <= 0) { this._startAlert(x, z); return; }
     this.state = 'INVESTIGATE';
@@ -780,7 +808,7 @@ export class Vacuum {
   _nearestMess(radius, needSight) {
     let best = null, bd = radius;
     for (const m of this.debris.messes) {
-      if (m.cleaned) continue;
+      if (m.cleaned || m.ignored) continue;
       const d = Math.hypot(m.x - this.x, m.z - this.z);
       if (d >= bd) continue;
       if (needSight) { const a = this._a, b = this._b; a.x = this.x; a.y = 0.3; a.z = this.z; b.x = m.x; b.y = 0.1; b.z = m.z; if (this.world.countOccluders(a, b, 1, true)) continue; }
@@ -792,12 +820,14 @@ export class Vacuum {
   /** The nearest mess he knows about (heard or seen) and hasn't got to yet. */
   _nextKnownMess() {
     let best = null, bd = Infinity;
-    for (const m of this.debris.messes) { if (m.cleaned || !m.known) continue; const d = (m.x - this.x) ** 2 + (m.z - this.z) ** 2; if (d < bd) { bd = d; best = m; } }
+    for (const m of this.debris.messes) { if (m.cleaned || !m.known || m.ignored) continue; const d = (m.x - this.x) ** 2 + (m.z - this.z) ** 2; if (d < bd) { bd = d; best = m; } }
     return best;
   }
 
   _startClean(m, huffed = false) {
     this.rush = false;
+    if (m.cleanOk === undefined) m.cleanOk = Math.random() < V.cleanChance[this.anger - 1];
+    if (!m.cleanOk) { m.ignored = true; this._resumePatrol(); return; } // (he can't be doing with it: it's you he wants)
     if (!huffed && this.anger === 2 && this.huffCd <= 0) { this._startHuff(m); return; }
     if (!m.obj) this._say(m.id === 'urn' ? 'urn' : this.anger <= 1 ? 'mess1' : this.anger === 2 ? 'mess2' : 'mess3', m.id === 'urn');
     m.known = true;
@@ -1403,6 +1433,7 @@ export class Vacuum {
     this._perceive(dt);
     this._tickCalm(dt);
     this._tickUncanny(dt);
+    if (this.anger >= 3) this._tickTell(dt);
     if (this._touching()) { this._catch('snap'); return; }
     if (this.freezeT > 0 && !this._attacking()) { // caught your eye: dead still for a moment, staring back
       this.freezeT -= dt;
@@ -1458,7 +1489,7 @@ export class Vacuum {
     r.updateMatrixWorld(true);
     this.model.cordSocket.getWorldPosition(_s);
     const T = this.tether;
-    this.cord.frame(T, this._retracing() ? T.length - 1 : T.length, r.position.x, r.position.z, _s.x, _s.y, _s.z);
+    this.cord.frame(T, this._retracing() ? T.length - 1 : T.length, r.position.x, r.position.z, _s.x, _s.y, _s.z, dt);
     if (this.hidden || this.noCord) { this.cord.mesh.visible = false; this.cord.plug.visible = false; }
   }
 }

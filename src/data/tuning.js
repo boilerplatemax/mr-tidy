@@ -211,6 +211,9 @@ export const TUNING = {
     catchReach: 0.26, // m past his body at which he catches the cat
     solidShare: 0.85, // how much of the cat's radius his body keeps out: it can brush him, not go through him
     catchHeight: 0.42, // m: a cat with its feet above this is out of reach of his body
+    cleanChance: [1, 1, 0.4, 0.12, 0], // by stage: odds he stops to clean a mess at all. Later on a mess is a clue to where you are, not a chore
+    clueError: [3, 3, 2.6, 2.0, 1.5], // by stage: m out his guess at where you are is, from a new crash (from angry on he goes looking for you, not the mess)
+    landClue: { exact: 7.5, vague: 2.5, error: 3.5, near: 3, perImpact: 1.15, max: 13 }, // a landing gives you away: m/s of impact at which he knows exactly where, and below which he barely knows (m out, up to error); m he hears it from = near + perImpact × impact, at most max
     messBoost: 0.25, messMax: 2.0, // every other mess still lying about sends him that much faster (share of his speed) to the next, up to this many times as fast
     crumbs: 0.12, crumbMax: 40, // s between the points he keeps of where you've been in a chase (he follows them round corners); how many
     investigateMul: 1.5, // he goes to a noise this much faster than he patrols
@@ -246,7 +249,7 @@ export const TUNING = {
   },
   // ---------------------------------------------------------------- how he thinks and what gives him away
   alert: { // he heard something: he stops dead, the motor drops, the nozzle lifts toward it
-    time: [0.6, 0.5, 0.4, 0.3, 0.25], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
+    time: [0.35, 0.3, 0.25, 0.2, 0.2], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
     dip: 0.72, rateDip: 0.22, dipEase: 9, // how far the motor falls away (share of volume, share of pitch), 1/s
     sniffOut: 0.55, sniffUp: 0.5, sniffSpeed: 2.5, // m the nozzle lifts toward the sound
     stingEvery: 16, // s between heard-you stingers
@@ -289,7 +292,8 @@ export const TUNING = {
   },
   burst: { minAnger: 3, lost: 0.7, time: 0.85, speed: 4.6, cooldown: [0, 0, 9, 6, 4.5] }, // lost you round a corner (s) and there you are again: he comes round it all at once, at this speed (faster than you) for this long; s before he can again, by stage
   ambush: { // he knows where you're hiding: he goes quietly to just outside your room, out of sight, and sends the hose in (then, dodge it, a chase)
-    minAnger: 3, chance: [0, 0, 0.3, 0.4, 0.45], first: 30, cooldown: 45, near: [2.5, 7], time: 16, // by stage, odds on a second thought; s before the first; s between; m from you he waits; s the hose keeps coming
+    minAnger: 3, chance: [0, 0, 0.5, 0.6, 0.65], first: 15, cooldown: 25, near: [2.5, 7], time: 16,
+    tellEvery: 6, tellChance: [0, 0, 0.18, 0.25, 0.3], tellNear: [2.5, 9], // and now and then, if he's within this of you (out of sight), he just knows: the hose comes for you from where he is. s between rolls; odds, by stage // by stage, odds on a second thought; s before the first; s between; m from you he waits; s the hose keeps coming
   },
   uncanny: { minAnger: 3, every: [14, 28], jump: 2.2, near: [4, 14], outView: 0.2 }, // looking for you, out of your sight and you out of his: now and then he's suddenly a bit nearer. s between; m he skips along his way; m from you it can happen; how far out of your view he must be (cos)
   lurk: { // from angry, now and then he goes and stands where he can see you, and watches (src/vacuum/vacuum.js _startLurk)
@@ -389,6 +393,7 @@ export const TUNING = {
     windDown: 1.2, // s for the motor to die when Grandma wakes
   },
   cord: { // the power cord: one outlet, by Grandma's door, and a fixed length (src/vacuum/cord.js)
+    sparkTime: 0.45, // s the live plug sparks when the cat touches it (the blackout)
     length: 32, // m. Every room is in reach, but not by every route: when he'd run out he goes back the way he came
     spacing: 0.2, capacity: 420, round: 0.6, roundTight: 0.14, roundSteps: 8, wander: 0.05, wanderRate: 1.7, // (the last five: m it curves round a waypoint, and round a tight spot off the graph; points per curve; m it drifts off a straight line; how fast)
     // m between points on the tube; the most points it can have
@@ -531,7 +536,8 @@ export const TUNING = {
     hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end
     keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)
     climbSpread: 0.06, climbUp: 0.03, climbReach: 0.03, climbStride: 0.2, climbLeg: -0.55, climbIn: 0.008, // on a climbable face: m apart from centre, m above the eye, m each paw reaches up and down, m climbed per pair of steps, rad the forearm comes back from the wall, m off the wall
-    hangSpread: 0.055, hangIn: 0.05, hangLift: 0.03, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
+    hangCurl: 0.45, // rad the hanging paws are curled over the lip (0: flat on top)
+    hangSpread: 0.055, hangIn: 0.07, hangLift: 0.05, hangLeg: 1.32, hangLegLen: 2.6, // on the lip: m apart from centre, m past the edge, m above the top, rad the forearm drops below it, forearm length multiplier (reaches off the bottom of the view)
     tremble: 0.0035, trembleRate: 46, trembleAt: 0.4, // m, rad/s: the hanging paws shake as stamina gets low, starting at this share of the bar
     shimmyStep: 0.03, shimmyLift: 0.012, shimmyStride: 0.22, // moving along a ledge: m each paw leads and trails, m it lifts, m travelled per pair of steps
     climbSideReach: 0.025, climbSideEase: 12, // climbing sideways: m each paw leads and trails, 1/s easing in and out

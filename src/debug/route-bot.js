@@ -165,7 +165,7 @@ function huntChecks(kit) {
   const patrolSees = v._canSee(); v.state = 'CLEAN'; const cleanSees = v._canSee(); v.state = 'PATROL';
   report('a clean narrows his sight', patrolSees && !cleanSees);
   reset('H2', 3); v.heading = 1.57; cat(7.2, -0.45);
-  { const m = { id: 't', x: 6.2, z: -0.45, room: 'x', decal: -1, cubes: [], cleaned: false }; kit.debris.messes.push(m); v._startClean(m); }
+  { const m = { id: 't', x: 6.2, z: -0.45, room: 'x', decal: -1, cubes: [], cleaned: false, cleanOk: true }; kit.debris.messes.push(m); v._startClean(m); }
   run(0.8);
   const dropped = ['CHASE', 'HOSE_REACH', 'SUCK', 'CREEP', 'LUNGE'].includes(v.state) && !kit.debris.messes[kit.debris.messes.length - 1].cleaned; const m0 = kit.debris.messes.pop(); m0.cleaned = true;
   report('catching beats cleaning', dropped, v.state);
@@ -233,7 +233,7 @@ function hoseChecks(kit) {
 
   // cleaning: he faces the mess and the nozzle goes to it before anything is sucked up
   freshVac(kit, 'K1', 3); v.hose.reset(); v.frozen = false; P.noclip = true;
-  { const m = { id: 't2', x: 7.6, z: 4.3, room: 'x', decal: -1, cubes: [], cleaned: false };
+  { const m = { id: 't2', x: 7.6, z: 4.3, room: 'x', decal: -1, cubes: [], cleaned: false, cleanOk: true }; // (he's decided this one wants cleaning)
     kit.debris.messes.push(m); v.heading = v.prevHeading = -1.2; v._startClean(m);
     let moved0 = v.cleanT; hold(0.15); const heldOff = v.cleanT === moved0;
     while (v.cleanT === moved0 && v.cleanWait < 3) kit.tick(dt);
@@ -483,7 +483,7 @@ function catchChecks(kit) {
 }
 
 /** Hearing, investigating and cleaning. */
-const heard = (v) => v.state === 'INVESTIGATE' || v.state === 'ALERT';
+const heard = (v) => v.state === 'INVESTIGATE' || v.state === 'ALERT' || v.state === 'SEARCH' || v.state === 'CREEP'; // (from angry on a noise sends him looking for you: a search, or the hose)
 
 function hearingChecks(kit) {
   const v = kit.vac, K = kit.knock, N = kit.noise, dt = 1 / 60, rows = [];
