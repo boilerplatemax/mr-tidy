@@ -1030,6 +1030,29 @@ async function endingChecks(kit) {
   return rows;
 }
 
+/** The tutorial, by hand: walk, jump, the remote, the show, the plug, and then he turns up. */
+async function tutorialChecks(kit) {
+  const T = kit.tutorial, P = kit.player, I = kit.input, cam = kit.camera, v = kit.vac, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} TUTORIAL ${name}${note ? ' (' + note + ')' : ''}`);
+  await kit.house.dressed; kit.resetRun(); P.noclip = false; v.frozen = false;
+  T.start();
+  report('he is not here at the start', v.dormant && !v.model.root.visible);
+  P.teleport(2.5, 0.001, 1.6, 0); I.keys.add('KeyW'); for (let i = 0; i < 60; i++) kit.tick(dt); I.keys.clear();
+  report('walking moves it on', T.step === 'jump', T.step);
+  P.teleport(3.4, 0.421, 2.6, 0); for (let i = 0; i < 6; i++) kit.tick(dt);
+  report('getting on the coffee table moves it on', T.step === 'remote', T.step);
+  cam.position.set(3.5, 0.66, 2.75); cam.lookAt(3.5, 0.43, 2.32); cam.updateMatrixWorld(true); T.onSwipe(cam);
+  report('batting the remote puts the programme on, and holds you still', T.step === 'show' && P.frozen && T.tv.state === 'show', T.tv.state);
+  for (let i = 0; i < 60 * (TUNING.tutorial.show + 2); i++) { kit.tick(dt); kit.frame?.(1, dt, 16); }
+  report('when it ends you can move again', T.step === 'plug' && !P.frozen, T.step);
+  const p = LEVEL.tvOutlet.pos; cam.position.set(p[0] - 0.35, 0.3, p[2]); cam.lookAt(p[0], p[1], p[2]); cam.updateMatrixWorld(true); T.onSwipe(cam);
+  report('swiping the plug turns it off', T.tv.state === 'off' && T.step === 'go', T.tv.state);
+  for (let i = 0; i < 60 * (TUNING.tutorial.arriveAfter + 0.5); i++) kit.tick(dt);
+  report('and then he arrives, by her door', !T.active && !v.dormant && v.model.root.visible && Math.hypot(v.x - 16.8, v.z + 0.45) < 0.5);
+  kit.resetRun(); v.frozen = true;
+  return rows;
+}
+
 export async function runRouteBot(kit) {
   await kit.knock.ready;
   kit.vac.frozen = true; // keep him out of the jump tests
@@ -1067,6 +1090,7 @@ export async function runRouteBot(kit) {
   rows.push(...catchChecks(kit));
   rows.push(...grandmaChecks(kit));
   rows.push(...restartChecks(kit));
+  rows.push(...await tutorialChecks(kit));
   rows.push(...await endingChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };

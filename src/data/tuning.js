@@ -146,12 +146,15 @@ export const TUNING = {
     shimmer: { color: 0xffc890, base: 0.035, amp: 0.05, freq: 2.2, speed: 1.3, fade: 7, pad: 0.006 }, // the soft glow over the target perch: strength, slow broad wave (size, speed), 1/s fade-in, m past its faces
   },
 
+  tutorial: { moveFor: 1.2, turn: 1.3, arriveAfter: 3, show: 17 }, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
   // ---------------------------------------------------------------- the ending (src/world/ending.js)
   ending: {
     cut: 0.5, doorAt: 0.9, turn: 0.5, pull: 0.45, after: 4.4, fadeOut: 1.1, // s: the cut to black; the door starts; she turns to the wall; into the yank when the plug comes out; from then until it's over; the fade
     walkSpeed: 0.5, startX: 17.55, handSide: 0.12, handReach: 0.45, // m/s she shuffles at; m in front of the door she starts; where she stands so that her hand is at the outlet
-    camX: 15.55, camY: 0.2, camZ: -0.35, lookX: 16.7, lookY: 0.1, lookZ: -0.6, // cat height, a little way off: slippers, the hem and the stick, not her face
-    vacX: 16.1, vacZ: -1.0, vacHeading: -0.7, // where he's standing when it happens
+    holdX: 15.42, holdY: 0.92, holdZ: -0.86, lookX: 16.7, lookY: 0.32, lookZ: -0.55, // the cat, up in the air on the end of his hose, facing him; where it looks
+    vacX: 16.1, vacZ: -0.86, vacHeading: -Math.PI / 2, // he's got you, right in front of her door
+    drop: 0.4, eye: 0.25, // s the fall takes; the cat's eye height when it lands
+    doorSwing: 1.3, // rad: into her room
     light: 5, lightColor: 0xffc27a, // the warm light from her room
   },
   assets: { grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in

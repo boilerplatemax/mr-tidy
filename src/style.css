@@ -117,3 +117,23 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 #cut { position: absolute; inset: 0; z-index: 11; background: #000; }
 #cut[hidden] { display: none; }
 
+
+/* ---- the house style: dark wood, old brass, a little dither ---- */
+#pause .panel { background: linear-gradient(#17110e, #0f0b09); border: calc(2px * var(--px)) solid #3a2a1e; outline: 1px solid #0a0706; box-shadow: inset 0 0 0 1px #5a4430, 0 0 40px rgba(0, 0, 0, .8); background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, .015) 0 1px, transparent 1px 3px), linear-gradient(#17110e, #0f0b09); }
+#pause:not(.title) { background: radial-gradient(ellipse at center, rgba(20, 8, 6, .55), rgba(0, 0, 0, .88)); }
+#pause button { background: linear-gradient(#2a1e14, #1c140e); border: 1px solid #6a5032; box-shadow: inset 0 1px 0 rgba(255, 220, 160, .08); }
+#pause button:hover { background: linear-gradient(#3a2a1a, #261a10); border-color: #b8945a; }
+#pause .tabs { border-bottom-color: #6a5032; }
+#pause .tabs button.on { background: #24180f; border-color: #6a5032; }
+#pause input[type=range] { accent-color: #c8a060; }
+#pause.title .main button { border-color: transparent; background: transparent; box-shadow: none; }
+#pause.title .main button:hover { background: rgba(200, 160, 96, .08); border-color: rgba(200, 160, 96, .25); }
+/* ---- the retry screen: his hallway wall, the empty frame ---- */
+#end { background: radial-gradient(ellipse at center, rgba(40, 6, 6, .7) 0%, rgba(0, 0, 0, .95) 70%); }
+#end::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .25) 0 1px, transparent 1px 3px); animation: endScan 6s linear infinite; }
+@keyframes endScan { from { background-position: 0 0; } to { background-position: 0 60px; } }
+#end .box { padding: calc(10px * var(--px)) calc(16px * var(--px)); background: linear-gradient(#140d0a, #0b0706); border: calc(2px * var(--px)) solid #3a2a1e; box-shadow: inset 0 0 0 1px #5a4430, 0 0 60px rgba(0, 0, 0, .9); }
+#end .box img:first-child { border: calc(3px * var(--px)) solid #7a5a32; box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #2a1c10; margin-bottom: calc(2px * var(--px)); }
+#end button { background: linear-gradient(#2a1e14, #1c140e); border: 1px solid #6a5032; }
+#end button:hover { background: linear-gradient(#3a2a1a, #261a10); border-color: #b8945a; }
+#pause.title .panel { background: transparent; box-shadow: none; outline: none; border-color: transparent; }

@@ -238,13 +238,24 @@ function bathtub({ x0, x1, z0, z1, top }) {
   return group;
 }
 
+/** The television's flex: plugged in, or pulled out and lying on the floor. */
+export const tvParts = { plug: null, plugged: null, loose: null };
+function tvFlex(scene) {
+  const mat = new THREE.MeshLambertMaterial({ color: 0x2a2a2c }), O = LEVEL.tvOutlet, seg = (grp, pts) => { for (let i = 1; i < pts.length; i++) { const a = new THREE.Vector3(...pts[i - 1]), b = new THREE.Vector3(...pts[i]), l = a.distanceTo(b), c = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, l, 4), mat); c.position.copy(a).lerp(b, 0.5); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); grp.add(c); } };
+  tvParts.plugged = new THREE.Group(); seg(tvParts.plugged, [[5.82, 0.12, 1.66], [5.86, 0.006, 1.6], [5.9, 0.006, 1.47], [O.pos[0] - 0.03, O.pos[1] - 0.05, O.pos[2]]]); scene.add(tvParts.plugged);
+  tvParts.loose = new THREE.Group(); seg(tvParts.loose, [[5.82, 0.12, 1.66], [5.8, 0.006, 1.58], [5.66, 0.006, 1.38]]);
+  const p = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.05), new THREE.MeshLambertMaterial({ color: 0x141414 })); p.position.set(5.64, 0.015, 1.36); tvParts.loose.add(p); tvParts.loose.visible = false; scene.add(tvParts.loose);
+}
+
 async function loadOutlets(scene) {
+  tvFlex(scene);
   const { loadGLB } = await import('../render/geometry.js');
   let g;
   try { g = await loadGLB('game-assets/models/house/wall_outlet.glb'); } catch { return; }
-  for (const o of [...LEVEL.outlets, { ...LEVEL.lampOutlet, lamp: true }]) {
+  for (const o of [...LEVEL.outlets, { ...LEVEL.lampOutlet, lamp: true }, { ...LEVEL.tvOutlet, tv: true }]) {
     const m = g.scene.clone(true), plug = m.getObjectByName('plug');
-    if (plug && !o.lamp) plug.visible = false; // (the lamp's is plugged in; the vacuum's plug comes with his cord)
+    if (plug && !o.lamp && !o.tv) plug.visible = false;
+    if (o.tv) tvParts.plug = plug; // (the lamp's is plugged in; the vacuum's plug comes with his cord)
     m.position.set(o.pos[0], o.pos[1], o.pos[2]);
     m.rotation.y = Math.atan2(o.n[0], o.n[2]);
     scene.add(m);

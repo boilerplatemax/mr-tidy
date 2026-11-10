@@ -168,8 +168,34 @@ export class Vacuum {
   droneLevel(d) { return D.floor + (1 - D.floor) / (1 + (d / D.closeness) ** 2); }
 
   /** Once audio exists (the first click). */
+  /** Not here yet (the tutorial): no body, no sound, nothing. */
+  sleep() { this.dormant = true; this.setHidden(true); this.voice?.stop(0.05); this.voice = null; }
+
+  /** He turns up, at the far end of the hallway by her door, and says hello. */
+  arrive() {
+    if (!this.dormant) return;
+    this.dormant = false; this.setHidden(false);
+    const n = this.nav.nodes.get(LEVEL.outlets[0].node);
+    this.x = this.px = n.x; this.z = this.pz = n.z; this.heading = this.prevHeading = -Math.PI / 2;
+    this.tether = [this.root]; this.path = [n]; this.pathI = 0; this._resumePatrol(); this.lastPaid = this._paid();
+    this.hose.reset();
+    audio.play('vac.power', { pos: { x: n.x, y: 0.3, z: n.z } });
+    this.startSound(); this._say('hello', true);
+  }
+
+  setHidden(on) { this.model.root.visible = !on; this.hose.mesh.visible = !on; this.hose.nozzle.visible = !on; this.cord.mesh.visible = !on; this.cord.plug.visible = !on; this.hidden = on; }
+
+  /** The title screen: a happy little lap of the living room, with no cord and no sound. */
+  titleLap(time, dt) {
+    const a = time * 0.55, cx = 1.95, cz = 2.55, r = 0.5;
+    this.x = this.px = cx + Math.cos(a) * r; this.z = this.pz = cz + Math.sin(a) * r; this.heading = this.prevHeading = Math.atan2(-Math.sin(a), Math.cos(a));
+    if (this.model.stage !== 1) this.setAnger(1);
+    this.cord.mesh.visible = false; this.cord.plug.visible = false; this.model.root.visible = true; this.hose.mesh.visible = this.hose.nozzle.visible = true;
+    this.hose.tick(dt, this._hole(), this.heading, null);
+  }
+
   startSound() {
-    if (this.off || this.voice) return;
+    if (this.off || this.voice || this.dormant) return;
     // no distance rolloff in the panner (rolloff: 0): droneLevel is the whole volume curve, the panner gives the direction
     this.voice = audio.play('vac.drone', { follow: this.model.hoseSocket, rolloff: 0, fadeIn: 0.5, gain: D.gain, wet: 0.5 });
   }
@@ -982,6 +1008,7 @@ export class Vacuum {
 
   /** Per fixed tick. */
   tick(dt) {
+    if (this.dormant) return;
     this.time += dt;
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading;
     for (const k of ['alertCd', 'heardCd', 'stingCd', 'shriekCd', 'creepCd', 'stunCd', 'foundT', 'sayCd', 'huffCd']) if (this[k] > 0) this[k] -= dt;
@@ -1046,5 +1073,6 @@ export class Vacuum {
     this.model.cordSocket.getWorldPosition(_s);
     const T = this.tether;
     this.cord.frame(T, this._retracing() ? T.length - 1 : T.length, r.position.x, r.position.z, _s.x, _s.y, _s.z);
+    if (this.hidden) { this.cord.mesh.visible = false; this.cord.plug.visible = false; }
   }
 }
