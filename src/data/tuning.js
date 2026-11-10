@@ -148,7 +148,8 @@ export const TUNING = {
 
   curb: { x: 40, z: 0, camY: 0.32, from: 3.2, to: 1.05, push: 7.5, eyes: [[8.6, 8.85], [9.2, 9.6]], length: 10.4, lamp: 14 }, // the secret ending, out the front: where; the camera's height and how it creeps in (m, s); when his eyes come on (s); how long it lasts; the streetlamp
   bonus: { anger: 1 }, // each of his spare parts you break: knock-overs added toward his anger (they never wake Grandma)
-  tutorial: { moveFor: 1.2, turn: 1.3, arriveAfter: 3, show: 17 }, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
+  tutorial: { zoomFov: 30, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch)
+    arriveAfter: 3, show: 17 }, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
   // ---------------------------------------------------------------- the ending (src/world/ending.js)
   ending: {
     cut: 0.5, doorAt: 0.9, turn: 0.5, pull: 0.45, after: 4.4, fadeOut: 1.1, // s: the cut to black; the door starts; she turns to the wall; into the yank when the plug comes out; from then until it's over; the fade

@@ -114,8 +114,8 @@ export class Player {
     if (this.noclip) { this._fly(dt); return; }
     if (this.dust > 0) this.dust = Math.max(0, this.dust - dt);
     this.hitAge += dt;
-    const held = this.frozen;
-    if (this.tumbleT > 0) { this.tumbleT -= dt; this.frozen = true; } // bowled over: no control until it's over
+    const held = this.frozen, tumbling = this.tumbleT > 0;
+    if (tumbling) { this.tumbleT -= dt; this.frozen = true; } // bowled over: no control until it's over
     if (this.sneezeT > 0) {
       this.sneezeT -= dt;
       if (this.sneezeT <= 0) { this.landDip = DUST.sneezeDip; audio.play('cat.sneeze', { rate: 0.95 + Math.random() * 0.15 }); this.onSneeze?.(); }
@@ -137,7 +137,7 @@ export class Player {
       if (this.mode === 'move' && this.grounded) this.stamina = Math.min(1, this.stamina + ST.regen * dt);
     }
     this._swipe(dt);
-    this.frozen = held;
+    if (tumbling) this.frozen = held; // (only undo our own: something during this tick, like the TV remote, may have frozen the cat itself)
     this.fovKick += ((this.dashT > 0 ? 1 : 0) - this.fovKick) * expK(D.fovEase, dt);
     this._eyeAndSteps(dt);
   }

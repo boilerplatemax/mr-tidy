@@ -38,7 +38,7 @@ export class Blackout {
     for (const L of this.lights) {
       const out = L.d.needs && this.knock.byId.get(L.d.needs)?.knocked;
       const w = 1 + L.d.flicker * (Math.sin(time * 11 + L.seed) * 0.5 + Math.sin(time * 27 + L.seed * 2) * 0.5);
-      L.l.intensity = out ? 0 : L.d.power * w * dark * (L.d.follow ? (Math.random() < 0.6 ? 1 : 0.2) : 1);
+      L.l.intensity = out ? 0 : L.d.power * w * dark;
       if (L.d.follow === 'vac' && this.vac) L.l.position.set(this.vac.model.root.position.x, 0.45, this.vac.model.root.position.z);
       if (L.flame) L.flame.visible = dark > 0.5 && !out;
     }

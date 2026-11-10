@@ -189,8 +189,8 @@ export function buildVacuum() {
   out.animate = (dt, listening) => {
     const s = out.stage - 1, ease = 1 - Math.exp(-3 * dt);
     const EA = TUNING.eat, wide = out.maw ? EA.wide : 1;
-    out.k += ((out.maw ? EA.inflate : M.stretch[s]) - out.k) * (out.maw ? 1 - Math.exp(-7 * dt) : ease);
-    out.w = (out.w ?? 1) + (wide - (out.w ?? 1)) * (1 - Math.exp(-7 * dt));
+    out.k += ((out.maw ? EA.inflate : M.stretch[s]) - out.k) * (out.maw ? 1 - Math.exp(-14 * dt) : ease);
+    out.w = (out.w ?? 1) + (wide - (out.w ?? 1)) * (1 - Math.exp(-14 * dt)); // (the mouth opens fast: it's already there as he pulls you in)
     body.scale.set(M.scaleXZ * out.w, M.scaleY * out.k, M.scaleXZ * out.w); face.scale.set(out.w, out.k, out.w);
     if (out.maw || out.dead) show(out.stage);
     const cur = out.maw ? 0.001 : hole.scale.x + (M.holeRs[s] / M.holeR - hole.scale.x) * ease;
@@ -207,7 +207,7 @@ export function buildVacuum() {
     if (out.shriekT > 0) {
       out.shriekT -= dt; show(out.shriekT > 0 ? 's' : out.stage);
       if (!out.still) { tz += (Math.random() - 0.5) * M.twitch * 1.2; tx -= 0.08; }
-    } else if (out.flick > 0) {
+    } else if (out.flick > 0 && false) { // (no flickering between faces: it read badly)
       out.flick -= dt; show(out.flick > 0 && Math.floor(out.flick * 22) % 2 ? Math.max(1, out.stage - 1) : out.stage);
     }
     root.rotation.z += (tz - root.rotation.z) * Math.min(1, 26 * dt); root.rotation.x += (tx - root.rotation.x) * Math.min(1, 26 * dt);

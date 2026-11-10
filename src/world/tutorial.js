@@ -56,7 +56,7 @@ export class Tutorial {
   /** The paw went out: the remote, then the plug. */
   onSwipe(camera) {
     if (!this.active) return;
-    if (this.step === 'remote' && this.tv.pokeRemote(camera)) { this._next(); this.player.frozen = true; this.from.copy(camera.quaternion); this.watch = 0; }
+    if (this.step === 'remote' && this.tv.pokeRemote(camera)) { this._next(); this.player.resetMotion(); this.player.frozen = true; this.from.copy(camera.quaternion); this.watch = 0; }
     else if (this.step === 'plug' && this.tv.pokePlug(camera)) this._next();
   }
 
@@ -82,6 +82,8 @@ export class Tutorial {
     _t.fromArray(LEVEL.tvScreen);
     _m.lookAt(this.camera.position, _t, _up); _q.setFromRotationMatrix(_m);
     this.camera.quaternion.slerpQuaternions(this.from, _q, s);
+    const fov = this.camera.fov + (T.zoomFov - this.camera.fov) * s; // and closes in on the screen
+    if (Math.abs(this.camera.fov - fov) > 1e-3) { this.camera.fov = fov; this.camera.updateProjectionMatrix(); }
     this.camera.updateMatrixWorld();
     void _d;
   }

@@ -85,7 +85,7 @@ export class CatchSequence {
     this.active = true; this.phase = 'drag'; this.t = 0;
     this._plan(cam.position.clone());
     this.eat = v.anger >= 5; // the last stage doesn't scream at you: it opens up and eats you
-    m.setFace(4); m.face.visible = true; m.still = true; m.maw = this.eat; // furious, whatever he was before, and for once perfectly still
+    m.maw = this.eat; m.setFace(4); m.face.visible = true; m.still = true; // (the maw before anything else: it opens as he starts to pull you) // furious, whatever he was before, and for once perfectly still
     this.faceBase.copy(m.face.position);
     audio.play('vac.fwoomp', { gain: 0.7 });
     audio.play('sting.spot', { gain: 1.1 });

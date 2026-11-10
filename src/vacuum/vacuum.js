@@ -87,7 +87,6 @@ export class Vacuum {
     this.anger = Math.max(1, Math.min(5, level));
     this.model.setFace(this.anger);
     if (this.anger > was) {
-      this.model.flicker();
       if (this.anger === 4) { this._shriek(true); if (dramatic) this._say('turn4', true); }
       if (this.anger === 5) { this._startSurge(); if (dramatic) this._say('turn5', true); }
       if (this.anger === 3 && was < 3 && dramatic && !this.off && this.plugState === 'in') this._startTurn();
@@ -116,13 +115,13 @@ export class Vacuum {
   _startTurn() {
     this._endReach(); this._endBlast(); this._endSuck(); this._endCreep();
     if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
-    this.state = 'TURN'; this.turnT = 0; this.model.flick = TUNING.voice.turn * 0.8;
+    this.state = 'TURN'; this.turnT = 0;
+    if (this.voice) { this.voice.setRate(D.rate[1] * 0.6, 0.5); } // the motor groans down, and comes back angry
     this._say('turn3', true);
   }
 
   _tickTurn(dt) {
     this.turnT += dt;
-    if (this.anger < 5) this.dark = (this.turnT > 0.35 && this.turnT < 0.5) || (this.turnT > 0.8 && this.turnT < 0.92) || (this.turnT > 1.3 && this.turnT < 1.36) ? 0.85 : 0; // the house's lights stutter with him
     if (this.turnT >= TUNING.voice.turn) { this.dark = this.anger >= 5 ? 1 : 0; this._sting(); this._resumePatrol(); }
   }
 
@@ -159,7 +158,7 @@ export class Vacuum {
   _tickSurge(dt) {
     const was = this.surgeT;
     this.surgeT += dt;
-    this.dark = this.surgeT < SG.flickerUntil ? (Math.random() < 0.18 + 0.5 * (this.surgeT / SG.flickerUntil) ? 1 : 0) : 1; // stuttering, more dark than light, then gone
+    { const u = Math.min(1, this.surgeT / SG.flickerUntil); this.dark = u * u * (3 - 2 * u); } // the lights sink, all the way down
     if (was < SG.flickerUntil && this.surgeT >= SG.flickerUntil) { audio.play('power.out'); this.arcV = audio.play('vac.arc', { follow: this.model.hoseSocket, refDistance: 1.2, rolloff: 1.1 }); }
     if (this.surgeT >= SG.time) { this.state = this.surgeReturn; this.loseT = 0; if (this.state === 'CHASE') { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; } }
   }
@@ -194,6 +193,7 @@ export class Vacuum {
 
   /** The title screen: a happy little lap of the living room, with no cord and no sound. */
   titleLap(time, dt) {
+    if (this.dormant) return; // (the run has started and he isn't here yet)
     const a = time * 0.55, cx = 1.95, cz = 2.55, r = 0.5;
     this.x = this.px = cx + Math.cos(a) * r; this.z = this.pz = cz + Math.sin(a) * r; this.heading = this.prevHeading = Math.atan2(-Math.sin(a), Math.cos(a));
     if (this.model.stage !== 1) this.setAnger(1);
@@ -693,6 +693,7 @@ export class Vacuum {
   _canSuck() { return !this._catHidden() && this.anger >= SU.minAnger && this.seesCat && this.player.feetY <= SU.enterY && this._catFromHole() <= SU.enter; }
 
   _startSuck() {
+    if (this.anger >= 5) this.model.maw = true; // the last stage: the mouth opens as the suction pulls you in
     if (this.direct) this._rejoin();
     const P = this.player;
     this.state = 'SUCK'; this.suckT = 0; this.loseT = 0; this.suckY = P.feetY + 0.12;
@@ -700,7 +701,7 @@ export class Vacuum {
     this.suckV = audio.play('vac.slurp', { follow: this.model.hoseSocket, rolloff: 0 });
   }
 
-  _endSuck() { this.suckV?.stop(0.1); this.suckV = null; }
+  _endSuck() { this.suckV?.stop(0.1); this.suckV = null; if (!this.caught) this.model.maw = false; }
 
   _tickSuck(dt) {
     const P = this.player, want = Math.atan2(P.pos.x - this.x, P.pos.z - this.z), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
@@ -1067,7 +1068,7 @@ export class Vacuum {
   frame(alpha, dt = 1 / 60) {
     const r = this.model.root;
     this.model.animate(dt, this.state === 'ALERT' || this.freezeT > 0);
-    this.model.arcsOn(this.anger >= 5 && !this.off ? 1 : 0);
+    this.model.arcsOn(0); // (no sparks crawling over him: the colours and the flicker read badly)
     this.cloud.frame(dt, this.camera.position);
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;
