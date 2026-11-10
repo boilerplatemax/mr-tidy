@@ -239,7 +239,7 @@ export class Vacuum {
       const onward = nav.path(T[k], target);
       if (!onward.length) continue;
       const len = nav.lengthOf(onward);
-      if (along[k] + len > C.length) continue;
+      if (along[k] + len > C.length - 0.4) continue; // (a little in hand: he cuts corners and changes his mind mid-stretch)
       const cost = along[top] - along[k] + len;
       if (cost < bestCost) { bestCost = cost; best = { k, onward }; }
     }
