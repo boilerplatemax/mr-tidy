@@ -15,7 +15,7 @@ import { Player } from './player/player.js';
 import { audio } from './audio/audio.js';
 import { subtitles } from './ui/subtitles.js';
 import { HudLayer } from './ui/pixel-label.js';
-import { Menu, pixText } from './ui/menu.js';
+import { Menu } from './ui/menu.js';
 import { DevOverlay } from './ui/dev-overlay.js';
 import { buildHouse } from './world/house.js';
 import { Knockables } from './world/knockables.js';
@@ -41,7 +41,6 @@ import { TodoList } from './ui/todo.js';
 import { Fallen3D } from './ui/fallen3d.js';
 
 const params = new URLSearchParams(location.search);
-{ const w = document.querySelector('#loading .ld-word'); if (w) w.replaceChildren(pixText('LOADING', '#f0dca8', { bold: true }), ...[0, 1, 2].map(() => { const d = pixText('.', '#f0dca8', { bold: true }); d.classList.add('ld-dot'); return d; })); } // (the LOADING screen, in the game's own font)
 const _portraitV = new THREE.Vector3(), _portraitP = new THREE.Vector3();
 const R = TUNING.render;
 
@@ -254,7 +253,7 @@ function frame(alpha, dt, frameMs) {
     marker.update(player.aim, dt, player);
     shimmer.update(player.aim, wallTime, dt);
     tutorial.frame(dt, wallTime);
-    tail.frame(player, dt, debug.thirdPerson || tutorial.watching);
+    tail.dark = vac.dark; tail.frame(player, dt, debug.thirdPerson || tutorial.watching);
     paws.dark = vac.dark; paws.frame(player, dt, input.live ? alpha : 1, debug.thirdPerson || tutorial.watching);
     knock.frame(input.live ? alpha : 1);
     debris.frame(input.live ? alpha : 1);

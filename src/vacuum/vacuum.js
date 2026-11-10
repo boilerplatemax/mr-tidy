@@ -621,7 +621,7 @@ export class Vacuum {
   _startCreep() {
     if (this.direct) this._rejoin();
     this.state = 'CREEP'; this.creepT = 0; this.campT = 0;
-    this.creepV = audio.play('vac.creep', { follow: this.hose.nozzle, refDistance: 0.8, rolloff: 1.2 });
+    this.creepV = audio.play('vac.creep', { follow: this.hose.nozzle, refDistance: 1.6, rolloff: 0.9, gain: 1.7 }); // (louder: you should hear it coming)
   }
 
   _endCreep() { this.creepV?.stop(0.2); this.creepV = null; if (this.state !== 'CREEP') this.ambush = false; }
@@ -651,7 +651,7 @@ export class Vacuum {
 
   _startFog() {
     if (this.direct) this._rejoin();
-    this.state = 'FOG'; this.fogPhase = 'wind'; this.fogT = 0; this.coughI = 0;
+    this.state = 'FOG'; this.fogPhase = this.hose.active && (this.hose.len ?? 0) > H.blendBelow ? 'reel' : 'wind'; this.fogT = 0; this.coughI = 0; // (a long hose comes back in first)
     this._shriek(true);
     this._say(this.anger >= 5 ? 'fog5' : 'fog', true, false, true); // (heard and captioned wherever you are: it's coming for the whole house)
   }
@@ -661,6 +661,7 @@ export class Vacuum {
   _tickFog(dt) {
     const P = this.player, t = this.hose.tip, turn = V.turnRate * dt, want = Math.atan2(P.pos.x - this.x, P.pos.z - this.z), diff = wrap(want - this.heading);
     this.fogT += dt;
+    if (this.fogPhase === 'reel') { if (!this.hose.active || (this.hose.len ?? 0) <= H.blendBelow) { this.fogPhase = 'wind'; this.fogT = 0; } return; }
     if (this.fogPhase === 'wind') { // bringing it up: he coughs, and a little comes out each time
       this.heading = wrap(this.heading + Math.max(-turn, Math.min(turn, diff)));
       if (this.coughI < F.coughs.length && this.fogT >= F.coughs[this.coughI]) {
@@ -1053,7 +1054,7 @@ export class Vacuum {
 
   _startBlast() {
     if (this.direct) this._rejoin();
-    this.state = 'BLAST'; this.blastPhase = 'aim'; this.blastT = 0;
+    this.state = 'BLAST'; this.blastPhase = this.hose.active && (this.hose.len ?? 0) > H.blendBelow ? 'reel' : 'aim'; this.blastT = 0; // (a long hose comes back in first)
     // a straight shot, or a lob: always a lob at a cat up high or with something in the way
     { const P = this.player, h = this._hole(); this.lob = P.feetY >= B.lobAbove || Math.random() < B.lobChance || !this.vox.lineFree(_s.set(h.x, h.y + 0.3, h.z), this._catChest(this._goal)); }
     this.coughV = audio.play('vac.cough', { follow: this.model.hoseSocket, rolloff: 0 });
@@ -1064,6 +1065,7 @@ export class Vacuum {
   _tickBlast(dt) {
     this.blastT += dt;
     const P = this.player;
+    if (this.blastPhase === 'reel') { if (!this.hose.active || (this.hose.len ?? 0) <= H.blendBelow) { this.blastPhase = 'aim'; this.blastT = 0; } return; }
     if (this.blastPhase === 'aim') {
       const want = Math.atan2(P.pos.x - this.x, P.pos.z - this.z), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
       this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
@@ -1202,6 +1204,7 @@ export class Vacuum {
       c.mode = 'approach'; c.speed = A.sniffSpeed; c.hover = true;
       return c;
     }
+    if (this.state === 'FOG' && this.fogPhase === 'reel') return null; // (reeling a long hose in first)
     if (this.state === 'FOG') { // up and flailing the whole time, like an inflatable tube man: never stiff, never still
       const h = this._hole(), sp = this.fogPhase === 'spray', ph = this.fogT + (this.sprayPh ??= Math.random() * 9);
       const a = this.heading + (sp ? Math.sin(ph * F.sprayRate[0]) * F.sprayArc + Math.sin(ph * 5.3) * 0.25 : Math.sin(ph * 1.9) * 0.8 + Math.sin(ph * 4.1) * 0.2);
@@ -1225,6 +1228,7 @@ export class Vacuum {
       this._catChest(c.goal); c.mode = 'approach'; c.speed = CR.speed * Math.min(CR.maxBoost, 1 + CR.perKnock * this.knock.count); c.maxLen = CR.length; c.replan = CR.replan; c.straight = true;
       return c;
     }
+    if (this.blastPhase === 'reel') return null;
     if (this.blastPhase) { // lifted and pointed at the cat, and held there a moment after it fires
       const h = this._hole(), g = c.goal;
       this._catChest(g);

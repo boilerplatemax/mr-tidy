@@ -233,8 +233,10 @@ export class Knockables {
       if (d > S.reach + o.r || d < 1e-3 || (cx * _v.x + cy * _v.y + cz * _v.z) / d < S.cone) continue;
       // heavy things take a few hits: the early ones only rock them
       o.hits++; if (o.t.id === 'yarn_ball' || o.t.wool) this._softHit = true;
-      const free = o.hits >= o.t.swipes, speed = free ? Math.max(S.minSpeed, Math.min(S.maxSpeed, S.impulse / o.mass)) : S.nudge;
-      this.shove(o, dx, dz, speed);
+      const free = o.hits >= o.t.swipes, speed = (free ? Math.max(S.minSpeed, Math.min(S.maxSpeed, S.impulse / o.mass)) : S.nudge) * (1 + (Math.random() * 2 - 1) * S.speedSpread);
+      const a = (Math.random() * 2 - 1) * S.spread, ca = Math.cos(a), sa = Math.sin(a); // (its own little angle: neighbours don't fall the same way)
+      this.shove(o, dx * ca - dz * sa, dx * sa + dz * ca, speed);
+      if (free) { o.wx += (Math.random() - 0.5) * S.kick; o.wy += (Math.random() - 0.5) * S.kick; o.wz += (Math.random() - 0.5) * S.kick; } // (and a tumble of its own)
       hits++;
     }
     if (hits) audio.play(this._softHit ? 'knock.soft' : 'knock.clink', { pos: eye, rate: 0.9 + Math.random() * 0.3 });

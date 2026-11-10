@@ -273,7 +273,7 @@ export const TUNING = {
   stalk: { chance: 0.35, speed: 0.45, dip: 0.8 }, // from angry: how often he creeps up instead of coming (always in his dust); how slow; how quiet
   eat: { inflate: 1.6, wide: 1.28, into: 0.13, chomps: [0.45, 0.75, 1.05] }, // stage 5's catch: how tall and wide he swells; m the camera goes into the mouth; s the bites come
   stuck: { after: 2.5, move: 0.04, tries: 2 }, // he hasn't moved this far in this long while trying to: find another way; after this many goes, he's moved
-  stun: { time: 0.65, perKg: 0.3, max: 1.2, cooldown: 5 }, // something dropped on him: s he reels, plus this much per kg, at most; s before it can work again
+  stun: { time: 1.1, perKg: 0.5, max: 2.2, cooldown: 5 }, // something dropped on him: s he reels, plus this much per kg, at most; s before it can work again
   hide: { range: 2.6, chance: [0, 0, 0.35, 0.55, 0.7], time: 4 }, // the tub and behind the closed curtains: he goes looking when he reaches where he lost you. m he checks from; odds he finds you, by stage; s he then knows
   sting: { // eye contact and being spotted
     eyeCos: 0.94, cooldown: 28, freeze: 0.32, // how squarely you must be looking at him; s between stingers; s he freezes, staring back
@@ -346,14 +346,14 @@ export const TUNING = {
   hose: { // the snake out of the hole (src/vacuum/hose.js, src/vacuum/voxels.js)
     minLength: 1.6, // m: the hose is never shorter than this. When the tip is close, the excess hangs and bows aside like a chain
     slackPull: 0.02, damping: 0.92, sag: 6, aside: 14, chainPasses: 6, // the chain: how much a slack hose keeps to its route, how fast swinging dies down, m/s² of droop, of bowing sideways; how stiffly the links hold
-    length: 3.8, segments: 48, radius: 0.028, tubeSegments: 112, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
+    length: 3.8, segments: 96, radius: 0.028, tubeSegments: 200, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
     camClear: 0.3, // m the hose and nozzle bend away from the camera, whatever they're doing
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
     restReach: 0.55, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up
     track: 34, trailStep: 0.06, // 1/s: how fast the body settles onto its trail; m between trail points
     cell: 0.12, clearance: 0.03, searchLimit: 20000, // the 3D grid: m per cell, m kept clear of surfaces, the most cells one search may look at
     replan: 0.2, arch: 0.3, arcPoints: 8, // s between re-thinking its route; how far under the tip it comes up from; points on that curve
-    retractSpeed: 7, // m/s reeling back in
+    retractSpeed: 7, retractPerM: 1.8, // m/s reeling back in; or this many times its length per second, if that's faster (a long creeping hose comes back in well under a second)
     blendBelow: 1.2, restSettle: 0.7, restEase: 7, // a hose shorter than this (m) just eases back into its rest shape when it is done; s it takes to settle into it; 1/s how fast
     reachH: 2.2, reachTop: 1.8, // m: how far out from the hole, and how high a cat it will go for. Above reachTop is safe
     minPerch: 0.3, // m: a cat higher than this counts as perched: harder to spot, and he parks near it
@@ -380,6 +380,7 @@ export const TUNING = {
     turn: 0.16, // s to turn and face him at the end of it
     hold: 2.0, // s held on his face (the laugh or the scream)
     faceGap: 0.15, // m: the closest the camera ever comes to his face in the catch
+    approach: 0.4, outOfHole: 0.1, // m: the ride's last stretch comes straight in to his face from this far out; the hose leaves the hole square for this long
     faceJitter: 0.003, // m he trembles (all of him, so his face never slides off his body)
     beat: 0.8, // s of black silence before the restart screen
     screamRate: 2.3, screamGain: 1.4, screamRamp: 0.9, // the motor at the end: pitch, loudness, s to get there
@@ -478,6 +479,7 @@ export const TUNING = {
   },
   // ---------------------------------------------------------------- the swipe and knockable physics (src/world/knockables.js)
   swipe: {
+    spread: 0.38, speedSpread: 0.22, kick: 9, // each thing a swipe catches goes its own way: rad either side, share of speed either way, and a tumble (rad/s): two side by side never fall as one
     reach: 0.55, // m from the eye to an object's centre
     cone: 0.68, // cos of the half-angle: how far off-centre an object can be and still get hit
     time: 0.3, // s: the whole swipe animation

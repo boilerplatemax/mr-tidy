@@ -44,10 +44,16 @@ export class CatchSequence {
     if (!end) end = new THREE.Vector3(v.x + Math.sin(want) * d, y, v.z + Math.cos(want) * d);
     const clear = (q) => { const l = eye.distanceTo(q); _dir.copy(q).sub(eye).divideScalar(l || 1); return !W.raycast(eye, _dir, l, (c) => c.solid, false); };
     const start = vox.nearestOpen(eye, clear) || eye.clone();
-    const route = vox.path(start, end);
+    const fx = Math.sin(theta), fz = Math.cos(theta), front = new THREE.Vector3(end.x + fx * C.approach, end.y, end.z + fz * C.approach); // (the last stretch comes in square to his face)
+    const lead = vox.blocked(front.x, front.y, front.z) ? end : front;
+    let route = vox.path(start, lead);
+    if (!route) { // too far for a search (another room, round corners): the way his hose came, back to him
+      const T = v.hose.trail; if (T && T.length > 2) route = T.slice().reverse().filter((q) => q.distanceTo(_p.set(v.x, q.y, v.z)) > V.radius + 0.3).map((q) => new THREE.Vector3(q.x, Math.max(C.minY + 0.05, q.y), q.z));
+    }
     undo();
     const pts = [eye.clone()];
-    if (route) pts.push(...route); else pts.push(start, end.clone());
+    if (route && route.length) pts.push(...route); else pts.push(start, lead.clone());
+    if (lead !== end) pts.push(lead.clone());
     pts.push(end.clone());
     // even samples, then a moving average to take the corners off (always less than the clearance)
     const out = [];
@@ -97,8 +103,9 @@ export class CatchSequence {
     const v = this.vac, H = v.hose, n = H.n, h = v._hole(), from = Math.min(this.len, s + C.hoseGap);
     H.active = true;
     H.pts[0].set(h.x, h.y, h.z);
-    for (let i = 1; i <= n; i++) { // (the first stretch is the short hop from the hole to the end of the route)
-      this._at(this.len + (from - this.len) * ((i - 1) / (n - 1)), H.pts[i]);
+    H.pts[1].set(h.x + Math.sin(v.heading) * C.outOfHole, h.y, h.z + Math.cos(v.heading) * C.outOfHole); // (straight out of the hole first: it never curls back into his face)
+    for (let i = 2; i <= n; i++) {
+      this._at(this.len + (from - this.len) * ((i - 2) / (n - 2)), H.pts[i]);
       H.pts[i].y = Math.max(TUNING.hose.floorY, H.pts[i].y - 0.05);
     }
     for (let i = 0; i <= n; i++) { H.prev[i].copy(H.pts[i]); H.old[i].copy(H.pts[i]); }

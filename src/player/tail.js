@@ -10,11 +10,11 @@ const TL = TUNING.tail;
 
 export class Tail {
   constructor(camera) {
-    this.camera = camera; this.amt = 0; this.side = 1; this.lastYaw = null; this.rate = 0; this.rig = null; this.mixer = null;
+    this.camera = camera; this.meshes = []; this.dk = false; this.dark = 0; this.amt = 0; this.side = 1; this.lastYaw = null; this.rate = 0; this.rig = null; this.mixer = null;
     loadGLB(TUNING.assets.tail).then((g) => {
       this.rig = new THREE.Group(); this.rig.add(g.scene);
       g.scene.rotation.set(TL.tilt, Math.PI, 0); g.scene.scale.setScalar(TL.scale);
-      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive?.setHex(0x2a241e); o.material.fog = false; o.material.side = THREE.DoubleSide; } o.layers.set(LAYER_VIEWMODEL); o.frustumCulled = false; });
+      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive?.setHex(0x2a241e); o.material.fog = false; o.material.side = THREE.DoubleSide; this.meshes.push([o, o.material, new THREE.MeshBasicMaterial({ map: o.material.map || null, vertexColors: !!o.material.vertexColors, color: o.material.color.clone().multiplyScalar(TUNING.paws.darkGlow), fog: false, side: THREE.DoubleSide })]); } o.layers.set(LAYER_VIEWMODEL); o.frustumCulled = false; }); // (and an unlit copy of each material for the blackout, like the paws)
       this.rig.visible = false; camera.add(this.rig);
       this.mixer = new THREE.AnimationMixer(g.scene);
       const swish = THREE.AnimationClip.findByName(g.animations, 'swish'); if (swish) this.mixer.clipAction(swish).play();
@@ -26,6 +26,7 @@ export class Tail {
   /** Per rendered frame. hidden: something else owns the view. */
   frame(player, dt, hidden) {
     if (!this.rig) return;
+    { const dk = this.dark > TUNING.paws.darkAt; if (dk !== this.dk) { this.dk = dk; for (const [o, lit, unlit] of this.meshes) o.material = dk ? unlit : lit; } } // (in the blackout: its own colours, dimmed, like the paws)
     if (this.lastYaw === null) this.lastYaw = player.yaw;
     let d = player.yaw - this.lastYaw; d = Math.atan2(Math.sin(d), Math.cos(d)); this.lastYaw = player.yaw;
     this.rate += ((dt > 0 ? d / dt : 0) - this.rate) * (1 - Math.exp(-10 * dt));

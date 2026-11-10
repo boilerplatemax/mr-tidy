@@ -165,7 +165,7 @@ export class Hose {
 
   _retract(dt) { // reeling back along its own path
     const T = this.trail;
-    let rem = H.retractSpeed * dt;
+    let rem = Math.max(H.retractSpeed, (this.len ?? 0) * H.retractPerM) * dt; // (a long one comes back fast)
     while (rem > 0 && T.length > 1) {
       const a = T[T.length - 1], b = T[T.length - 2], d = a.distanceTo(b);
       if (d <= rem) { rem -= d; T.pop(); } else { a.addScaledVector(_d.copy(b).sub(a).normalize(), rem); rem = 0; }
