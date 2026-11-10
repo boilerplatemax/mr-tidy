@@ -104,6 +104,12 @@ export class CatchSequence {
     H.active = true;
     H.pts[0].set(h.x, h.y, h.z);
     H.pts[1].set(h.x + Math.sin(v.heading) * C.outOfHole, h.y, h.z + Math.cos(v.heading) * C.outOfHole); // (straight out of the hole first: it never curls back into his face)
+    if (s + C.hoseGap >= this.len) { // nearly there: the hose is just a stub from his nose that keeps hoseGap clear of you (never round the camera)
+      const cam = this.camera.position, dx = cam.x - h.x, dz = cam.z - h.z, dc = Math.hypot(dx, dz) || 1, L = Math.max(C.outOfHole, dc - C.hoseGap);
+      for (let i = 1; i <= n; i++) { const u = i / n; H.pts[i].set(h.x + (dx / dc) * L * u, h.y - 0.04 * u, h.z + (dz / dc) * L * u); }
+      for (let i = 0; i <= n; i++) { H.prev[i].copy(H.pts[i]); H.old[i].copy(H.pts[i]); }
+      H.tipPos.copy(H.pts[n]); return;
+    }
     for (let i = 2; i <= n; i++) {
       this._at(this.len + (from - this.len) * ((i - 2) / (n - 2)), H.pts[i]);
       H.pts[i].y = Math.max(TUNING.hose.floorY, H.pts[i].y - 0.05);

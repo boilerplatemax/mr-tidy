@@ -100,7 +100,7 @@ export const TUNING = {
     walkSpeed: 1.7, // m/s
     runSpeed: 3.6, // m/s, hold Shift. A little faster than the vac at its angriest
     slinkSpeed: 0.65, // m/s, hold C. Silent
-    backwardMul: 0.85, // walking backwards is slower
+    backwardMul: 0.6, // walking backwards is a lot slower (a cat backing away, not running)
     accel: 18, // 1/s: reaches 63 % of target speed in 1/accel s. Snappy
     decel: 22, // 1/s: stops faster than it starts
     airAccel: 9, // 1/s: tight air control while steering
