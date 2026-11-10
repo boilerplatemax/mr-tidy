@@ -1,4 +1,4 @@
-// The 25 knockables: gameplay data for game-assets/models/knockables_v2.glb (generated from the pack's knockables_v2.json).
+// The knockables: gameplay data for game-assets/models/knockables_v2.glb (generated from the pack's knockables_v2.json), then the newer packs.
 // mass kg; swipes = hits to get it moving; noise 1-5; landing shatter | break | bounce | roll | thud; size W H D (m); nodes = meshes.
 export const PROPS = {
   "dentures_glass": {"mass":0.3,"swipes":1,"noise":3,"landing":"shatter","tint":"#bcd6dc","size":[0.08,0.1,0.08],"nodes":{"intact":"dentures_glass","parts":["dentures_glass__teeth"],"fx":["fx_shards"],"glass":["dentures_glass"]}},
@@ -28,3 +28,30 @@ export const PROPS = {
   "feather_duster": {"mass":0.15,"swipes":1,"noise":1,"landing":"bounce","tint":"#c8463c","size":[0.241,0.443,0.239],"nodes":{"intact":"feather_duster","fx":["fx_feather"]}},
 };
 export const PALETTES = {"buttons":["#c8463c","#3c6fae","#e6c84a","#4b8a52","#efe6d6"],"feathers":["#c8463c","#3c6fae","#e6c84a","#4b8a52","#efe6d6","#8a4a9a"]};
+
+// The second and third packs (game-assets/models/knockables_plants.glb: the plants and the new kitchen, dining and bath things;
+// game-assets/models/knockables_2.glb: three more plants). lib: which pack the meshes are in. Plants: the pot shatters and the
+// plant flops out whole. (Heights are of the pot or the whole thing, whichever the cat bats at.)
+export const PROPS_2 = {
+  "toothbrush_cup": {"mass":0.25,"swipes":1,"noise":3,"landing":"shatter","tint":"#a9d6c2","size":[0.072,0.09,0.072],"nodes":{"intact":"toothbrush_cup","parts":["toothbrush_cup__brushes"],"fx":["fx_shards"]},"lib":"plants"},
+  "sugar_bowl": {"mass":0.35,"swipes":2,"noise":3,"landing":"shatter","tint":"#f4f1ea","size":[0.1,0.104,0.1],"nodes":{"intact":"sugar_bowl","fx":["fx_shards"]},"lib":"plants"},
+  "measuring_jug": {"mass":0.45,"swipes":2,"noise":4,"landing":"shatter","tint":"#bcd6dc","size":[0.15,0.13,0.1],"nodes":{"intact":"measuring_jug","fx":["fx_shards"],"glass":["measuring_jug__glass"]},"lib":"plants"},
+  "cake_stand": {"mass":1.2,"swipes":3,"noise":5,"landing":"shatter","tint":"#bcd6dc","size":[0.22,0.24,0.22],"nodes":{"intact":"cake_stand","fx":["fx_shards"],"glass":["cake_stand__dome"]},"lib":"plants"},
+  "crystal_decanter": {"mass":1,"swipes":3,"noise":5,"landing":"shatter","tint":"#d8e6ea","size":[0.11,0.24,0.11],"nodes":{"intact":"crystal_decanter","parts":["crystal_decanter__stopper"],"fx":["fx_shards"],"glass":["crystal_decanter__glass"]},"lib":"plants"},
+  "cactus_pot": {"mass":0.5,"swipes":2,"noise":3,"landing":"shatter","tint":"#c06a42","size":[0.088,0.07,0.088],"nodes":{"intact":"cactus_pot","parts":["cactus_pot__cactus"],"fx":["fx_shards"]},"lib":"plants"},
+  "pincushion": {"mass":0.08,"swipes":1,"noise":1,"landing":"bounce","tint":"#c8463c","size":[0.097,0.074,0.09],"nodes":{"intact":"pincushion"},"lib":"plants"},
+  "wine_glass": {"mass":0.15,"swipes":1,"noise":4,"landing":"shatter","tint":"#d8e6ea","size":[0.076,0.15,0.076],"nodes":{"intact":"wine_glass","fx":["fx_shards"],"glass":["wine_glass"]},"lib":"plants"},
+  "cake": {"mass":0.8,"swipes":2,"noise":2,"landing":"thud","tint":"#f4e6d8","size":[0.174,0.098,0.174],"nodes":{"intact":"cake"},"lib":"plants"},
+  "snake_plant": {"mass":1.4,"swipes":3,"noise":4,"landing":"shatter","tint":"#c8b89a","size":[0.12,0.11,0.12],"nodes":{"intact":"snake_plant","parts":["snake_plant__plant"],"fx":["fx_shards"]},"lib":"plants"},
+  "pothos": {"mass":0.9,"swipes":2,"noise":4,"landing":"shatter","tint":"#e8e2d4","size":[0.11,0.09,0.11],"nodes":{"intact":"pothos","parts":["pothos__plant"],"fx":["fx_shards"]},"lib":"plants"},
+  "peace_lily": {"mass":1.6,"swipes":3,"noise":4,"landing":"shatter","tint":"#b8643e","size":[0.151,0.12,0.151],"nodes":{"intact":"peace_lily","parts":["peace_lily__plant"],"fx":["fx_shards"]},"lib":"plants"},
+  "monstera": {"mass":2.5,"swipes":3,"noise":5,"landing":"shatter","tint":"#d8cbb0","size":[0.17,0.14,0.17],"nodes":{"intact":"monstera","parts":["monstera__plant"],"fx":["fx_shards"]},"lib":"plants"},
+  "spider_plant": {"mass":0.8,"swipes":2,"noise":3,"landing":"shatter","tint":"#d8d0c0","size":[0.11,0.09,0.11],"nodes":{"intact":"spider_plant","parts":["spider_plant__plant"],"fx":["fx_shards"]},"lib":"plants"},
+  "boston_fern": {"mass":1.2,"swipes":2,"noise":4,"landing":"shatter","tint":"#b8643e","size":[0.14,0.1,0.14],"nodes":{"intact":"boston_fern","parts":["boston_fern__plant","boston_fern__plant_cards"],"fx":["fx_shards"]},"lib":"plants"},
+  "jade_plant": {"mass":1,"swipes":2,"noise":4,"landing":"shatter","tint":"#4a6a8a","size":[0.1,0.07,0.1],"nodes":{"intact":"jade_plant","parts":["jade_plant__plant"],"fx":["fx_shards"]},"lib":"plants"},
+  "geranium_pot": {"mass":0.9,"swipes":2,"noise":3,"landing":"shatter","tint":"#b8643e","size":[0.13,0.09,0.13],"nodes":{"intact":"geranium_pot","parts":["geranium_pot__plant","geranium_pot__plant_cards"],"fx":["fx_shards"]},"lib":"plants"},
+  "succulent_pot": {"mass":0.3,"swipes":1,"noise":3,"landing":"shatter","tint":"#e8e2d4","size":[0.09,0.062,0.09],"nodes":{"intact":"succulent_pot","parts":["succulent_pot__plant"],"fx":["fx_shards"]},"lib":"k2"},
+  "fern_pot": {"mass":1,"swipes":2,"noise":4,"landing":"shatter","tint":"#b86a42","size":[0.13,0.102,0.13],"nodes":{"intact":"fern_pot","parts":["fern_pot__plant"],"fx":["fx_shards"]},"lib":"k2"},
+  "african_violet": {"mass":0.3,"swipes":1,"noise":3,"landing":"shatter","tint":"#e8a8c8","size":[0.08,0.062,0.08],"nodes":{"intact":"african_violet","parts":["african_violet__plant"],"fx":["fx_shards"]},"lib":"k2"},
+};
+Object.assign(PROPS, PROPS_2);

@@ -51,7 +51,7 @@ function boxFaces(B, min, max, pick) {
   face('e', [x1, y0, z1], [x1, y0, z0], [x1, y1, z0], [x1, y1, z1], [1, 0, 0], [z1, y0], [z0, y1]);
 }
 
-const PLATES = ['An empty frame. Marmalade, 1997–', 'Biscuit, 1961–1974', 'Mr. Whiskers, 1975–1983', 'Duchess, 1984–1989', 'Pepper, 1990–1992', 'Tuna, 1993–1994', 'Marigold, 1995', 'Sapphire, 1996', 'Mittens, 1996'];
+const PLATES = ['', 'Biscuit, 1961–1974', 'Mr. Whiskers, 1975–1983', 'Duchess, 1984–1989', 'Pepper, 1990–1992', 'Tuna, 1993–1994', 'Marigold, 1995', 'Sapphire, 1996', 'Mittens, 1996'];
 const roomAt = (x, z) => LEVEL.rooms.find((r) => x >= r.min[0] && x <= r.max[0] && z >= r.min[1] && z <= r.max[1]) || null;
 
 export function buildHouse({ scene, world }) {
@@ -155,6 +155,7 @@ export function buildHouse({ scene, world }) {
   import('./dress.js').then(() => loadOutlets(scene));
 
   scene.add(bathtub(LEVEL.tub));
+  scene.add(furnishings(tex));
 
   // ---- Grandma's room, what you can see of it past the door: warm, and that's all
   { const warm = new THREE.MeshBasicMaterial({ color: 0x8a5a2a, fog: false }), dim = new THREE.MeshBasicMaterial({ color: 0x3a2412, fog: false });
@@ -237,6 +238,55 @@ function bathtub({ x0, x1, z0, z1, top }) {
   return group;
 }
 
+/**
+ * The floor lamp's flex: along the floor, clear of the wall, and up into its socket; or, pulled, lying loose on the carpet
+ * with the plug on the end. (src/world/dress.js switches them over: the plug is the tutorial's last lesson.)
+ */
+export const lampParts = { plugged: null, flexIn: null, flexOut: null };
+function lampFlex(scene) {
+  const L = LEVEL.lampOutlet, mat = new THREE.MeshLambertMaterial({ color: 0x2a2a2c }), out = L.n[0] * 0.026, V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const seg = (grp, pts) => { for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], l = a.distanceTo(b), c = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, l, 4), mat); c.position.copy(a).lerp(b, 0.5); c.quaternion.setFromUnitVectors(V(0, 1, 0), b.clone().sub(a).normalize()); grp.add(c); } };
+  const f = L.from, wx = L.pos[0] + out + 0.012; // (a hair out from the plate: never inside the wall)
+  lampParts.flexIn = new THREE.Group(); seg(lampParts.flexIn, [V(f[0], 0.006, f[2]), V(wx + 0.05, 0.006, L.pos[2] - 0.04), V(wx, 0.006, L.pos[2]), V(wx, L.pos[1] - 0.034, L.pos[2])]); scene.add(lampParts.flexIn);
+  lampParts.flexOut = new THREE.Group(); seg(lampParts.flexOut, [V(f[0], 0.006, f[2]), V(f[0] + 0.05, 0.006, f[2] + 0.14), V(f[0] + 0.2, 0.006, f[2] + 0.22)]);
+  const p = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.05), new THREE.MeshLambertMaterial({ color: 0x141414 })); p.position.set(f[0] + 0.22, 0.015, f[2] + 0.24); p.rotation.y = 0.6; lampParts.flexOut.add(p);
+  lampParts.flexOut.visible = false; scene.add(lampParts.flexOut);
+}
+
+/** The new rooms' own things, drawn here: the washing machine and the ironing board (laundry room), the upright piano (parlour). */
+function furnishings(tex) {
+  const g = new THREE.Group(), S = new Map(LEVEL.solids.map((b) => [b.id, b]));
+  const lam = (c, extra) => makePS1(new THREE.MeshLambertMaterial({ color: c, ...extra }));
+  const boxM = (mat, x0, x1, y0, y1, z0, z1) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); g.add(m); return m; };
+  const white = lam(0xe8e4d8), chrome = lam(0xb8bcc4), dark = lam(0x1a2228), glassy = lam(0x3a5868, { emissive: 0x0a1418 });
+  { // the washing machine: a white box with its round glass door at the front, and the knobs along the top
+    const w = S.get('washer'), [x0, , z0] = w.min, [x1, y1, z1] = w.max, cx = (x0 + x1) / 2, cy = y1 * 0.5;
+    boxM(white, x0, x1, 0, y1, z0, z1);
+    const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.02, 16).rotateX(Math.PI / 2), chrome); ring.position.set(cx, cy, z0 - 0.006); g.add(ring);
+    const door = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.022, 16).rotateX(Math.PI / 2), glassy); door.position.set(cx, cy, z0 - 0.009); g.add(door);
+    boxM(lam(0xd8d2c4), x0 + 0.02, x1 - 0.02, y1 - 0.1, y1 - 0.02, z0 - 0.008, z0 + 0.01);
+    for (let i = 0; i < 3; i++) { const k = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.02, 8).rotateX(Math.PI / 2), dark); k.position.set(x0 + 0.12 + i * 0.09, y1 - 0.06, z0 - 0.014); g.add(k); }
+  }
+  { // the ironing board: a padded top, a rounded nose, crossed legs (it's up off the floor: a cat goes under it)
+    const b = S.get('iron'), [x0, y0, z0] = b.min, [x1, y1, z1] = b.max, cz = (z0 + z1) / 2, cover = lam(0xd8ccb4, { map: tex('paint_cream').map }); // (a faded cotton cover)
+    boxM(cover, x0 + 0.12, x1, y0, y1, z0, z1);
+    const nose = new THREE.Mesh(new THREE.CylinderGeometry((z1 - z0) / 2, (z1 - z0) / 2, y1 - y0, 12, 1, false, Math.PI, Math.PI), cover); nose.position.set(x0 + 0.12, (y0 + y1) / 2, cz); g.add(nose);
+    for (const [a, b2] of [[0.25, 0.85], [0.85, 0.25]]) { const xa = x0 + (x1 - x0) * a, xb = x0 + (x1 - x0) * b2, l = Math.hypot(xb - xa, y0); for (const dz of [-0.11, 0.11]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, l, 4), chrome); leg.position.set((xa + xb) / 2, y0 / 2, cz + dz); leg.rotation.z = Math.atan2(xb - xa, y0); g.add(leg); } }
+  }
+  { // the upright piano: a walnut cabinet, the keyboard sticking out at the front under its fallboard
+    const P = S.get('piano'), K = S.get('pKeys'), wood = tex('wood_walnut');
+    boxM(wood, P.min[0], P.max[0], 0, P.max[1], P.min[2], P.max[2]);
+    boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.min[2] + 0.05, K.max[2] - 0.05); // (under the keys)
+    boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.min[2], K.min[2] + 0.05); boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.max[2] - 0.05, K.max[2]); // the cheeks
+    const kc = document.createElement('canvas'); kc.width = 64; kc.height = 8; const kg = kc.getContext('2d'); kg.fillStyle = '#f2ecdc'; kg.fillRect(0, 0, 64, 8); kg.fillStyle = '#8a8070'; for (let i = 0; i < 64; i += 2) kg.fillRect(i, 0, 1, 8); kg.fillStyle = '#141210'; for (let i = 0; i < 32; i++) if ([1, 2, 4, 5, 6].includes(i % 7)) kg.fillRect(i * 2 + 1, 0, 1, 5);
+    const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace; pixelTexture(kt);
+    const keys = new THREE.Mesh(new THREE.PlaneGeometry(K.max[2] - K.min[2] - 0.1, P.min[0] - K.min[0]).rotateX(-Math.PI / 2).rotateY(Math.PI / 2), makePS1(new THREE.MeshLambertMaterial({ map: kt })));
+    keys.position.set((K.min[0] + P.min[0]) / 2, K.max[1] + 0.002, (K.min[2] + K.max[2]) / 2); g.add(keys);
+    boxM(lam(0xc9a44a), P.min[0] - 0.005, P.min[0], 0.95, 1.0, (P.min[2] + P.max[2]) / 2 - 0.2, (P.min[2] + P.max[2]) / 2 + 0.2); // a brass name strip
+  }
+  return g;
+}
+
 /** A plug pushed into a socket: a little black block out from the plate, the flex coming out of its bottom. */
 function plugAt(o) {
   const g = new THREE.Group(), mat = new THREE.MeshLambertMaterial({ color: 0x18181a }), b = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.04, 0.032), mat);
@@ -244,28 +294,16 @@ function plugAt(o) {
   return g;
 }
 
-/** The television's flex: plugged in, or pulled out and lying on the floor. */
-export const tvParts = { plug: null, plugged: null, loose: null };
-function tvFlex(scene) {
-  const mat = new THREE.MeshLambertMaterial({ color: 0x2a2a2c }), O = LEVEL.tvOutlet, seg = (grp, pts) => { for (let i = 1; i < pts.length; i++) { const a = new THREE.Vector3(...pts[i - 1]), b = new THREE.Vector3(...pts[i]), l = a.distanceTo(b), c = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, l, 4), mat); c.position.copy(a).lerp(b, 0.5); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); grp.add(c); } };
-  tvParts.plugged = new THREE.Group(); seg(tvParts.plugged, [[5.82, 0.12, 1.66], [5.86, 0.006, 1.6], [O.pos[0] - 0.026, 0.006, O.pos[2]], [O.pos[0] - 0.026, O.pos[1] - 0.034, O.pos[2]]]); scene.add(tvParts.plugged);
-  tvParts.loose = new THREE.Group(); seg(tvParts.loose, [[5.82, 0.12, 1.66], [5.8, 0.006, 1.58], [5.66, 0.006, 1.38]]);
-  const p = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.05), new THREE.MeshLambertMaterial({ color: 0x141414 })); p.position.set(5.64, 0.015, 1.36); tvParts.loose.add(p); tvParts.loose.visible = false; scene.add(tvParts.loose);
-}
-
 async function loadOutlets(scene) {
-  tvFlex(scene);
   const { loadGLB } = await import('../render/geometry.js');
   let g;
   try { g = await loadGLB('game-assets/models/house/wall_outlet.glb'); } catch { return; }
-  for (const o of [...LEVEL.outlets, { ...LEVEL.lampOutlet, lamp: true }, { ...LEVEL.tvOutlet, tv: true }]) {
+  for (const o of [...LEVEL.outlets, LEVEL.lampOutlet]) { // (the TV is plugged in behind itself: no outlet to see)
     const m = g.scene.clone(true), plug = m.getObjectByName('plug');
-    if (plug) plug.visible = false; // (the model's own plug sits wrong: the lamp's and the TV's are made below)
-    if (o.lamp || o.tv) { const p = plugAt(o); scene.add(p); if (o.tv) tvParts.plug = p; } // (the lamp's is plugged in; the vacuum's plug comes with his cord)
+    if (plug) plug.visible = false; // (the model's own plug sits wrong: the lamp's is made below, the vacuum's comes with his cord)
     m.position.set(o.pos[0], o.pos[1], o.pos[2]);
     m.rotation.y = Math.atan2(o.n[0], o.n[2]);
     scene.add(m);
   }
-  { const L = LEVEL.lampOutlet, mat = new THREE.MeshLambertMaterial({ color: 0x2a2a2c }), a = new THREE.Vector3(...L.from), b = new THREE.Vector3(L.pos[0] + 0.026, L.pos[1] - 0.034, L.pos[2]); // the lamp's flex, along the floor and up to the socket
-    for (const [p, q] of [[a, new THREE.Vector3(b.x, 0.006, b.z)], [new THREE.Vector3(b.x, 0.006, b.z), b]]) { const l = p.distanceTo(q), c = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, l, 4), mat); c.position.copy(p).lerp(q, 0.5); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q.clone().sub(p).normalize()); scene.add(c); } }
+  lampParts.plugged = plugAt(LEVEL.lampOutlet); scene.add(lampParts.plugged); lampFlex(scene);
 }

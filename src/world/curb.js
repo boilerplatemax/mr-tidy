@@ -50,10 +50,10 @@ export class Curb {
     v.frozen = true; v.dormant = false; v.powerDown(); v.setHidden(false); v.hose.mesh.visible = v.hose.nozzle.visible = false; v.cord.mesh.visible = v.cord.plug.visible = false;
     v.noCord = true; v.x = v.px = X; v.z = v.pz = Z + 0.2; v.heading = v.prevHeading = 0; v.model.dead = false; v.model.calm = true; v.model.slumped = false; v.model.face.visible = false;
     this.sign.position.set(X + 0.3, 0.13, Z + 0.32); this.sign.rotation.set(-0.3, -0.35, 0.08); // (propped against him)
-    if (!this.stuffies && this.knock?._stuffy) { // and his collection, lined up beside him: they're going too
-      this.stuffies = new THREE.Group();
-      ['bear', 'bunny', 'frog', 'pig', 'elephant'].forEach((k, i) => { const m = this.knock._stuffy(k); m.position.set(X - 0.4 - i * 0.165, 0.002, Z + 0.28 + (i % 2) * 0.06); m.rotation.y = 0.25 - i * 0.12; m.scale.setScalar(1.1); this.stuffies.add(m); });
-      this.group.add(this.stuffies);
+    if (!this.wool && this.knock?._yarn) { // and his best wool, what's left of it, in a heap beside him: it's going too
+      this.wool = new THREE.Group();
+      ['red', 'blue', 'green', 'gold', 'purple'].forEach((k, i) => { const m = this.knock._yarn(k); m.position.set(X - 0.4 - (i % 3) * 0.16, 0.002 + (i > 2 ? 0.12 : 0), Z + 0.28 + (i > 2 ? 0.03 : (i % 2) * 0.06) - (i > 2 ? 0 : 0)); if (i > 2) m.position.x = X - 0.48 - (i - 3) * 0.16; m.rotation.y = i * 1.3; m.scale.setScalar(0.75); this.wool.add(m); });
+      this.group.add(this.wool);
     }
   }
 

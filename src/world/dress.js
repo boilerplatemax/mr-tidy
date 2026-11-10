@@ -9,6 +9,7 @@ import { audio } from '../audio/audio.js';
 import { subtitles } from '../ui/subtitles.js';
 import { SHOW } from '../vacuum/voice.js';
 import { TUNING } from '../data/tuning.js';
+import { lampParts } from './house.js';
 
 const cache = new Map();
 const file = (name) => `game-assets/models/house/${name}.glb`;
@@ -28,7 +29,7 @@ const screens = [];
 let plainCloth = null;
 
 // The programme: "The Mr. Tidy Hour". The remote turns it on (the tutorial's first lesson).
-const SHOW_LEN = TUNING.tutorial.show;
+const SHOW_LEN = TUNING.tutorial.show, EGG_LEN = TUNING.tutorial.egg;
 const show = { t: 0, canvas: null, g: null, tex: null, black: null, said: 0, last: -1 };
 function makeShow() {
   const c = show.canvas = document.createElement('canvas'); c.width = 256; c.height = 192; show.g = c.getContext('2d'); show.g.setTransform(2, 0, 0, 2, 0, 0); // (drawn in 128 x 96, at twice the resolution: the words stay sharp)
@@ -61,35 +62,108 @@ function drawShow(u) {
   drawWrong(g, Math.random() < 0.15);
 }
 /** The last frame, and what the set shows by itself in the dark: him, close, wrong. */
-function drawWrong(g, flick, text = 'KEEP CLEAN.') {
+function drawWrong(g, flick, text = 'KEEP IT CLEAN.') {
   const W = 128, H = 96; g.fillStyle = flick ? '#1a0808' : '#000'; g.fillRect(0, 0, W, H);
   vacPic(g, 64, 50, 3.1, 'wrong');
   g.textAlign = 'center'; g.font = 'bold 10px monospace'; g.fillStyle = '#f4efd8'; g.fillText(text, 64, 92);
 }
 
-/** The set: 'on' (static), 'show' (the programme), 'off' (unplugged; but when the power goes it comes on by itself). */
+/**
+ * What the aerial brings in when it's batted: an old cartoon, "Puss and the Wool". A cat bats a ball of yarn across the
+ * floor, chases it, gets wound up in it, and sits there pleased with itself. Nothing frightening: a silly little thing.
+ */
+function drawEgg(u) {
+  const g = show.g, W = 128, H = 96;
+  const text = (str, y, size = 10, col = '#f4efd8') => { g.textAlign = 'center'; g.font = 'bold ' + size + 'px monospace'; g.fillStyle = '#000'; g.fillText(str, W / 2 + 1, y + 1); g.fillStyle = col; g.fillText(str, W / 2, y); };
+  const ball = (x, y, r) => { g.fillStyle = '#c84a64'; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.strokeStyle = '#f08aa0'; g.lineWidth = 1; for (let i = -1; i <= 1; i++) { g.beginPath(); g.arc(x + i * r * 0.4, y, r * 0.9, -1.2, 1.2); g.stroke(); } };
+  if (u < 1.6) { g.fillStyle = '#1a1410'; g.fillRect(0, 0, W, H); g.fillStyle = '#e8d8a8'; g.beginPath(); g.arc(64, 48, 40, 0, 7); g.fill(); g.fillStyle = '#1a1410'; g.beginPath(); g.arc(64, 48, 36, 0, 7); g.fill(); text('PUSS', 42, 13, '#e8d8a8'); text('AND THE WOOL', 58, 9, '#e8d8a8'); return; }
+  g.fillStyle = '#e8d8a8'; g.fillRect(0, 0, W, H); g.fillStyle = '#b89868'; g.fillRect(0, 72, W, 24); // a floor, a wall
+  for (let i = 0; i < 6; i++) { g.fillStyle = 'rgba(0,0,0,0.07)'; g.fillRect((i * 37 + Math.floor(u * 9) * 5) % W, (i * 23) % 70, 1, 3); } // (old film)
+  if (u < 3.8) { // bat, bat: the ball goes off across the floor, the thread behind it
+    const k = (u - 1.6) / 2.2, bx = 40 + k * 70; g.strokeStyle = '#c84a64'; g.lineWidth = 1; g.beginPath(); g.moveTo(34, 70); g.quadraticCurveTo((34 + bx) / 2, 74, bx, 70); g.stroke();
+    catPic(g, 10, 60 + (Math.sin(u * 14) > 0.6 ? -2 : 0)); ball(bx, 66, 5); text('BAT!', 20, 10); return;
+  }
+  if (u < 5.6) { const k = (u - 3.8) / 1.8; // round and round: wound up in it
+    g.strokeStyle = '#c84a64'; g.lineWidth = 1; for (let i = 0; i < 9; i++) { g.beginPath(); g.ellipse(64, 62, 18 - i * 0.6, 9, i * 0.5 + u * 3, 0, 7); g.stroke(); }
+    catPic(g, 54 + Math.sin(u * 9) * 8, 60); ball(64 + Math.cos(u * 6) * 22, 66, 4 - k * 2); text('OH DEAR...', 20, 10); return; }
+  catPic(g, 52, 60); g.strokeStyle = '#c84a64'; g.lineWidth = 2; for (let i = 0; i < 4; i++) { g.beginPath(); g.moveTo(52, 60 + i * 2); g.lineTo(70, 64 + i * 2); g.stroke(); } // all tied up, and pleased about it
+  g.fillStyle = '#c84a64'; for (const [hx, hy] of [[80, 46], [86, 40]]) { g.beginPath(); g.arc(hx - 1.5, hy, 2, 0, 7); g.arc(hx + 1.5, hy, 2, 0, 7); g.fill(); g.beginPath(); g.moveTo(hx - 3.4, hy + 0.6); g.lineTo(hx, hy + 4); g.lineTo(hx + 3.4, hy + 0.6); g.fill(); }
+  text('THE END', 20, 11);
+}
+
+/**
+ * The set in the dark, by itself: him, filling the screen, smiling. No eyes, just two black holes with a faint light deep in
+ * each, over a wide black smile that goes nearly ear to ear. Now and then the picture rolls, or breaks to snow.
+ */
+function drawCreep(g, time) {
+  const W = 128, H = 96, roll = Math.sin(time * 0.7) > 0.96 ? ((time * 90) % H) : 0;
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  g.save(); g.translate(0, roll);
+  const red = '#7a0c10', rim = '#a01418';
+  g.fillStyle = red; g.fillRect(4, 16, 120, 84); g.fillStyle = rim; g.fillRect(0, 8, 128, 10); g.fillStyle = '#0a0a0a'; g.fillRect(0, -8, 128, 16); // the drum, the rim, the dome above
+  g.fillStyle = 'rgba(0,0,0,0.35)'; g.fillRect(4, 16, 14, 84); g.fillRect(110, 16, 14, 84); // (round: darker at the sides)
+  const sway = Math.sin(time * 0.9) * 0.8;
+  for (const sx of [-1, 1]) { // no eyes: two black holes, each with a faint light deep in it that seems to follow you
+    const ex = 64 + sx * 27, ey = 40 + sx * 1.5;
+    g.fillStyle = '#2a0406'; g.beginPath(); g.ellipse(ex, ey, 18, 16, 0, 0, 7); g.fill(); // the recess
+    g.fillStyle = '#000'; g.beginPath(); g.ellipse(ex, ey, 15.5, 13.5, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(216, 228, 255, ' + (0.55 + 0.35 * Math.sin(time * 1.3 + sx)) + ')'; g.fillRect(Math.round(ex - sx * 2 + sway), ey - 1, 2, 2);
+  }
+  g.fillStyle = '#000'; g.beginPath(); g.arc(64, 56, 4, 0, 7); g.fill(); // the nose
+  g.beginPath(); g.moveTo(12, 60); g.quadraticCurveTo(64, 100, 116, 60); g.quadraticCurveTo(64, 80, 12, 60); g.fill(); // the smile: black, wide, nearly ear to ear
+  g.fillStyle = '#000'; g.beginPath(); g.moveTo(12, 62); g.lineTo(16, 63); g.lineTo(14, 66); g.fill(); g.beginPath(); g.moveTo(116, 62); g.lineTo(112, 63); g.lineTo(114, 66); g.fill(); // (it turns up at the ends)
+  g.restore();
+  for (let y = 0; y < H; y += 2) { g.fillStyle = 'rgba(0,0,0,0.22)'; g.fillRect(0, y, W, 1); } // scanlines
+  if (Math.random() < 0.06) for (let y = 0; y < H; y += 2) for (let x = 0; x < W; x += 3) { const v = Math.random() * 200 | 0; g.fillStyle = 'rgba(' + v + ',' + v + ',' + (v + 16) + ',0.85)'; g.fillRect(x, y, 3, 2); } // a moment of snow
+}
+
+/** The set: 'on' (static), 'show' (the programme), 'egg' (the cartoon the aerial brings in), 'off'. When the power goes, he's on it. */
 export const tv = {
-  state: 'on', plug: null, // plug: { pos, out() } from the house
+  state: 'on',
   set(st) {
     this.state = st;
     if (st === 'show') { show.t = SHOW_LEN; show.said = 0; }
-    if (st === 'off') { show.t = 0; this.plug?.pull(false); } else this.plug?.pull(true);
+    if (st === 'egg') show.t = EGG_LEN;
+    if (st === 'off') show.t = 0;
   },
-  /** The remote, batted. */
-  pokeRemote(camera) {
-    if (!remote || this.state !== 'on' || !near(camera, remote.position, 0.65, 0.55)) return false;
-    audio.play('knock.clink', { pos: remote.position }); audio.play('tv.show', { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2 });
-    remote.rotation.y += 0.6; this.set('show');
+  /** The remote (a knockable now: o is it), batted where it lies: the programme comes on. */
+  pokeRemote(camera, o = null) {
+    if (this.state !== 'on' || (o && camera && !near(camera, _c.set(o.x, o.y + 0.02, o.z), 0.7, 0.5))) return false;
+    audio.play('tv.show', { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2 }); this.set('show');
     return true;
   },
-  /** The plug, swiped out of the wall. */
-  pokePlug(camera) {
-    if (!this.plug || this.state === 'off' || !near(camera, this.plug.pos, 0.6, 0.55)) return false;
-    audio.play('vac.unplug', { pos: this.plug.pos }); this.set('off');
+  /** The lamp's plug (the tutorial's last lesson; it used to be the TV's), swiped out of the wall. */
+  pokePlug(camera) { return lamp.poke(camera); },
+  /** The aerial, batted: the picture swims, and an old cartoon comes in. Only on the plain static, not in the dark. */
+  pokeAerial(camera) {
+    if (!aerial || this.state !== 'on' || !near(camera, aerial, 0.75, 0.45)) return false;
+    audio.play('knock.clink', { pos: aerial, rate: 1.4 }); audio.play('tv.show', { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2, rate: 1.25 });
+    this.set('egg');
     return true;
   },
 };
-let remote = null;
+let aerial = null; // (where the TV's rabbit ears are, in the world)
+
+/**
+ * The living-room floor lamp: on from the start, a warm light over that end of the room, until its plug is swiped out of the
+ * wall (then it's dark there, and the flex lies loose). It goes out with the power too, and comes back on next run.
+ */
+export const lamp = {
+  on: true, light: null,
+  set(on) {
+    this.on = on;
+    if (lampParts.plugged) lampParts.plugged.visible = on;
+    if (lampParts.flexIn) lampParts.flexIn.visible = on;
+    if (lampParts.flexOut) lampParts.flexOut.visible = !on;
+  },
+  poke(camera) {
+    const L = LEVEL.lampOutlet, p = _s.set(L.pos[0] + L.n[0] * 0.03, L.pos[1] - 0.01, L.pos[2]);
+    if (!this.on || !near(camera, p, 0.6, 0.55)) return false;
+    audio.play('vac.unplug', { pos: p, rate: 1.2 }); this.set(false);
+    return true;
+  },
+  reset() { this.set(true); },
+};
 function near(camera, p, reach, cone) {
   const eye = camera.position, dx = p.x - eye.x, dy = p.y - eye.y, dz = p.z - eye.z, d = Math.hypot(dx, dy, dz);
   if (d > reach) return false;
@@ -99,6 +173,7 @@ function near(camera, p, reach, cone) {
 
 /** Per fixed tick: the programme runs, and he narrates it. */
 export function tvTick(dt) {
+  if (tv.state === 'egg') { show.t -= dt; if (show.t <= 0) tv.set('on'); return; }
   if (tv.state !== 'show') return;
   show.t -= dt;
   const u = SHOW_LEN - show.t;
@@ -109,22 +184,20 @@ export function tvTick(dt) {
 /** Per rendered frame: the television. dark: the power's gone (0..1). */
 export function updateScreens(time, dt = 0, dark = 0) {
   const f = Math.floor(time * 12) % 4;
+  if (lamp.light) lamp.light.intensity = lamp.on ? TUNING.tutorial.lamp.power * (1 - Math.min(1, dark)) : 0; // (it goes with the power)
   if (tv.state === 'show' && Math.floor(time * 10) !== show.last) { show.last = Math.floor(time * 10); drawShow(SHOW_LEN - show.t); show.tex.needsUpdate = true; }
-  const haunted = tv.state === 'off' && dark > 0.5;
-  if (haunted && Math.floor(time * 10) !== show.last) { // static, and then, clean, a cut to him
-    show.last = Math.floor(time * 10); const g = show.g, face = (time % 3.4) < 0.5;
-    if (face) drawWrong(g, false, 'I SEE YOU.');
-    else { g.fillStyle = '#000'; g.fillRect(0, 0, 128, 96); for (let y = 0; y < 96; y += 2) for (let x = 0; x < 128; x += 3) { const v = Math.random() * 210 | 0; g.fillStyle = 'rgb(' + v + ',' + v + ',' + (v + 16) + ')'; g.fillRect(x, y, 3, 2); } }
-    show.tex.needsUpdate = true;
-  }
+  if (tv.state === 'egg' && Math.floor(time * 10) !== show.last) { show.last = Math.floor(time * 10); drawEgg(EGG_LEN - show.t); show.tex.needsUpdate = true; }
+  const haunted = tv.state !== 'show' && dark > 0.5; // the power's gone, and he's on the set by itself, smiling out at the room
+  if (haunted && Math.floor(time * 10) !== show.last) { show.last = Math.floor(time * 10); drawCreep(show.g, time); show.tex.needsUpdate = true; }
   for (const e of screens) {
     e.tex.offset.x = f * 0.25;
-    const want = tv.state === 'show' || haunted ? show.tex : tv.state === 'off' ? show.black : e.tex;
+    const want = tv.state === 'show' || tv.state === 'egg' || haunted ? show.tex : tv.state === 'off' ? show.black : e.tex;
     if (e.mat.map !== want) { if (e.mat.map) e.mat.map = want; if (e.mat.emissiveMap) e.mat.emissiveMap = want; }
   }
 }
 
 export function dressHouse(scene, byId) {
+  { const L = TUNING.tutorial.lamp; lamp.light = new THREE.PointLight(L.color, L.power, L.dist, 1.2); lamp.light.position.fromArray(LEVEL.lampLight); scene.add(lamp.light); lamp.set(true); } // the floor lamp, on
   const jobs = LEVEL.dress.map(async (e) => {
     let gltf;
     try { gltf = await load(e.model); } catch (err) { console.warn(`dress: ${e.model} failed`, err?.message || err); return; }
@@ -164,11 +237,10 @@ export function dressHouse(scene, byId) {
       holder.position.set(cx, e.top ? T.max.y - _b.max.y : T.min.y - _b.min.y, cz);
     } else holder.position.fromArray(e.at);
     scene.add(holder);
-    if (e.aerial && !remote) { // the remote, on the coffee table
-      remote = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.022, 0.15), new THREE.MeshLambertMaterial({ color: 0x1c1c1e })); body.position.y = 0.011; remote.add(body);
-      for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.006, 0.012), new THREE.MeshLambertMaterial({ color: i === 0 ? 0xc02020 : 0x8a8a90 })); b.position.set((i % 2 ? 0.01 : -0.01), 0.024, -0.05 + Math.floor(i / 2) * 0.03); remote.add(b); }
-      remote.position.set(LEVEL.remote[0], LEVEL.remote[1], LEVEL.remote[2]); remote.rotation.y = 0.4; scene.add(remote);
+    if (e.aerial && !aerial) { // where its rabbit ears are: bat them and the picture changes
+      holder.updateMatrixWorld(true);
+      const base = m.getObjectByName('antenna_base');
+      if (base) { aerial = new THREE.Vector3(); base.getWorldPosition(aerial); _b.setFromObject(base); aerial.copy(_b.getCenter(_c)); aerial.y += 0.14; }
     }
   });
   return Promise.all(jobs);

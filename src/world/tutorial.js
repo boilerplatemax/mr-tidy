@@ -1,24 +1,26 @@
 // The first run opens quietly: Mr. Tidy isn't here yet, and the cat is shut in the living room (pet gates across the arch
-// and the kitchen doorway). Prompts and a little arrow lead it up the bookcase and across to the high shelf where the TV
-// remote is: that teaches jumping, a charged jump and the dash. Batting the remote plays "The Mr. Tidy Hour" (the view is
-// held on the screen and he's introduced); then it's told to pull the TV's plug, the trick that will save it later. Nothing
-// can be knocked over until it's done. Then the gates go over and sink away, and he arrives. Enter skips it.
+// and the kitchen doorway). Prompts and a little arrow send it up to the high shelf where the TV remote is, any way it
+// likes (the bookcase, the cat tree, the curtains): that teaches jumping, a charged jump and the dash. Batting the remote
+// plays "The Mr. Tidy Hour" (the view is held on the screen and he's introduced); then it's told to pull the floor lamp's
+// plug, the trick that will save it later. Anything can be knocked over meanwhile (it's practice: nobody's counting and
+// nobody hears). Then the gates go over and flicker out, and he arrives. Enter skips it.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { LEVEL } from '../data/level.js';
 import { audio } from '../audio/audio.js';
 import { makePS1 } from '../render/ps1-material.js';
+import { tv as set, lamp } from './dress.js';
+import { flicker } from './debris.js';
 
 const T = TUNING.tutorial;
 // [step, words, where the arrow points: a solid's id, 'remote', 'plug' or null]
 const STEPS = [
   ['move', 'Walk with W A S D. Look around with the mouse.', null],
-  ['jump', 'Hold SPACE to crouch, let go to jump. Hop up onto the bottom of the bookcase.', 'book1'],
-  ['climb', 'Climb it like stairs, shelf by shelf. Hold SPACE longer for a bigger jump.', 'book4'],
-  ['leap', 'The TV remote is on the high shelf. Leap across to it. Falling short? Tap SHIFT in mid-air to dash.', 'rodW'],
+  ['jump', 'Hold SPACE to crouch, let go to jump. Hop up onto something.', 'book1'],
+  ['up', 'The TV remote is up on the high shelf by the window. Find a way up: shelves, the cat tree, the curtains. Hold SPACE longer for a bigger jump; tap SHIFT in mid-air to dash.', 'remote'],
   ['remote', 'Left click to swipe. Bat the remote.', 'remote'],
   ['show', '', null],
-  ['plug', 'The TV is still on. Get down and swipe its plug out of the wall. Unplugging things stops them: remember that.', 'plug'],
+  ['plug', "The lamp's still on. Get down and swipe its plug out of the wall. Unplugging things stops them: remember that.", 'plug'],
   ['go', 'Now knock things over until Grandma wakes up. Careful... something is coming.', null],
 ];
 const _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _up = new THREE.Vector3(0, 1, 0), _t = new THREE.Vector3(), _p = new THREE.Vector3();
@@ -45,7 +47,7 @@ export class Tutorial {
     for (const b of this.walls) b.enabled = false;
     // two pet gates, the same height: across the arch to the hall (it falls into the hall) and across the kitchen doorway
     // (it falls into the kitchen)
-    this.gateMat = makePS1(new THREE.MeshLambertMaterial({ color: 0xe8e4d8, transparent: true }));
+    this.gateMat = makePS1(new THREE.MeshLambertMaterial({ color: 0xe8e4d8 }));
     this.gates = [this._gate(2.5, 3.05, -0.06, 0, -1), this._gate(0.9, 6, 4.35, Math.PI / 2, 1)];
     for (const g of this.gates) { scene.add(g.pivot); g.pivot.visible = false; }
     this.gateT = -1; // s since they went over (-1: standing, or long gone)
@@ -63,9 +65,8 @@ export class Tutorial {
   }
 
   /** The gates: standing, or k of the way over (0..1). */
-  _setGates(visible, k = 0, sink = 0, alpha = 1) {
-    for (const g of this.gates) { g.pivot.visible = visible; g.tilt.rotation.x = g.fall * (Math.PI / 2) * k * k; g.pivot.position.y = -sink; }
-    this.gateMat.opacity = alpha; this.gateMat.depthWrite = alpha > 0.99;
+  _setGates(visible, k = 0) {
+    for (const g of this.gates) { g.pivot.visible = visible; g.tilt.rotation.x = g.fall * (Math.PI / 2) * k * k; }
   }
 
   get step() { return STEPS[this.i]?.[0]; }
@@ -75,8 +76,8 @@ export class Tutorial {
   start() {
     this.active = true; this.i = 0; this.t = 0; this.moved = 0;
     this.vac.sleep();
-    this.tv.set('on');
-    this.knock.locked = true;
+    this.tv.set('on'); lamp.reset();
+    this.knock.practice = true; // (knock things over all you like: it's practice)
     for (const b of this.walls) b.enabled = true;
     this._setGates(true); this.gateT = -1;
     this._show();
@@ -100,14 +101,14 @@ export class Tutorial {
   skip() {
     if (!this.active) return;
     if (this.step === 'show') this.player.frozen = false;
-    this.tv.set('off');
+    this.tv.set('on'); // (it stays on: the set's left on all night)
     this._finish();
   }
 
   /** Let out: the gates go over, he arrives. */
   _finish() {
     this.active = false; this.tip.show(false); this.arrow.visible = false;
-    this.knock.locked = false;
+    this.knock.practice = false;
     for (const b of this.walls) b.enabled = false;
     if (this.gates[0].pivot.visible) { audio.play('knock.thud', { pos: { x: 3.05, y: 0.3, z: 0 } }); audio.play('knock.thud', { pos: { x: 6, y: 0.3, z: 4.35 }, delay: 0.12 }); this.gateT = 0; }
     this.vac.arrive();
@@ -117,37 +118,44 @@ export class Tutorial {
   opened() {
     for (const b of this.walls) b.enabled = false;
     this._setGates(false); this.gateT = -1;
-    this.knock.locked = false;
+    this.knock.practice = false; lamp.reset();
   }
 
-  /** The paw went out: the remote, then the plug. */
+  /** The paw went out: the remote, then the plug. (Any time: the lamp's plug, and the TV's aerial.) */
   onSwipe(camera) {
-    if (!this.active) return;
-    if (this.i <= this._index('remote') && this.tv.pokeRemote(camera)) { this._goTo(this._index('show')); this.player.resetMotion(); this.player.frozen = true; this.from.copy(camera.quaternion); this.watch = 0; } // (however it got up there)
-    else if (this.step === 'plug' && this.tv.pokePlug(camera)) this._next();
+    if (!this.active) { if (!lamp.poke(camera)) set.pokeAerial(camera); return; }
+    const remote = this.knock.byId.get('remote');
+    if (this.i <= this._index('remote') && set.pokeRemote(camera, remote)) this._watch(); // (however it got up there)
+    else if (this.step === 'plug' && lamp.poke(camera)) this._next();
+    else if (this.step !== 'show') set.pokeAerial(camera);
   }
+
+  /** The programme's on: hold the cat still, and the view goes to the screen. */
+  _watch() { this._goTo(this._index('show')); this.player.resetMotion(); this.player.frozen = true; this.watch = 0; }
 
   /** Per fixed tick. */
   tick(dt) {
-    // after: the gates go over, lie there a moment, then sink away into the floor as they fade (nothing just pops out)
+    // after: the gates go over, lie there a moment, then flicker twice and are gone (the same as anything big he cleans up)
     if (!this.active && this.gateT >= 0) {
       this.gateT += dt;
-      const G = T.gates, t = this.gateT, fade = Math.max(0, Math.min(1, (t - G.fall - G.lie) / G.fade)), e = fade * fade * (3 - 2 * fade);
-      this._setGates(true, Math.min(1, t / G.fall), e * G.sink, 1 - e);
-      if (fade >= 1) { this._setGates(false); this.gateT = -1; }
+      const G = T.gates, t = this.gateT, on = t < G.fall + G.lie ? true : flicker(t - G.fall - G.lie);
+      if (on === null) { this._setGates(false); this.gateT = -1; } else this._setGates(on, Math.min(1, t / G.fall));
     }
     if (!this.active) return;
     if (this.input.pressed('Enter')) { this.skip(); return; }
     this.t += dt;
     const P = this.player, on = P.grounded ? P.groundCollider?.id : null;
-    // the climb: each step is passed by doing it, and doing a later one passes all the ones before it (it goes by where the
-    // cat has got to, not by the order the lessons come in)
-    if (this.i <= this._index('leap')) {
-      const reached = on === 'rodW' ? 'leap' : on === 'book4' ? 'climb' : ['book1', 'book2', 'book3'].includes(on) ? 'jump' : null;
+    // the climb: each step is passed by doing it, however it's done, and doing a later one passes all the ones before it (it
+    // goes by where the cat has got to, not by the order the lessons come in or the way it went)
+    const remote = this.knock.byId.get('remote');
+    if (this.i <= this._index('remote') && remote && remote.state !== 'rest') { if (set.pokeRemote(null)) this._watch(); return; } // (batted off, from anywhere)
+    if (this.i <= this._index('up')) {
+      const reached = P.grounded && P.feetY >= T.upAt ? 'up' : on ? 'jump' : null;
       if (reached && this._index(reached) >= this.i) { this._goTo(this._index(reached) + 1); return; }
       if (this.step === 'move') { this.moved += Math.hypot(P.pos.x - P.prev.x, P.pos.z - P.prev.z); if (this.moved > T.moveFor) this._next(); }
       return;
     }
+    if (this.step === 'plug' && !lamp.on) { this._next(); return; } // (already done)
     if (this.step === 'show' && this.tv.state !== 'show' && this.t > 1) { // it's over: the view comes back to the cat, looking at the set (the plug is next)
       _m.lookAt(this.eye, _t.fromArray(LEVEL.tvScreen), _up);
       const e = new THREE.Euler().setFromRotationMatrix(_m, 'YXZ');
@@ -159,8 +167,8 @@ export class Tutorial {
   _target(out) {
     const id = STEPS[this.i]?.[2];
     if (!id) return null;
-    if (id === 'remote') return out.fromArray(LEVEL.remote).setY(LEVEL.remote[1] + 0.12);
-    if (id === 'plug') return out.fromArray(LEVEL.tvOutlet.pos).setY(0.48);
+    if (id === 'remote') { const r = this.knock.byId.get('remote'); return r ? out.set(r.x, r.y + 0.16, r.z) : out.fromArray(LEVEL.remote).setY(LEVEL.remote[1] + 0.16); }
+    if (id === 'plug') return out.fromArray(LEVEL.lampOutlet.pos).setY(0.48);
     const b = this.byId.get(id);
     return out.set((b.min[0] + b.max[0]) / 2, b.max[1] + 0.22, (b.min[2] + b.max[2]) / 2);
   }

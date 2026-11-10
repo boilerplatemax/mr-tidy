@@ -9,6 +9,24 @@ const K = TUNING.knock, D = TUNING.debris;
 const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _c = new THREE.Color();
 const _e = new THREE.Euler(), _up = new THREE.Vector3(0, 1, 0), _z = new THREE.Vector3(0, 0, 1), _d = new THREE.Vector3();
 const rand = (a, b) => a + Math.random() * (b - a);
+const _box = new THREE.Box3(), _size = new THREE.Vector3();
+
+/**
+ * The double flicker a big thing vanishes with (not sucked up, not sunk into the floor): shown, hidden, shown, hidden,
+ * gone, at TUNING.flicker's pace. t: s since it started. Returns whether it's showing now; null once it's gone for good.
+ */
+export function flicker(t) {
+  const F = TUNING.flicker;
+  let at = 0;
+  for (let i = 0; i < F.length; i++) { at += F[i]; if (t < at) return i % 2 === 0; }
+  return null;
+}
+
+/** Is this piece too big to go up the nozzle (bigger across than TUNING.vac.vanishAt)? Measured once. */
+function isBig(mesh) {
+  if (mesh.userData.big === undefined) { _box.setFromObject(mesh); _box.getSize(_size); mesh.userData.big = Math.max(_size.x, _size.y, _size.z) > (TUNING.vac.vanishAt ?? 0.13); }
+  return mesh.userData.big;
+}
 
 export class Debris {
   constructor(scene, world) {
@@ -112,7 +130,10 @@ export class Debris {
     this.nextCube = 0; this.nextDecal = 0;
   }
 
-  /** One moment of a mess being sucked up. u: 0..1. Everything flies to (hx, hy, hz) and shrinks; the stain shrinks away. */
+  /**
+   * One moment of a mess being sucked up. u: 0..1. The small stuff flies to (hx, hy, hz) and shrinks; the stain shrinks away.
+   * Anything big (a lamp shade, a plant, a whole roll) doesn't: it flickers twice where it lies and is gone.
+   */
   cleanStep(mess, u, hx, hy, hz) {
     const e = u * u;
     for (const i of mess.cubes) {
@@ -124,15 +145,20 @@ export class Debris {
       this.cubes.setMatrixAt(i, _m.compose(_p, _q, _s));
     }
     this.cubes.instanceMatrix.needsUpdate = true;
-    if (mess.obj) { // a whole object going up the hose
+    const now = performance.now() / 1000;
+    if (mess.obj) { // a whole object: up the hose if it's small, otherwise it flickers out
       const o = mess.obj;
-      if (!mess.from) mess.from = new THREE.Vector3(o.x, o.y + o.h / 2, o.z);
-      o.mesh.position.copy(mess.from).lerp(_p.set(hx, hy, hz), e); o.mesh.scale.setScalar(Math.max(0.01, 1 - e));
-      if (u >= 1) { o.state = 'gone'; o.mesh.visible = false; o.mesh.scale.setScalar(1); }
+      if (isBig(o.mesh)) { o.vanish ??= now; const on = flicker(now - o.vanish); o.mesh.visible = !!on && u < 1; if (u >= 1 || on === null) { o.state = 'gone'; o.mesh.visible = false; } }
+      else {
+        if (!mess.from) mess.from = new THREE.Vector3(o.x, o.y + o.h / 2, o.z);
+        o.mesh.position.copy(mess.from).lerp(_p.set(hx, hy, hz), e); o.mesh.scale.setScalar(Math.max(0.01, 1 - e));
+        if (u >= 1) { o.state = 'gone'; o.mesh.visible = false; o.mesh.scale.setScalar(1); }
+      }
     }
     for (const b of mess.bits || []) {
       if (b.ribbon) { const g = b.mesh.geometry; if (!b.total) b.total = g.drawRange.count; g.setDrawRange(0, Math.floor(b.total * (1 - u) / 6) * 6); continue; } // the paper goes up from the far end
       if (!b.from) { b.from = new THREE.Vector3(b.x, b.y, b.z); b.settled = true; b.link = null; }
+      if (b.mode !== 'lie' && b.mode !== 'puff' && isBig(b.mesh)) { b.vanish ??= now; const on = flicker(now - b.vanish); b.mesh.visible = !!on && u < 1; continue; } // (it stays where it lies)
       b.mesh.position.copy(b.from).lerp(_p.set(hx, hy, hz), e);
       b.mesh.scale.setScalar(b.scale * Math.max(0, 1 - e));
       if (u >= 1) b.mesh.visible = false;

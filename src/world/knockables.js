@@ -1,7 +1,7 @@
 // Knockable objects (build prompt 0.5, 6.2): a small custom physics, no library. Objects rest on surfaces, slide with
 // friction when batted, tip when their centre passes an edge, tumble as they fall, and land on whatever is below.
 // Hitting the floor counts as a knock-over: each kind of thing does what it does (shatters, breaks into chunks, bounces,
-// rolls, thuds), leaves a mess, and makes a noise event. Data for the 25 objects is in src/data/knockable-props.js.
+// rolls, thuds), leaves a mess, and makes a noise event. Data for the objects is in src/data/knockable-props.js.
 //
 // DESIGN NOTE: objects are not colliders for the cat. They're small, and a cat stumbling on a mug would fight the jumps.
 import * as THREE from 'three';
@@ -21,19 +21,25 @@ const _axis = new THREE.Vector3(), _dq = new THREE.Quaternion(), _up = new THREE
 const _v = new THREE.Vector3(), _vy = new THREE.Vector3(0, 1, 0);
 
 // What the props leave on the floor, and how each survivor gets away.
-const MESS = { mug: 'coffee', teapot: 'coffee', dinner_plate: 'china', teacup: 'china', vase: 'china', cookie_jar: 'china', table_lamp: 'china', cat_figurine: 'china', soap_dish: 'china', perfume: 'perfume', snow_globe: 'glass', dentures_glass: 'glass', picture_frame: 'glass', button_jar: 'buttons' };
+const MESS = { mug: 'coffee', teapot: 'coffee', dinner_plate: 'china', teacup: 'china', vase: 'china', cookie_jar: 'china', table_lamp: 'china', cat_figurine: 'china', soap_dish: 'china', perfume: 'perfume', snow_globe: 'glass', dentures_glass: 'glass', picture_frame: 'glass', button_jar: 'buttons', toothbrush_cup: 'china', sugar_bowl: 'china', measuring_jug: 'glass', cake_stand: 'glass', crystal_decanter: 'perfume', wine_glass: 'glass' };
+for (const [id, p] of Object.entries(PROPS)) if (p.nodes?.parts?.some((n) => n.endsWith('__plant') || n.endsWith('__cactus'))) MESS[id] = 'soil'; // (a pot of earth)
 const SURVIVOR = { dentures_glass__teeth: 'hop', soap_dish__soap: 'roll', cookie_jar__lid: 'roll', cat_figurine__head: 'roll', table_lamp__shade: 'tumble', mantel_clock__face: 'roll', rotary_phone__handset: 'tumble' };
 
 // The shakers come joined together in the pack: each is cut out of the one mesh and knocked about on its own.
 const SPLIT = { salt_shaker: -1, pepper_shaker: 1 };
+const EXTRA = { plants: 'game-assets/models/knockables_plants.glb', k2: 'game-assets/models/knockables_2.glb' }; // the newer packs
 const SHAKER = (side, tint) => ({ mass: 0.1, swipes: 1, noise: 1, landing: 'bounce', tint, size: [0.04, 0.075, 0.04], nodes: { intact: side } });
 PROPS.wall_clock = { mass: 0.9, swipes: 1, noise: 5, landing: 'break', tint: '#6a4628', size: [0.324, 0.324, 0.06], nodes: { intact: 'wall_clock' } };
 PROPS.urn = { mass: 0.9, swipes: 2, noise: 5, landing: 'shatter', tint: '#8a8782', size: [0.14, 0.26, 0.14], nodes: { intact: 'urn', fx: ['fx_shards', 'fx_puff'] } }; // Grandpa
 PROPS.salt_shaker = SHAKER('salt_shaker', '#f4f1ea');
-// His collection: little bean-filled plush animals, each with a red heart tag, hidden up high round the house. Bonus things:
-// no noise toward Grandma, and he takes it personally. Knock all five down and...
-const STUFFY = (label) => ({ mass: 0.12, swipes: 1, noise: 0, landing: 'thud', tint: '#c8a070', size: [0.1, 0.13, 0.09], bonus: label });
-for (const [k, label] of [['bear', 'his beanie bear'], ['bunny', 'his beanie bunny'], ['frog', 'his beanie frog'], ['pig', 'his beanie pig'], ['elephant', 'his beanie elephant']]) PROPS['stuffy_' + k] = { ...STUFFY(label), nodes: { intact: 'stuffy_' + k } };
+// His best wool: five big balls of it in his colours, hidden up high round the house (he's keeping them nice). Bonus things: no
+// noise toward Grandma, and he takes it personally. They unravel right across the floor. Unravel all five and...
+export const WOOL = { red: ['#c8283c', 'the red wool'], blue: ['#2f5fb8', 'the blue wool'], green: ['#3f9a4a', 'the green wool'], gold: ['#e0b030', 'the gold wool'], purple: ['#8a3fa8', 'the purple wool'] };
+for (const [k, [tint, label]] of Object.entries(WOOL)) PROPS['wool_' + k] = { mass: 0.15, swipes: 1, noise: 0, landing: 'roll', tint, size: [0.14, 0.14, 0.14], bonus: label, wool: k, nodes: { intact: 'wool_' + k } };
+// the TV remote (the tutorial's): after that, just another thing to bat off a shelf
+PROPS.tv_remote = { mass: 0.15, swipes: 1, noise: 2, landing: 'bounce', tint: '#1c1c1e', size: [0.05, 0.03, 0.15], nodes: { intact: 'tv_remote' } };
+/** Things that unwind as they roll (TUNING.knockFx.rollers), by type: his wool unwinds a long way. */
+const rollerOf = (id) => X.rollers[id] || (PROPS[id]?.wool ? X.rollers.wool : null);
 PROPS.pepper_shaker = SHAKER('pepper_shaker', '#2a2a2a');
 
 function buildType(id) {
@@ -68,7 +74,9 @@ export class Knockables {
       this.list.push(o); this.byId.set(o.id, o);
     }
     this.frame(1);
-    this.ready = loadGLB('game-assets/models/house/psx_wall_clock.glb').then((g) => { this.clockLib = g.scene; }).catch(() => {}).then(() => loadGLB(TUNING.assets.knockables)).then((g) => this._dress(g)).catch((e) => console.warn('knockables failed to load:', e?.message || e));
+    this.libs = {}; // the newer packs, by name (PROPS[type].lib)
+    const extra = Object.entries(EXTRA).map(([k, url]) => loadGLB(url).then((g) => { this.libs[k] = g.scene; }).catch((e) => console.warn(`knockables: ${url} failed:`, e?.message || e)));
+    this.ready = Promise.all([loadGLB('game-assets/models/house/psx_wall_clock.glb').then((g) => { this.clockLib = g.scene; }).catch(() => {}), ...extra]).then(() => loadGLB(TUNING.assets.knockables)).then((g) => this._dress(g)).catch((e) => console.warn('knockables failed to load:', e?.message || e));
   }
 
   /** A fresh copy of a node from the pack, at the origin. */
@@ -78,9 +86,10 @@ export class Knockables {
     if (name === 'button_jar') return this._jarFill();
     if (name === 'urn') return this._urn();
     if (name === 'yarn_ball') return this._yarn();
-    if (name.startsWith('stuffy_')) return this._stuffy(name.slice(7));
+    if (name.startsWith('wool_')) return this._yarn(name.slice(5));
+    if (name === 'tv_remote') return this._remote();
     if (name === 'wall_clock' && this.clockLib) { const c = this.clockLib.clone(true); c.position.y = -1.638; return c; } // (modelled hanging at its height on the wall)
-    const n = this.lib?.getObjectByName(name);
+    const n = this.lib?.getObjectByName(name) || this.libs.plants?.getObjectByName(name) || this.libs.k2?.getObjectByName(name);
     if (!n) { console.warn(`knockables: no node ${name}`); return new THREE.Group(); }
     const c = n.clone(true); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1);
     return c;
@@ -102,51 +111,35 @@ export class Knockables {
     return new THREE.Mesh(this.shakerGeo[name], src.material);
   }
 
-  /** One of his beanie babies: soft lumps of plush, bead eyes, a red heart tag on one ear. Sitting up, facing +z. */
-  _stuffy(kind) {
-    if (!this.plush) { // a speckled fabric, tinted per animal
-      const c = document.createElement('canvas'); c.width = c.height = 16; const g = c.getContext('2d');
-      for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) { const v = Math.min(255, 205 + ((x * 7 + y * 13) % 5) * 10 + (Math.random() * 20 | 0)); g.fillStyle = 'rgb(' + v + ',' + v + ',' + v + ')'; g.fillRect(x, y, 1, 1); }
-      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; pixelTexture(t);
-      this.plush = { tex: t, mats: new Map(), ball: new THREE.SphereGeometry(1, 8, 6), bead: makePS1(new THREE.MeshLambertMaterial({ color: 0x0c0c0e })), tag: makePS1(new THREE.MeshLambertMaterial({ color: 0xc81e2a })) };
-    }
-    const P = this.plush, g = new THREE.Group();
-    const mat = (hex) => { if (!P.mats.has(hex)) P.mats.set(hex, makePS1(new THREE.MeshLambertMaterial({ color: hex, map: P.tex }))); return P.mats.get(hex); };
-    const lump = (hex, x, y, z, sx, sy = sx, sz = sx, rx = 0, rz = 0) => { const m = new THREE.Mesh(P.ball, mat(hex)); m.position.set(x, y, z); m.scale.set(sx, sy, sz); m.rotation.set(rx, 0, rz); g.add(m); return m; };
-    const bead = (x, y, z, sx, sy = sx, sz = sx) => { const e = new THREE.Mesh(P.ball, P.bead); e.scale.set(sx, sy, sz); e.position.set(x, y, z); g.add(e); };
-    const heart = (x, y, z) => { const h = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.022, 0.004), P.tag); h.position.set(x, y, z); h.rotation.z = Math.PI / 4; g.add(h); };
-    const [main, light] = { bear: [0x8a5a34, 0xc89a6a], bunny: [0xd8ccc4, 0xf0c8d0], frog: [0x4f9a3a, 0xc8d88a], pig: [0xe8a0ac, 0xd07888], elephant: [0x8a98b8, 0xb8c4dc] }[kind] || [0xb08a60, 0xd8b890];
-    // the body, sitting, the feet sticking out in front, the arms
-    lump(main, 0, 0.04, 0, 0.042, 0.044, 0.036);
-    lump(main, -0.022, 0.012, 0.026, 0.016, 0.012, 0.022); lump(main, 0.022, 0.012, 0.026, 0.016, 0.012, 0.022);
-    lump(main, -0.04, 0.05, 0.012, 0.012, 0.024, 0.012, 0, 0.5); lump(main, 0.04, 0.05, 0.012, 0.012, 0.024, 0.012, 0, -0.5);
-    if (kind === 'frog') { // squat and wide, no neck: eyes on top
-      lump(main, 0, 0.09, 0.004, 0.044, 0.03, 0.036); lump(light, 0, 0.078, 0.03, 0.03, 0.012, 0.012);
-      for (const sx of [-1, 1]) { lump(main, sx * 0.022, 0.118, 0.012, 0.014); bead(sx * 0.022, 0.12, 0.025, 0.007); }
-      heart(0.036, 0.1, 0.02);
-      return g;
-    }
-    const hy = 0.103; lump(main, 0, hy, 0.004, 0.034, 0.032, 0.032); // the head
-    for (const sx of [-1, 1]) bead(sx * 0.013, hy + 0.008, 0.033, 0.006);
-    if (kind === 'bear') { lump(light, 0, hy - 0.008, 0.03, 0.014, 0.011, 0.01); for (const sx of [-1, 1]) lump(main, sx * 0.025, hy + 0.027, 0, 0.012, 0.012, 0.007); bead(0, hy - 0.004, 0.04, 0.006, 0.004, 0.004); heart(0.03, hy + 0.033, 0.006); }
-    if (kind === 'bunny') { for (const sx of [-1, 1]) { lump(main, sx * 0.013, hy + 0.048, -0.004, 0.009, 0.03, 0.006, 0, sx * -0.2); lump(light, sx * 0.013, hy + 0.048, 0.002, 0.005, 0.022, 0.002, 0, sx * -0.2); } lump(light, 0, hy - 0.01, 0.03, 0.012, 0.009, 0.008); lump(0xf4f0ea, 0, 0.03, -0.038, 0.012); heart(0.022, hy + 0.06, 0.006); }
-    if (kind === 'pig') { const sn = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.013, 0.012, 8).rotateX(Math.PI / 2), mat(light)); sn.position.set(0, hy - 0.006, 0.034); g.add(sn); for (const sx of [-1, 1]) lump(main, sx * 0.022, hy + 0.028, 0.006, 0.01, 0.012, 0.005, 0.4, sx * -0.4); heart(0.03, hy + 0.034, 0.008); }
-    if (kind === 'elephant') { for (const sx of [-1, 1]) lump(main, sx * 0.036, hy + 0.002, -0.004, 0.006, 0.026, 0.024); const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.007, 0.011, 0.04, 6), mat(main)); tr.position.set(0, hy - 0.022, 0.036); tr.rotation.x = 0.35; g.add(tr); heart(0.04, hy + 0.024, 0.01); }
+  /** The TV remote: a black slab with a red button and grey ones. */
+  _remote() {
+    const R = this.remoteParts ??= { body: makePS1(new THREE.MeshLambertMaterial({ color: 0x1c1c1e })), red: makePS1(new THREE.MeshLambertMaterial({ color: 0xc02020 })), grey: makePS1(new THREE.MeshLambertMaterial({ color: 0x8a8a90 })) };
+    const g = new THREE.Group(), body = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.022, 0.15), R.body); body.position.y = 0.011; g.add(body);
+    for (let i = 0; i < 6; i++) { const k = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.006, 0.012), i === 0 ? R.red : R.grey); k.position.set(i % 2 ? 0.01 : -0.01, 0.024, -0.05 + Math.floor(i / 2) * 0.03); g.add(k); }
     return g;
   }
 
-  /** A ball of wool: wound strands round a core, and an end hanging loose. */
-  _yarn() {
-    if (!this.yarnMat) {
+  /**
+   * A ball of wool: wound strands round a core, and an end hanging loose. kind: one of his (WOOL): bigger, in his colours,
+   * with a little gold band round it so it reads as special from the floor. (No kind: Grandma's pink.)
+   */
+  _yarn(kind = null) {
+    const key = kind || 'pink', Y = (this.yarnMats ??= {});
+    if (!Y[key]) {
+      const base = new THREE.Color(kind ? WOOL[kind][0] : '#c84a64'), hex = (c) => '#' + c.getHexString();
+      const dark = hex(base.clone().multiplyScalar(0.62)), mid = hex(base.clone().multiplyScalar(0.85)), light = hex(base.clone().lerp(new THREE.Color('#ffffff'), 0.25));
       const c = document.createElement('canvas'); c.width = 32; c.height = 32; const g = c.getContext('2d');
-      g.fillStyle = '#9a3048'; g.fillRect(0, 0, 32, 32);
-      for (let i = -32; i < 64; i += 3) { g.fillStyle = i % 2 ? '#d85a78' : '#b8405c'; for (let y = 0; y < 32; y++) g.fillRect((i + y * 0.6) & 31, y, 2, 1); }
+      g.fillStyle = dark; g.fillRect(0, 0, 32, 32);
+      for (let i = -32; i < 64; i += 3) { g.fillStyle = i % 2 ? light : mid; for (let y = 0; y < 32; y++) g.fillRect((i + y * 0.6) & 31, y, 2, 1); }
       const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; pixelTexture(t);
-      this.yarnMat = makePS1(new THREE.MeshLambertMaterial({ map: t })); this.yarnWrap = makePS1(new THREE.MeshLambertMaterial({ color: 0xd85a78 }));
+      Y[key] = { ball: makePS1(new THREE.MeshLambertMaterial({ map: t })), wrap: makePS1(new THREE.MeshLambertMaterial({ color: light })) };
+      this.yarnBand ??= makePS1(new THREE.MeshLambertMaterial({ color: 0xe8c460, emissive: 0x3a2a08 }));
     }
-    const g = new THREE.Group(), r = 0.046, ball = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), this.yarnMat); ball.position.y = 0.049; g.add(ball);
-    [[0.4, 0.2], [1.3, -0.5], [2.1, 0.9]].forEach(([a, b]) => { const w = new THREE.Mesh(new THREE.TorusGeometry(r * 1.01, 0.0045, 4, 18), this.yarnWrap); w.position.y = 0.049; w.rotation.set(a, b, 0); g.add(w); });
-    const end = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.003, 3, 10, 3.6), this.yarnWrap); end.position.set(0.035, 0.012, 0.03); end.rotation.set(1.4, 0.3, 0); g.add(end);
+    const M = Y[key], r = kind ? 0.068 : 0.046, cy = r + 0.003;
+    const g = new THREE.Group(), ball = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 2), M.ball); ball.position.y = cy; g.add(ball);
+    [[0.4, 0.2], [1.3, -0.5], [2.1, 0.9]].forEach(([a, b]) => { const w = new THREE.Mesh(new THREE.TorusGeometry(r * 1.01, 0.0045, 4, 18), M.wrap); w.position.y = cy; w.rotation.set(a, b, 0); g.add(w); });
+    if (kind) { const band = new THREE.Mesh(new THREE.TorusGeometry(r * 1.03, 0.006, 4, 20), this.yarnBand); band.position.y = cy; band.rotation.x = Math.PI / 2; g.add(band); } // (his: banded like a prize)
+    const end = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.003, 3, 10, 3.6), M.wrap); end.position.set(r * 0.76, 0.012, r * 0.65); end.rotation.set(1.4, 0.3, 0); g.add(end);
     return g;
   }
 
@@ -157,8 +150,8 @@ export class Knockables {
     const g = new THREE.Group(), body = new THREE.Mesh(new THREE.LatheGeometry(pts, 10), brass);
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.02, 10), brass); lid.position.y = 0.23;
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 4), brass); knob.position.y = 0.25;
-    if (!this.urnBand) { const c = document.createElement('canvas'); c.width = 128; c.height = 16; const g2 = c.getContext('2d'); g2.fillStyle = '#3a2a12'; g2.fillRect(0, 0, 128, 16); g2.fillStyle = '#e8c878'; g2.font = 'bold 12px serif'; g2.textAlign = 'center'; g2.fillText('GRANDPA', 32, 12); g2.fillText('GRANDPA', 96, 12); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t); this.urnBand = makePS1(new THREE.MeshLambertMaterial({ map: t })); }
-    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0715, 0.0715, 0.03, 16, 1, true), this.urnBand); band.position.y = 0.13; // (engraved)
+    if (!this.urnBand) { const c = document.createElement('canvas'); c.width = 128; c.height = 24; const g2 = c.getContext('2d'); g2.fillStyle = '#2a1c08'; g2.fillRect(0, 0, 128, 24); g2.fillStyle = '#f4d888'; g2.font = 'bold 17px serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText('GRANDPA', 32, 13); g2.fillText('GRANDPA', 96, 13); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t); this.urnBand = makePS1(new THREE.MeshLambertMaterial({ map: t })); }
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0718, 0.0718, 0.044, 16, 1, true), this.urnBand); band.position.y = 0.13; // (engraved: big enough to read from the floor)
     void dark;
     g.add(body, lid, knob, band);
     return g;
@@ -220,7 +213,7 @@ export class Knockables {
     for (const o of this.list) {
       o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z;
       o.vx = o.vy = o.vz = 0; o.wx = o.wy = o.wz = 0; o.startQ ? (o.q.copy(o.startQ), o.pq.copy(o.startQ)) : (o.q.identity(), o.pq.identity());
-      o.state = 'rest'; o.tipT = 0; o.bounces = 0; o.knocked = false; o.dirty = true; o.mesh.visible = true; o.hits = 0; o.hitVac = false; o.roll = null; if (o.node) { o.node.scale.set(1, 1, 1); o.node.position.y = -o.h / 2; }
+      o.state = 'rest'; o.tipT = 0; o.bounces = 0; o.knocked = false; o.dirty = true; o.mesh.visible = true; o.hits = 0; o.hitVac = false; o.roll = null; o.vanish = undefined; if (o.node) { o.node.scale.set(1, 1, 1); o.node.position.y = -o.h / 2; }
       if (o.swapped && this.lib) { o.mesh.remove(o.node); o.swapped = false; this._dressOne(o); }
     }
     this.frame(1);
@@ -228,7 +221,6 @@ export class Knockables {
 
   /** The bat of a paw: everything in a short cone in front of the eye gets a shove. Returns how many it hit. */
   swipe(player, camera) {
-    if (this.locked) return 0; // (the tutorial: nothing gets broken yet)
     camera.getWorldDirection(_v);
     const eye = camera.position, right = { x: Math.cos(player.yaw), z: -Math.sin(player.yaw) };
     let dx = player.fx - right.x * S.sideBias, dz = player.fz - right.z * S.sideBias; // the paw sweeps right to left
@@ -239,7 +231,7 @@ export class Knockables {
       const cx = o.x - eye.x, cy = o.y + o.h / 2 - eye.y, cz = o.z - eye.z, d = Math.hypot(cx, cy, cz);
       if (d > S.reach + o.r || d < 1e-3 || (cx * _v.x + cy * _v.y + cz * _v.z) / d < S.cone) continue;
       // heavy things take a few hits: the early ones only rock them
-      o.hits++; if (o.t.id === 'yarn_ball' || o.t.bonus) this._softHit = true;
+      o.hits++; if (o.t.id === 'yarn_ball' || o.t.wool) this._softHit = true;
       const free = o.hits >= o.t.swipes, speed = free ? Math.max(S.minSpeed, Math.min(S.maxSpeed, S.impulse / o.mass)) : S.nudge;
       this.shove(o, dx, dz, speed);
       hits++;
@@ -269,7 +261,7 @@ export class Knockables {
       bits.push(b);
     }
     const lie = (name, yaw) => { const m = this._clone(name); m.rotation.y = yaw; return m; };
-    if (fx.includes('fx_ribbon') && !X.rollers[t.id]) { // a long trail of paper or wool across the floor, as far as there's floor
+    if (fx.includes('fx_ribbon') && !rollerOf(t.id)) { // a long trail of paper or wool across the floor, as far as there's floor
       const paper = t.id === 'toilet_roll', mat = (() => { let r = null; this.lib.getObjectByName('fx_ribbon').traverse((m) => { if (m.isMesh && !r) r = m.material; }); return r; })();
       let px = x, pz = z, yaw = Math.random() * 6.28;
       for (let i = 0; i < (paper ? X.paperPieces : X.woolPieces); i++) {
@@ -304,7 +296,7 @@ export class Knockables {
 
   /** It hit the floor for the first time: that's a knock-over. Counts once, makes the noise and the mess, and breaks if it can. */
   _knockOver(o) {
-    o.knocked = true; this.count++;
+    o.knocked = true; if (!this.practice) this.count++; // (the tutorial: practice. It breaks, but nobody's counting and nobody hears)
     const t = o.t, room = roomAt(o.x, o.z), D = this.debris, chunks = t.landing === 'break';
     if (t.breakable && this.lib) { o.mesh.remove(o.node); o.swapped = true; }
     const bits = this._fx(o);
@@ -315,17 +307,17 @@ export class Knockables {
     if (t.breakable) {
       o.state = 'gone'; o.mesh.visible = false; o.vx = o.vy = o.vz = 0;
       audio.play('knock.break', { pos: o, rate: (chunks ? 0.7 : 0.9) + Math.random() * 0.25 });
-    } else if (t.id === 'yarn_ball' || t.bonus) audio.play('knock.soft', { pos: o, gain: t.bonus ? 1.4 : 1 }); // (wool, plush: a soft flump)
+    } else if (t.id === 'yarn_ball' || t.wool) audio.play('knock.soft', { pos: o, gain: t.wool ? 1.4 : 1 }); // (wool: a soft flump)
     else if (t.id === 'rubber_duck') audio.play('knock.squeak', { pos: o, rate: 0.9 + Math.random() * 0.25 });
     else audio.play('knock.thud', { pos: o, gain: 0.6 });
-    if (t.bonus) { this.bonus++; this.onBonus?.(o); } // (one of his things)
-    this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.points, room, objectId: o.id });
-    if (X.rollers[t.id]) this._startRoll(o, bits);
+    if (t.bonus && !this.practice) { this.bonus++; this.onBonus?.(o); } // (one of his things)
+    if (!this.practice) this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.points, room, objectId: o.id });
+    if (rollerOf(t.id)) this._startRoll(o, bits);
   }
 
   /** Toilet paper and wool: it goes on rolling, and unwinds behind it. Hit it again and it goes again, until it's spent. */
   _startRoll(o, bits) {
-    const R = X.rollers[o.t.id], n = Math.ceil(R.len / R.step) + 6, a = Math.hypot(o.vx, o.vz) > 0.05 ? Math.atan2(o.vz, o.vx) : Math.random() * 6.28;
+    const R = rollerOf(o.t.id), n = Math.ceil(R.len / R.step) + 6, a = Math.hypot(o.vx, o.vz) > 0.05 ? Math.atan2(o.vz, o.vx) : Math.random() * 6.28;
     const g = new THREE.BufferGeometry(), pos = new Float32Array(n * 6), nor = new Float32Array(n * 6), idx = [];
     for (let i = 1; i < nor.length; i += 3) nor[i] = 1;
     for (let i = 0; i < n - 1; i++) { const q = i * 2; idx.push(q, q + 2, q + 1, q + 1, q + 2, q + 3); }
@@ -463,7 +455,7 @@ export class Knockables {
       o.vy = impact * K.bounce * (o.t.landing === 'bounce' ? X.bounceMul : 1);
       o.vx *= K.bounceKeep; o.vz *= K.bounceKeep; o.wx *= 0.5; o.wy *= 0.5; o.wz *= 0.5;
       o.state = 'fall';
-      audio.play(o.t.id === 'yarn_ball' ? 'knock.soft' : floor ? 'knock.thud' : 'knock.clink', { pos: o, gain: Math.min(1, impact / 5) });
+      audio.play(o.t.id === 'yarn_ball' || o.t.wool ? 'knock.soft' : floor ? 'knock.thud' : 'knock.clink', { pos: o, gain: Math.min(1, impact / 5) });
       return;
     }
     o.vy = 0; o.wx = o.wy = o.wz = 0; o.bounces = 0;
