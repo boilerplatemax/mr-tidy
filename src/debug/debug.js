@@ -96,7 +96,7 @@ export class Debug {
     if (!I.live) return;
     if (I.pressed('F2')) { this.thirdPerson = !this.thirdPerson; O.note(`third person ${this.thirdPerson ? 'on' : 'off'}`); }
     if (I.pressed('F3')) { this.player.noclip = !this.player.noclip; O.note(`noclip ${this.player.noclip ? 'on' : 'off'}`); }
-    if (I.pressed('F4')) { this.vac.setAnger(this.vac.anger + 1); O.note(`anger ${this.vac.anger}`); }
+    if (I.pressed('F4')) { this.vac.setAnger(this.vac.anger + 1, true); O.note(`anger ${this.vac.anger}`); }
     if (I.pressed('F7') && !this.vac.off) { this.vac.cloud.release(this.vac.x, 0.9, this.vac.z); O.note('dust cloud'); }
     if (I.pressed('F6') && !this.vac.caught && !this.vac.off) { this.vac._catch('hose'); O.note('catch'); }
     if (I.pressed('F8')) { this.vac.frozen = !this.vac.frozen; O.note(`vac ${this.vac.frozen ? 'frozen' : 'running'}`); }

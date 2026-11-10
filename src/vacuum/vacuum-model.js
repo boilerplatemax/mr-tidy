@@ -42,6 +42,24 @@ function drawHoles(g, wild, screaming) {
   }
 }
 
+/** Unplugged for good: crosses for eyes and a tongue lolling out. */
+function drawDead(g) {
+  g.fillStyle = '#000000';
+  for (const side of [-1, 1]) { const cx = X(side * EYE_X), cy = Y(EYE_Y), r = 0.036 * FA.pxPerM; for (let i = -r; i <= r; i++) { g.fillRect(Math.round(cx + i) - 1, Math.round(cy + i) - 1, 3, 3); g.fillRect(Math.round(cx + i) - 1, Math.round(cy - i) - 1, 3, 3); } }
+  for (let px = X(-0.13); px <= X(0.13); px++) { const k = ((px - W / 2) / FA.pxPerM / 0.13) ** 2; g.fillRect(Math.round(px), Math.round(Y(0.05 + k * 0.025)), 1, 3); } // a flat, slack mouth
+  blob(g, X(0.05), Y(0.03), 0.028 * FA.pxPerM, 0.04 * FA.pxPerM, '#c84a6a'); blob(g, X(0.05), Y(0.045), 0.024 * FA.pxPerM, 0.015 * FA.pxPerM, '#a83050'); // the tongue
+}
+
+/** Stage 5, about to eat you: the eyes, and a mouth like a carved pumpkin's, right round him. */
+function drawMaw(g) {
+  for (const side of [-1, 1]) { blob(g, X(side * 0.11), Y(0.2), 0.05 * FA.pxPerM, 0.04 * FA.pxPerM, '#000000', 0.1); }
+  g.fillStyle = '#000000';
+  const span = 0.3, top = 0.15, low = 0.025;
+  for (let px = X(-span); px <= X(span); px++) { const m = (px - W / 2) / FA.pxPerM, k = (m / span) ** 2, yU = top - k * 0.02, yL = low + k * 0.07; g.fillRect(Math.round(px), Math.round(Y(yU)), 1, Math.round(Y(yL) - Y(yU))); }
+  g.fillStyle = '#7a1010'; // the teeth: jagged, top and bottom
+  for (let m = -span + 0.04; m < span - 0.03; m += 0.06) { for (let i = 0; i < 10; i++) { const w = (10 - i) * 0.6; g.fillRect(Math.round(X(m) - w / 2), Math.round(Y(0.15)) + i, Math.round(w), 1); g.fillRect(Math.round(X(m + 0.03) - w / 2), Math.round(Y(0.03 + ((m + 0.03) / span) ** 2 * 0.07)) - i, Math.round(w), 1); } }
+}
+
 /** The calm faces, drawn the old way: pale discs and pupils, at the same place the holes will be. level: 1 neutral, 2 annoyed. */
 function drawCalm(g, level) {
   const r = 0.042 * FA.pxPerM;
@@ -96,7 +114,7 @@ export function buildVacuum() {
   const out = {
     root, body, ready: false, stage: 1, k: 1, shriekT: 0, flick: 0, alert: 0, twitchT: 0, tiltZ: 0, tiltX: 0, bodyMats: [],
     still: false, kick: 0,
-    faces: { 1: faceTexture((g) => drawCalm(g, 1)), 2: faceTexture((g) => drawCalm(g, 2)), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => { drawHoles(g, true, false); for (const side of [-1, 1]) { blob(g, X(side * EYE_X), Y(EYE_Y), 3, 3, '#d8e4ff'); } }), s: faceTexture((g) => drawHoles(g, true, true)) },
+    faces: { 1: faceTexture((g) => drawCalm(g, 1)), 2: faceTexture((g) => drawCalm(g, 2)), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => { drawHoles(g, true, false); for (const side of [-1, 1]) { blob(g, X(side * EYE_X), Y(EYE_Y), 3, 3, '#d8e4ff'); } }), s: faceTexture((g) => drawHoles(g, true, true)), dead: faceTexture(drawDead), maw: faceTexture(drawMaw) },
   };
 
   // the intake: a black disc, smaller once it has become a nose
@@ -108,7 +126,7 @@ export function buildVacuum() {
   const face = new THREE.Mesh(faceSkin(), faceMat);
   root.add(face);
   out.face = face;
-  const show = (level) => { faceMat.map = out.faces[level]; };
+  const show = (level) => { faceMat.map = out.faces[out.dead ? 'dead' : out.maw ? 'maw' : level]; };
   out.setFace = (level) => { out.stage = level; show(level); };
 
   // the cord reel on his back: a plate, a hub and a coil of cable that shrinks as the cord pays out
@@ -154,7 +172,7 @@ export function buildVacuum() {
   arcGeo.setAttribute('position', new THREE.BufferAttribute(arcPos, 3));
   const arcs = new THREE.LineSegments(arcGeo, new THREE.LineBasicMaterial({ color: 0xbfd6ff, fog: false })); arcs.visible = false; arcs.frustumCulled = false; root.add(arcs);
   out.arcsOn = (t) => {
-    arcs.visible = t > 0 && Math.random() < 0.7;
+    arcs.visible = t > 0 && !out.calm && Math.random() < 0.7;
     if (!arcs.visible) return;
     let w = 0;
     for (let a = 0; a < ARC; a++) {
@@ -170,9 +188,12 @@ export function buildVacuum() {
   /** Per rendered frame: his size and colour for his stage, the twitching, the listening tilt. */
   out.animate = (dt, listening) => {
     const s = out.stage - 1, ease = 1 - Math.exp(-3 * dt);
-    out.k += (M.stretch[s] - out.k) * ease;
-    body.scale.y = M.scaleY * out.k; face.scale.y = out.k;
-    const cur = hole.scale.x + (M.holeRs[s] / M.holeR - hole.scale.x) * ease;
+    const EA = TUNING.eat, wide = out.maw ? EA.wide : 1;
+    out.k += ((out.maw ? EA.inflate : M.stretch[s]) - out.k) * (out.maw ? 1 - Math.exp(-7 * dt) : ease);
+    out.w = (out.w ?? 1) + (wide - (out.w ?? 1)) * (1 - Math.exp(-7 * dt));
+    body.scale.set(M.scaleXZ * out.w, M.scaleY * out.k, M.scaleXZ * out.w); face.scale.set(out.w, out.k, out.w);
+    if (out.maw || out.dead) show(out.stage);
+    const cur = out.maw ? 0.001 : hole.scale.x + (M.holeRs[s] / M.holeR - hole.scale.x) * ease;
     hole.scale.set(cur, cur, 1); hole.position.y = M.holeY * out.k; out.hoseSocket.position.y = M.holeY * out.k;
     for (const m of out.bodyMats) { const c = m.color.r + (M.tone[s] - m.color.r) * ease; m.color.setRGB(c, c * (1 - (1 - M.tone[s]) * 0.2), c * (1 - (1 - M.tone[s]) * 0.2)); }
     out.alert += ((listening ? 1 : 0) - out.alert) * (1 - Math.exp(-14 * dt));

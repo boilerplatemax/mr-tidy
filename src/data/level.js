@@ -348,7 +348,8 @@ export const LEVEL = {
     { id: 'frame', type: 'picture_frame', on: 'dShelf1', x: 2.6, z: -6.43 },
     { id: 'cup3', type: 'teacup', on: 'dShelf2', x: 4.2, z: -6.42 },
     { id: 'candle2', type: 'candlestick', on: 'dShelf2', x: 3.7, z: -6.42 },
-    { id: 'sideVase', type: 'vase', on: 'dSide', x: 1.2, z: -6.3 },
+    { id: 'sideVase', type: 'vase', on: 'dSide', x: 1.3, z: -6.3 },
+    { id: 'urn', type: 'urn', on: 'dSide', x: 0.92, z: -6.3 }, // Grandpa
     // bathroom
     { id: 'dentures', type: 'dentures_glass', on: 'bSink', x: 8.64, z: -4.5 },
     { id: 'soap', type: 'soap_dish', on: 'bSink', x: 9.38, z: -4.5 },

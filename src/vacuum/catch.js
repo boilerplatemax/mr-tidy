@@ -84,7 +84,8 @@ export class CatchSequence {
     const v = this.vac, cam = this.camera, m = v.model;
     this.active = true; this.phase = 'drag'; this.t = 0;
     this._plan(cam.position.clone());
-    m.setFace(4); m.face.visible = true; m.still = true; // furious, whatever he was before, and for once perfectly still
+    this.eat = v.anger >= 5; // the last stage doesn't scream at you: it opens up and eats you
+    m.setFace(4); m.face.visible = true; m.still = true; m.maw = this.eat; // furious, whatever he was before, and for once perfectly still
     this.faceBase.copy(m.face.position);
     audio.play('vac.fwoomp', { gain: 0.7 });
     audio.play('sting.spot', { gain: 1.1 });
@@ -128,6 +129,7 @@ export class CatchSequence {
       const k = Math.min(1, this.t / C.turn);
       cam.quaternion.slerpQuaternions(this.from, this.to, smooth(k));
       cam.position.copy(this.end);
+      if (this.eat) { const u = Math.max(0, (this.t - C.hold * 0.4) / (C.hold * 0.6)); _p.copy(this.faceAt).sub(this.end).setY(0).normalize(); cam.position.addScaledVector(_p, TUNING.eat.into * u * u); cam.position.y -= 0.06 * u; } // in, between the teeth
       cam.updateMatrixWorld();
       f.position.set(this.faceBase.x + rnd() * C.faceJitter, this.faceBase.y + rnd() * C.faceJitter, this.faceBase.z); // trembling with rage
       if (this.t >= C.hold) this._toCut();
@@ -139,8 +141,8 @@ export class CatchSequence {
   _toHold() {
     const cam = this.camera;
     this.phase = 'hold'; this.t = 0;
-    this.vac.model.shriek(C.hold);
-    if (Math.random() < 0.5) audio.play('vac.laugh'); else audio.play('vac.shriek', { gain: 1.3 }); // one or the other, never both
+    if (this.eat) { TUNING.eat.chomps.forEach((at) => audio.play('vac.chomp', { delay: at })); audio.play('vac.surge', { rate: 0.5 }); }
+    else { this.vac.model.shriek(C.hold); if (Math.random() < 0.5) audio.play('vac.laugh'); else audio.play('vac.shriek', { gain: 1.3 }); } // one or the other, never both
     cam.position.copy(this.end);
     this.from.copy(cam.quaternion);
     _m.lookAt(this.end, this.faceAt, _up);
@@ -157,5 +159,5 @@ export class CatchSequence {
   }
 
   /** Clears everything for a new run. */
-  reset() { this.active = false; this.phase = 'none'; this.t = 0; this.cut.hidden = true; this.vac.model.still = false; }
+  reset() { this.active = false; this.phase = 'none'; this.t = 0; this.cut.hidden = true; this.vac.model.still = false; this.vac.model.maw = false; }
 }

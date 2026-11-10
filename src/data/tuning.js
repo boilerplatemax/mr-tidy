@@ -184,7 +184,7 @@ export const TUNING = {
     searchTurn: 2.0, searchArc: 1.1, // how fast he looks around; rad either side
     chaseSpeed: [1.3, 1.3, 2.3, 3.1, 3.35], // m/s. The cat runs at 3.6, so it can always just outrun him
     replan: 0.15, // s between re-thinking the route while chasing
-    catchReach: 0.14, // m past his body at which he catches the cat
+    catchReach: 0.26, // m past his body at which he catches the cat
     solidShare: 0.85, // how much of the cat's radius his body keeps out: it can brush him, not go through him
     catchHeight: 0.42, // m: a cat with its feet above this is out of reach of his body
     investigateMul: 1.25, // he goes to a noise this much faster than he patrols
@@ -208,7 +208,7 @@ export const TUNING = {
   },
   suck: { // really close, he plants himself and sweeps the nozzle back and forth with the suction on (src/vacuum/vacuum.js)
     minAnger: 3, // from the angry stage
-    enter: 1, exit: 1.3, maxY: 1.2, // m from the hole that starts it and ends it; m up, above which he goes back to the strike
+    enter: 1, exit: 1.3, enterY: 0.3, maxY: 0.6, // m from the hole that starts it and ends it; m up it starts for (the floor), and the most it keeps going for (a jump clears it): higher, the creeping hose takes over
     windup: 0.5, // s for the nozzle to get into position before it can catch you
     reach: 1.2, minR: 0.45, // m: the sweep passes at the cat's distance, within these
     arc: 0.9, rate: [0, 0, 2.6, 3.6, 4], speed: 5, // rad either side of where he faces; how fast it swings, by stage; m/s the nozzle can move
@@ -230,6 +230,9 @@ export const TUNING = {
     lookSpeed: 1.3, // rad/s looking around
   },
   surge: { time: 2.4, flickerUntil: 1.9, eyeLight: 0.7, eyeDist: 2.6, arcs: 5 }, // stage 5: s he stands there pulling the power out of the house; s the lights stutter; the little light the cat sees by; arcs around him
+  voice: { every: 7, hear: 11, huffEvery: 10, huff: 1.1, turn: 2.2 }, // s between lines; m away you can make him out; s between huffs (stage 2); s a huff takes; s the change to angry takes
+  stalk: { chance: 0.35, speed: 0.45, dip: 0.8 }, // from angry: how often he creeps up instead of coming (always in his dust); how slow; how quiet
+  eat: { inflate: 1.6, wide: 1.28, into: 0.32, chomps: [0.45, 0.75, 1.05] }, // stage 5's catch: how tall and wide he swells; m the camera goes into the mouth; s the bites come
   stuck: { after: 2.5, move: 0.04, tries: 2 }, // he hasn't moved this far in this long while trying to: find another way; after this many goes, he's moved
   stun: { time: 0.65, perKg: 0.3, max: 1.2, cooldown: 5 }, // something dropped on him: s he reels, plus this much per kg, at most; s before it can work again
   hide: { range: 2.6, chance: [0, 0, 0.35, 0.55, 0.7], time: 4 }, // the tub and behind the closed curtains: he goes looking when he reaches where he lost you. m he checks from; odds he finds you, by stage; s he then knows
@@ -238,8 +241,8 @@ export const TUNING = {
     shriekEvery: 16, shriekFace: 1.3, // s between shrieks; s his mouth stays open
   },
   creep: { // the hose comes for a cat hiding up high: slowly, from a long way off, with the motor nearly silent
-    minAnger: 3, minHeight: 1.2, // from the angry stage, for a cat at least this high
-    after: 2.0, // s of knowing where you are up there before it starts
+    minAnger: 3, minHeight: 0.35, // from the angry stage, for a cat up on anything (it has replaced the strike)
+    after: 1.1, // s of knowing where you are up there before it starts
     range: 8, length: 9, speed: 0.72, replan: 0.5, maxTime: 16, // m it can reach and stretch to; m/s; s between re-routes; s before it gives up
     motor: 0.22, // how quiet the motor goes
     floorY: 0.6, // m: a cat below this has come down, and he goes after it instead
@@ -273,7 +276,7 @@ export const TUNING = {
   hose: { // the snake out of the hole (src/vacuum/hose.js, src/vacuum/voxels.js)
     minLength: 1.6, // m: the hose is never shorter than this. When the tip is close, the excess hangs and bows aside like a chain
     slackPull: 0.02, damping: 0.92, sag: 6, aside: 14, chainPasses: 6, // the chain: how much a slack hose keeps to its route, how fast swinging dies down, m/s² of droop, of bowing sideways; how stiffly the links hold
-    length: 3.8, segments: 22, radius: 0.028, tubeSegments: 56, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
+    length: 3.8, segments: 36, radius: 0.028, tubeSegments: 84, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
     camClear: 0.3, // m the hose and nozzle bend away from the camera, whatever they're doing
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
     restReach: 0.7, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up

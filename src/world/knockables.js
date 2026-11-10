@@ -28,6 +28,7 @@ const SURVIVOR = { dentures_glass__teeth: 'hop', soap_dish__soap: 'roll', cookie
 const SPLIT = { salt_shaker: -1, pepper_shaker: 1 };
 const SHAKER = (side, tint) => ({ mass: 0.1, swipes: 1, noise: 1, landing: 'bounce', tint, size: [0.04, 0.075, 0.04], nodes: { intact: side } });
 PROPS.wall_clock = { mass: 0.9, swipes: 1, noise: 5, landing: 'break', tint: '#6a4628', size: [0.324, 0.324, 0.06], nodes: { intact: 'wall_clock' } };
+PROPS.urn = { mass: 0.9, swipes: 2, noise: 5, landing: 'shatter', tint: '#8a8782', size: [0.14, 0.26, 0.14], nodes: { intact: 'urn', fx: ['fx_shards', 'fx_puff'] } }; // Grandpa
 PROPS.salt_shaker = SHAKER('salt_shaker', '#f4f1ea'); PROPS.pepper_shaker = SHAKER('pepper_shaker', '#2a2a2a');
 
 function buildType(id) {
@@ -69,6 +70,7 @@ export class Knockables {
     if (name === 'picture_frame') return this._frame();
     if (SPLIT[name]) return this._shaker(name);
     if (name === 'button_jar') return this._jarFill();
+    if (name === 'urn') return this._urn();
     if (name === 'wall_clock' && this.clockLib) { const c = this.clockLib.clone(true); c.position.y = -1.638; return c; } // (modelled hanging at its height on the wall)
     const n = this.lib?.getObjectByName(name);
     if (!n) { console.warn(`knockables: no node ${name}`); return new THREE.Group(); }
@@ -90,6 +92,18 @@ export class Knockables {
       this.shakerGeo[name] = g;
     }
     return new THREE.Mesh(this.shakerGeo[name], src.material);
+  }
+
+  /** Grandpa: a brass urn with a lid and a little knob. */
+  _urn() {
+    const brass = this.urnMat ??= makePS1(new THREE.MeshLambertMaterial({ color: 0xb08a3a })), dark = this.urnDark ??= makePS1(new THREE.MeshLambertMaterial({ color: 0x3a2a12 }));
+    const pts = [[0, 0], [0.05, 0], [0.055, 0.02], [0.045, 0.04], [0.065, 0.1], [0.07, 0.15], [0.06, 0.19], [0.04, 0.21], [0.042, 0.22]].map(([r, y]) => new THREE.Vector2(r, y));
+    const g = new THREE.Group(), body = new THREE.Mesh(new THREE.LatheGeometry(pts, 10), brass);
+    const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.02, 10), brass); lid.position.y = 0.23;
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 4), brass); knob.position.y = 0.25;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.071, 0.071, 0.012, 10), dark); band.position.y = 0.13;
+    g.add(body, lid, knob, band);
+    return g;
   }
 
   /** What's in the button jar: buttons, lying every which way, and a lid. */
@@ -210,6 +224,7 @@ export class Knockables {
     }
     if (fx.includes('fx_puff')) {
       const m = this._clone('fx_puff'); m.traverse((c) => { if (c.isMesh) { c.material = c.material.clone(); c.material.userData = {}; c.material.transparent = true; c.material.depthWrite = false; c.material.color.set(t.tint); m.material = c.material; } });
+      if (t.id === 'urn') m.scale.setScalar(2.2); // (that's Grandpa)
       bits.push(D.bit(m, x, 0.1, z, 'puff', { life: X.puffLife }));
     }
     if (fx.includes('fx_button')) for (let i = 0; i < X.buttons; i++) { const m = this._clone('fx_button'), c = pick(PALETTES.buttons); m.traverse((q) => { if (q.isMesh) q.material = D.tinted(q.material, c); }); bits.push(D.bit(m, x, 0.05, z, 'tumble', { speed: rand(0.6, 2), up: rand(0.8, 2.2), r: 0.012 })); }

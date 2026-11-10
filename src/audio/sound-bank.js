@@ -6,6 +6,7 @@
 // To swap in a real recording: files: ['game-assets/audio/foot/wood_1.ogg', ...]. The generator stays as the
 // fallback if a file fails to load. Keep recordings mono; the engine positions them in 3D.
 import * as S from './synth.js';
+import { ALL_LINES } from '../vacuum/voice.js';
 
 const { rand } = S;
 const v = (fn, n = 4) => (sr) => Array.from({ length: n }, () => fn(sr)); // n random variants
@@ -110,6 +111,45 @@ function mumble(sr) {
   for (let i = 0; i < x.length; i++) { const t = i / x.length; x[i] *= Math.abs(Math.sin(t * 14)) * Math.sin(Math.PI * t); }
   return S.declick(S.normalise(x, 0.7), sr);
 }
+/**
+ * A robot reading a line: one vowel-ish blip per syllable through two formants, ring-modulated. The later the stage, the
+ * lower, slower and more broken (distortion, crushed bits).
+ */
+function robot(sr, text, stage) {
+  const syl = Math.max(2, (text.toLowerCase().match(/[aeiouy]+/g) || []).length), pitch = [215, 185, 140, 104, 74][stage - 1], grit = [0, 0.12, 0.35, 0.6, 0.88][stage - 1];
+  const sl = 0.12 + stage * 0.014, gap = 0.035, len = syl * (sl + gap) + 0.3, x = S.buffer(len, sr);
+  const V = [[730, 1090], [530, 1840], [270, 2290], [570, 840], [300, 870], [660, 1720]];
+  for (let i = 0; i < syl; i++) {
+    const [F1, F2] = V[Math.floor(Math.random() * V.length)], f0 = pitch * (1 + 0.14 * Math.sin(i * 1.7 + stage)) * (text.endsWith('?') && i === syl - 1 ? 1.3 : 1);
+    const v = S.saw(S.buffer(sl, sr), sr, (t) => f0 * (1 + 0.05 * t));
+    const a = S.biquad(v.slice(), sr, 'bp', F1, 6), b = S.biquad(v.slice(), sr, 'bp', F2, 7), m = new Float32Array(v.length);
+    S.mix(m, a, 1); S.mix(m, b, 0.7);
+    for (let k = 0; k < m.length; k++) { const t = k / m.length; m[k] *= Math.min(1, t * 12) * Math.min(1, (1 - t) * 8); }
+    if (Math.random() < 0.6) S.mix(m, S.env(S.biquad(S.noise(S.buffer(0.03, sr)), sr, 'hp', 3000), sr, 0.001, 0.008), 0.5); // a consonant
+    S.mix(x, m, 1, Math.round(i * (sl + gap) * sr));
+  }
+  const ring = 38 + stage * 14, hold = 1 + Math.round(grit * 3), levels = Math.pow(2, 8 - grit * 5);
+  let held = 0;
+  for (let i = 0; i < x.length; i++) {
+    let y = x[i] * (0.55 + 0.45 * Math.sin((2 * Math.PI * ring * i) / sr));
+    y = Math.tanh(y * (1.5 + grit * 7));
+    if (i % hold === 0) held = Math.round(y * levels) / levels;
+    x[i] = held;
+  }
+  return S.declick(S.normalise(x, 0.9), sr);
+}
+/** A put-out little huff through the nose: hm, HMPH. */
+function huff(sr) {
+  const x = S.buffer(0.7, sr);
+  for (const [at, f, g] of [[0, rand(150, 175), 0.5], [0.22, rand(120, 140), 1]]) {
+    const v = S.saw(S.buffer(0.32, sr), sr, (t) => f * (1.15 - 0.4 * t));
+    const n = S.biquad(v.slice(), sr, 'bp', 260, 4); S.mix(n, S.biquad(v, sr, 'bp', 1100, 9), 0.5); // through the nose
+    S.mix(n, S.biquad(S.noise(S.buffer(0.32, sr)), sr, 'bp', 1600, 1.5), 0.6);
+    for (let k = 0; k < n.length; k++) { const t = k / n.length; n[k] *= Math.min(1, t * 20) * Math.pow(1 - t, 1.5); }
+    S.mix(x, n, g, Math.round(at * sr));
+  }
+  return S.declick(S.normalise(x, 0.85), sr);
+}
 /** A soft padded landing: a low pat, nothing jarring. */
 function catLand(sr) {
   const x = S.buffer(0.16, sr);
@@ -197,6 +237,9 @@ function stingHeard(sr) {
 }
 
 export const SOUNDS = {
+  ...Object.fromEntries(ALL_LINES.map(([slot, stage, text]) => [slot, { gen: (sr) => robot(sr, text, stage), gain: 1.0, bus: 'voice' }])),
+  'vac.huff': { gen: v(huff, 3), gain: 0.85 },
+  'vac.chomp': { gen: v((sr) => { const x = thud(sr, 70, 0.22, 1.2); S.mix(x, S.env(S.biquad(S.noise(S.buffer(0.12, sr)), sr, 'bp', 900, 1.5), sr, 0.002, 0.03), 0.8); return S.normalise(x, 0.95); }, 3), gain: 1.4 },
   'vac.shriek': { gen: (sr) => SCREAMS.map((f) => f(sr)), gain: 1.15, subtitle: 'a tearing shriek', bus: 'voice' },
   'sting.spot': { gen: (sr) => [stingSpot(sr), stingSpot(sr), stingScrape(sr), stingScrape(sr), stingBrass(sr), stingBrass(sr), stingPiano(sr), stingPiano(sr)], gain: 0.9, subtitle: 'a sudden stab of music', bus: 'voice' },
   'sting.heard': { gen: v(stingHeard, 3), gain: 0.5, bus: 'voice' },

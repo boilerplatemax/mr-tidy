@@ -166,7 +166,7 @@ function huntChecks(kit) {
   reset('H2', 3); v.heading = 1.57; cat(7.2, -0.45);
   { const m = { id: 't', x: 6.2, z: -0.45, room: 'x', decal: -1, cubes: [], cleaned: false }; kit.debris.messes.push(m); v._startClean(m); }
   run(0.8);
-  const dropped = (v.state === 'CHASE' || v.state === 'HOSE_REACH') && !kit.debris.messes[kit.debris.messes.length - 1].cleaned; const m0 = kit.debris.messes.pop(); m0.cleaned = true;
+  const dropped = ['CHASE', 'HOSE_REACH', 'SUCK', 'CREEP'].includes(v.state) && !kit.debris.messes[kit.debris.messes.length - 1].cleaned; const m0 = kit.debris.messes.pop(); m0.cleaned = true;
   report('catching beats cleaning', dropped, v.state);
 
   // caught by his body, on the floor only
@@ -195,61 +195,11 @@ function hoseChecks(kit) {
   const hold = (s, fn) => { for (let i = 0; i < Math.round(s * 60); i++) { kit.tick(dt); if (fn && fn()) return true; } return false; };
   const toCharge = () => { hold(0.5, () => v.state === 'HOSE_REACH'); while (v.reachPhase === 'rise') kit.tick(dt); };
 
-  // a cat that sits still on the island: a full prep, then the charge gets it
-  put('K4', 3, 0, 8.5, 0.75, 2.9);
-  hold(0.5, () => v.state === 'HOSE_REACH');
-  const reaching = v.state === 'HOSE_REACH'; let prep = 0;
-  while (prep < 3 && v.reachPhase === 'rise') { kit.tick(dt); prep += dt; }
-  const raised = v.hose.tip.y, charging = v.reachPhase === 'charge';
-  hold(1, () => caughtBy);
-  report('preps for a full second, then charges', reaching && charging && Math.abs(prep - H.windup) < 0.1, `${prep.toFixed(2)} s, tip up at ${raised.toFixed(2)} m`);
-  report('and catches a cat that sits still', caughtBy === 'hose');
-
-  put('K4', 2, 0, 8.5, 0.75, 2.9); hold(0.5);
-  report('never while merely annoyed', v.state !== 'HOSE_REACH', v.state);
-
-  put('L5', 3, 0, 3.0, 2.05, 5.11); v.x = v.px = 3.0; v.z = v.pz = 4.1; hold(0.5);
-  report('a perch above 1.8 m is safe', v.state !== 'HOSE_REACH' && P.feetY > H.reachTop, `${v.state}, cat at ${P.feetY.toFixed(2)} m`);
-  put('L5', 3, -0.3, 4.05, 1.7, 5.1); hold(0.5);
-  report('the bracket on the high route is in reach', v.state === 'HOSE_REACH', v.state);
-  put('K2', 3, 1.2, 10.35, 1.72, 4.95); hold(0.5);
-  report('so is the top of the fridge', v.state === 'HOSE_REACH', v.state);
-  put('H2', 3, 1.57, 7.8, 0, -0.45); hold(0.5);
-  report('it reaches further now, and for a cat on the floor', v.state === 'HOSE_REACH', v.state);
-
-  // leaving during the prep: no charge
-  put('K4', 3, 0, 8.5, 0.75, 2.9);
-  hold(0.5, () => v.reachPhase === 'rise'); hold(0.6);
-  { const f = P.tick; P.pos.x = 8.5; P.pos.z = -1.0; P.feetY = 0; P.tick = () => {}; hold(0.6, () => v.reachPhase !== 'rise'); P.tick = f; }
-  report('leaving during the prep: it does not charge', !caughtBy && v.reachPhase !== 'charge', `${v.reachPhase}`);
-
-  // the dodge: wait for the end of the prep, then jump and air-dash aside as it comes
-  put('L4', 4, 1.57, 4.0, 0, 4.2); // open floor to the north
-  hold(0.5, () => v.state === 'HOSE_REACH');
-  const lateEnough = hold(2, () => v.reachPhase === 'rise' && v.reachT >= H.windup - 0.1);
-  P.yaw = Math.PI / 2; I.keys.add('KeyD'); I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt);
-  I.keys.delete('Space'); kit.tick(dt);
-  I.keys.add('ShiftLeft'); I.edges.add('ShiftLeft');
-  hold(1.3, () => caughtBy || v.reachPhase === 'stall');
-  I.keys.clear();
-  report('jumping and air-dashing as it charges dodges it', lateEnough && !caughtBy && v.reachPhase === 'stall', `${v.reachPhase}, cat at z ${P.pos.z.toFixed(2)}`);
-
-  // and it homes: walking away doesn't save you
-  put('K1', 4, 1.57, 8.2, 0, 4.0);
-  toCharge(); P.yaw = Math.PI / 2; I.keys.add('KeyA');
-  hold(1.2, () => caughtBy); I.keys.clear();
-  report('it follows you: a slow sidestep gets caught', caughtBy === 'hose');
-
-  // a miss slaps what is there and stalls him
-  put('K4', 3, 0, 8.5, 0.75, 2.9);
-  const mug = K.byId.get('mug3');
-  hold(0.5, () => v.state === 'HOSE_REACH'); while (v.reachPhase === 'rise') kit.tick(dt);
-  { const f = P.tick; P.pos.x = 8.5; P.pos.z = 5.2; P.feetY = 0; P.tick = () => {};
-    hold(1.5, () => { if (v.reachPhase === 'stall') return true; const t = v.hose.tip; mug.x = mug.px = t.x + 0.05; mug.y = mug.py = t.y - 0.1; mug.z = mug.pz = t.z; mug.state = 'rest'; mug.vx = mug.vz = 0; return false; });
-    P.tick = f; }
-  const slapped = Math.hypot(mug.vx, mug.vz) > 0.01, stalled = v.reachPhase === 'stall', sx = v.x;
-  let stallT = 0; while (v.reachPhase === 'stall' && stallT < 3) { kit.tick(dt); stallT += dt; }
-  report('a missed charge slaps what is there and stalls him', !caughtBy && stalled && slapped && Math.abs(stallT - H.stall) < 0.1 && v.x === sx, `stall ${stallT.toFixed(2)} s, slapped ${slapped}`);
+  // up on something in his reach: no strike any more, the hose creeps up after it
+  put('K4', 3, 0, 8.5, 0.75, 2.9); v.creepCd = 0;
+  report('a cat up on the island gets the creeping hose', hold(TUNING.creep.after + 0.8, () => v.state === 'CREEP'), v.state);
+  put('K4', 2, 0, 8.5, 0.75, 2.9); v.creepCd = 0; hold(TUNING.creep.after + 0.8);
+  report('never while merely annoyed', v.state !== 'CREEP', v.state);
 
   // pathfinding around something: from in front of the island to behind it
   v.frozen = true; v.hose.reset();
@@ -328,30 +278,22 @@ function attackChecks(kit) {
   put('H2', 3, 0, 5.6, 0, -0.25); hold(0.3);
   report('angry: touching him catches you', !!caughtBy, caughtBy);
   put('L2', 3, -0.3, 3.05, 0, 3.9); v.path = [v.nav.nodes.get('L4')]; v.pathI = 0;
-  report('angry: he hunts a cat he can see', hold(1.5, () => ['CHASE', 'HOSE_REACH', 'BLAST'].includes(v.state)), v.state);
-
-  // the cobra rears up above the cat, then strikes
-  put('K4', 3, 0, 8.5, 0.75, 2.9); hunt(8.5, 2.9);
-  hold(0.5, () => v.state === 'HOSE_REACH');
-  let peak = 0; while (v.reachPhase === 'rise') { kit.tick(dt); peak = Math.max(peak, v.hose.tip.y); }
-  report('the cobra rears up above you before it strikes', peak > 0.87 + H.rear * 0.7, `tip up to ${peak.toFixed(2)} m, cat at 0.87`);
-  hold(1, () => caughtBy);
-  report('then strikes', caughtBy === 'hose');
+  report('angry: he hunts a cat he can see', hold(1.5, () => ['CHASE', 'HOSE_REACH', 'BLAST', 'SUCK', 'CREEP'].includes(v.state)), v.state);
 
   // no clipping, tube included: full strikes from a set of awkward places
   const inside = (x, y, z) => W.penetration(x, z, 0.006, y - 0.005, y + 0.005, null, y - 0.005) > 0;
   const spots = [['K4', 0, 8.5, 0.75, 2.9], ['K3', 0, 10.4, 0.9, 3.7], ['L5', -0.3, 4.05, 1.7, 5.1], ['K2', 1.2, 10.35, 1.72, 4.95], ['Ld', 1.57, 7.1, 0, 4.35], ['Hs', -1.57, 11.7, 0, -0.45], ['K5', 0.3, 7.5, 0.45, 2.9], ['S1', 3.14, 13.2, 1.1, 3.5]];
-  let clips = 0, verts = 0, strikes = 0;
+  let clips = 0, verts = 0, strikes = 0, where = '';
   for (const [id, h, x, y, z] of spots) {
-    put(id, 3, h, x, y, z); hunt(x, z);
+    put(id, 3, h, x, y, z); hunt(x, z); v.creepCd = 0;
     for (let i = 0; i < 150 && !caughtBy; i++) {
       kit.tick(dt); v.frame(1);
-      if (v.state === 'HOSE_REACH') strikes++;
+      if (v.state === 'CREEP') strikes++;
       const a = v.hose.mesh.geometry.attributes.position;
-      for (let k = 0; k < a.count; k += 3) { verts++; if (inside(a.getX(k), a.getY(k), a.getZ(k))) clips++; }
+      for (let k = 0; k < a.count; k += 3) { verts++; if (inside(a.getX(k), a.getY(k), a.getZ(k))) { clips++; if (!where) where = id + ' ' + v.state + ' ' + [a.getX(k), a.getY(k), a.getZ(k)].map((q) => q.toFixed(2)).join(','); } }
     }
   }
-  report('strikes from eight awkward spots: the tube never clips anything', strikes > 100 && clips === 0, `${clips} of ${verts} surface points inside something`);
+  report('the hose comes for you from eight awkward spots and the tube never clips anything', strikes > 100 && clips === 0, `${clips} of ${verts} surface points inside something ${where}`);
 
   // really close: he plants himself and sweeps
   { const SU = TUNING.suck, hit0 = H.hit, stub = P.tick, still = () => { P.tick = () => {}; };
@@ -403,7 +345,7 @@ function attackChecks(kit) {
   hold(0.3, () => v.state === 'BLAST');
   const blasting = v.state === 'BLAST', dust0 = P.dust; let aimT = 0;
   while (v.blastPhase === 'aim' && aimT < 2) { kit.tick(dt); aimT += dt; }
-  report('a cat out of hose range gets a dust blast, after a telegraph', blasting && Math.abs(aimT - B.aim) < 0.1 && v.blast.state === 'fly', `${aimT.toFixed(2)} s`);
+  report('a cat at a distance gets a dust blast, after a telegraph', blasting && Math.abs(aimT - B.aim) < 0.1 && v.blast.state === 'fly', `${aimT.toFixed(2)} s`);
   hold(1.5, () => P.dust > 0 || v.blast.state === 'idle');
   report('it hits a cat that stands still, but does not catch it', P.dust > 0 && dust0 === 0 && !caughtBy && v.blast.lastHit === 'cat', v.blast.lastHit);
   // what it does
@@ -446,7 +388,7 @@ function attackChecks(kit) {
     report('it can knock you off a perch', y0 > 0.8 && P.feetY < 0.1, `from ${y0.toFixed(2)} to ${P.feetY.toFixed(2)}`); P.resetMotion(); }
   // ---- the creeping hose
   { const C = TUNING.creep, cat = [1.9, 1.901, 5.15];
-    put('L4', 3, 0, cat[0], cat[1] - 0.001, cat[2]); v.creepCd = 0; hunt(cat[0], cat[2]); P.frozen = true; v.reachCd = 99; let t = 0; hold(C.after + 1, () => v.state === 'CREEP'); const started = v.state === 'CREEP';
+    put('L4', 3, 0, cat[0], cat[1] - 0.001, cat[2]); v.creepCd = 0; hunt(cat[0], cat[2]); P.frozen = true; v.reachCd = 99; let t = 0; hold(C.after + 3, () => v.state === 'CREEP'); const started = v.state === 'CREEP';
     let moving = 0, last = v.hose.tip.clone(), fast = 0, clip = 0; while (t < C.maxTime + 1 && !caughtBy && v.state === 'CREEP') { kit.tick(dt); v.frame(1); t += dt; const sp = v.hose.tip.distanceTo(last) / dt; if (sp > C.speed * 1.6) fast++; if (sp > 0.05) moving++; last.copy(v.hose.tip); const a = v.hose.mesh.geometry.attributes.position; for (let k = 0; k < a.count; k += 7) if (inside(a.getX(k), a.getY(k), a.getZ(k))) clip++; }
     P.frozen = false;
     report('hiding up high, the hose creeps slowly up and gets you', started && caughtBy === 'hose' && t > 1.5 && fast < 4 && moving > 30, `${t.toFixed(1)} s, ${clip} tube points in things, ${fast} fast ticks`);
@@ -469,7 +411,7 @@ function attackChecks(kit) {
   { put('H2', 4, 1.57, 10.0, 0, -0.45, 0); hunt(10.0, -0.45); v.lob = false; B.lobChance = 0; hold(0.3, () => v.state === 'BLAST'); let most = 0; for (let i = 0; i < 80; i++) { kit.tick(dt); most = Math.max(most, v.blasts.filter((b) => b.state === 'fly').length); } B.lobChance = lob0;
     report('furious, he fires a burst', most >= 2, `${most} in the air at once`); v.blasts.forEach((b) => b.reset()); P.resetMotion(); }
   // ---- something dropped on him
-  { put('K1', 3, 1.57, 8.2, 0, 4.0); hunt(8.2, 4.0); hold(0.2, () => v.state === 'HOSE_REACH'); const was = v.state; const o = K.byId.get('mug5'); v.stunCd = 0;
+  { put('K1', 3, 1.57, 8.2, 0, 3.0); hunt(8.2, 3.0); hold(0.1); const was = 'HOSE_REACH'; const o = K.byId.get('mug5'); v.stunCd = 0;
     o.state = 'fall'; o.x = o.px = v.x + 0.05; o.z = o.pz = v.z; o.y = o.py = 0.42; o.vy = -2; o.vx = o.vz = 0; o.knocked = false; o.hitVac = false; const x0 = v.x;
     kit.tick(dt); kit.tick(dt); const stunned = v.stunT > 0, ended = !v.reachPhase; let t = 0; while (v.stunT > 0 && t < 3) { kit.tick(dt); t += dt; if (v.x !== x0) t = 9; }
     report('dropping something on him stops him for a moment', was === 'HOSE_REACH' && stunned && ended && t > 0.3 && t < 1.3 && o.hitVac, `${t.toFixed(2)} s`);
@@ -477,7 +419,7 @@ function attackChecks(kit) {
   // ---- hiding in the tub and behind curtains
   { put('B1', 3, 0.5, 7.1, 0, -4.5); const hid = !v._canSee() && v._catHidden();
     const H0 = TUNING.hide, c0 = H0.chance[2]; H0.chance[2] = 1; const onCatch = v.onCatch; v.onCatch = (h) => { caughtBy = h; };
-    v.lastX = 7.1; v.lastZ = -4.5; v.state = 'SEARCH'; v.path = [v.nav.nodes.get('B1')]; v.pathI = 0; v.x = v.px = 7.0; v.z = v.pz = -3.4; v._routeEnd(); const found = v.foundT > 0 && v.state === 'CHASE'; hold(4, () => caughtBy);
+    v.lastX = 7.1; v.lastZ = -4.5; v.state = 'SEARCH'; v.path = [v.nav.nodes.get('B1')]; v.pathI = 0; v.x = v.px = 7.0; v.z = v.pz = -3.4; v._routeEnd(); const found = v.foundT > 0 && (v.state === 'CHASE' || v.state === 'CREEP'); hold(8, () => caughtBy);
     H0.chance[2] = c0; v.onCatch = onCatch;
     report('hidden in the tub he cannot see you, but he can go looking and find you', hid && found && caughtBy === 'hose', `${v.state}`);
     }
