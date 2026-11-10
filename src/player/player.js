@@ -76,6 +76,18 @@ export class Player {
     this.launched = true; this.launchX = dx; this.launchZ = dz; this.launchSpeed = knock; this.tumbleSlide = high;
   }
 
+  /** The outlet in the blackout: a shock that throws the cat back off it (a tumble, but no dust, no sneeze). */
+  shock(dx = 0, dz = 0) {
+    const l = Math.hypot(dx, dz); if (l < 1e-4) { dx = -this.fx; dz = -this.fz; } else { dx /= l; dz /= l; }
+    if (this.mode === 'hang') this._letGo(); else if (this.mode === 'climb' || this.mode === 'slide') this._offWall();
+    if (this.mode === 'mantle') this.mode = 'move';
+    this.tumbleT = DUST.tumble * 0.8; this.hitAge = 0; this.hitSide = Math.random() < 0.5 ? -1 : 1; this.tumbleSlide = false;
+    this.charging = false; this.chargeT = 0; this.dashT = 0; this.swipeT = -1;
+    this.vel.x = dx * DUST.shockKnock; this.vel.z = dz * DUST.shockKnock; this.vy = DUST.shockUp; this.grounded = false;
+    this.launched = true; this.launchX = dx; this.launchZ = dz; this.launchSpeed = DUST.shockKnock;
+    this.landDip = 0.05;
+  }
+
   resetMotion() { this.tumbleT = 0; this.hitAge = 99; this.pullX = this.pullZ = 0; this.dust = 0; this.sneezeT = 0; this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
 
   /** Put the feet at (x, y, z) facing yaw (rad, 0 = toward −z), with no interpolation from the old spot. */

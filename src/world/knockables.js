@@ -150,7 +150,7 @@ export class Knockables {
     const g = new THREE.Group(), body = new THREE.Mesh(new THREE.LatheGeometry(pts, 10), brass);
     const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.046, 0.046, 0.02, 10), brass); lid.position.y = 0.23;
     const knob = new THREE.Mesh(new THREE.SphereGeometry(0.013, 6, 4), brass); knob.position.y = 0.25;
-    if (!this.urnBand) { const c = document.createElement('canvas'); c.width = 128; c.height = 24; const g2 = c.getContext('2d'); g2.fillStyle = '#2a1c08'; g2.fillRect(0, 0, 128, 24); g2.fillStyle = '#f4d888'; g2.font = 'bold 17px serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText('GRANDPA', 32, 13); g2.fillText('GRANDPA', 96, 13); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t); this.urnBand = makePS1(new THREE.MeshLambertMaterial({ map: t })); }
+    if (!this.urnBand) { const c = document.createElement('canvas'); c.width = 128; c.height = 24; const g2 = c.getContext('2d'); g2.fillStyle = '#2a1c08'; g2.fillRect(0, 0, 128, 24); g2.fillStyle = '#f4d888'; g2.font = 'bold 17px serif'; g2.textAlign = 'center'; g2.textBaseline = 'middle'; g2.fillText('GRANDPA', 64, 13); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t); this.urnBand = makePS1(new THREE.MeshLambertMaterial({ map: t })); }
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.0718, 0.0718, 0.044, 16, 1, true), this.urnBand); band.position.y = 0.13; // (engraved: big enough to read from the floor)
     void dark;
     g.add(body, lid, knob, band);

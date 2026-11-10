@@ -17,7 +17,7 @@ tryFile();
 /** A ginger tabby, chest and muzzle white, green eyes, on the dark brown the other portraits are painted on. */
 function draw() {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
-  const g = c.getContext('2d');
+  const g = c.getContext('2d', { willReadFrequently: true }); // (it's read back once, to dither)
   const ell = (x, y, rx, ry, col, a0 = 0, a1 = Math.PI * 2) => { g.fillStyle = col; g.beginPath(); g.ellipse(x, y, rx, ry, 0, a0, a1); g.fill(); };
   const poly = (col, ...p) => { g.fillStyle = col; g.beginPath(); g.moveTo(p[0], p[1]); for (let i = 2; i < p.length; i += 2) g.lineTo(p[i], p[i + 1]); g.closePath(); g.fill(); };
   // the ground: dark, a little warmer in the middle, with brush speckle
@@ -56,16 +56,21 @@ function draw() {
   return c;
 }
 
+/** The game's own ordered dither (a 4×4 Bayer pattern, down to 15-bit colour), so she looks like the rest of it. */
+function dither(g, w, h) {
+  const B = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5], d = g.getImageData(0, 0, w, h), px = d.data, step = 255 / 31;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const k = (y * w + x) * 4, o = (B[(y & 3) * 4 + (x & 3)] / 16 - 0.5) * step; for (let c = 0; c < 3; c++) px[k + c] = Math.max(0, Math.min(255, Math.round((px[k + c] + o) / step) * step)); }
+  g.putImageData(d, 0, 0);
+}
+
 /**
- * The portrait as a canvas element, w CSS px wide (times --px). mood: 'alive' or 'gone' (faded, with a black ribbon across
- * the corner of the frame).
+ * The portrait as a canvas element, w CSS px wide (times --px). mood: 'alive' or 'gone' (faded).
  */
 export function marmaladePortrait(w, mood = 'alive') {
   const wrap = document.createElement('div'); wrap.className = 'portrait ' + mood;
   wrap.style.width = `calc(${w}px * var(--px))`;
-  const art = draw(); art.className = 'art';
+  const art = draw(); art.className = 'art'; dither(art.getContext('2d'), W, H);
   wrap.append(art);
-  tryFile().then((img) => { if (img) { art.width = img.naturalWidth; art.height = img.naturalHeight; const g = art.getContext('2d'); g.drawImage(img, 0, 0); } }); // (her own picture, at its own resolution)
-  if (mood === 'gone') { const r = document.createElement('div'); r.className = 'ribbon'; wrap.append(r); }
+  tryFile().then((img) => { if (img) { art.width = img.naturalWidth; art.height = img.naturalHeight; const g = art.getContext('2d'); g.drawImage(img, 0, 0); dither(g, art.width, art.height); } }); // (her own picture, at its own resolution, dithered like the game)
   return wrap;
 }

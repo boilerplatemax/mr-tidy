@@ -67,10 +67,18 @@ PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
 const debris = new Debris(scene, world);
 const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
-player.onStep = (gait) => { if (!player.groundCollider) noise.emit({ kind: 'step', gait, x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only on the floor: furniture is quiet, and slinking makes no steps at all
+player.onStep = (gait) => { if (pianoNote(gait === 'run' ? 0.9 : 0.6)) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: TUNING.vac.hearPiano[0] }); if (!player.groundCollider) noise.emit({ kind: 'step', gait, x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only on the floor: furniture is quiet, and slinking makes no steps at all
 player.onSneeze = () => noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: TUNING.vac.hearSneeze }); // a sneeze gives you away
-player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
+player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; if (pianoNote(quiet ? 0.6 : 1.2, quiet ? 1 : 3)) { noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearPiano[1] }); if (!quiet && !tutorial.active) grandma.piano(); } /* (a cat landing on a piano: loud enough to stir her) */ noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
 const grandma = new Grandma({ noise, house });
+/** On the piano's keys? Then a note for where you are along them: low at the left end, high at the right (as you face it). */
+const KEYS = LEVEL.solids.find((b) => b.id === 'pKeys');
+function pianoNote(gain, n = 1) {
+  if (!KEYS || player.pos.x < KEYS.min[0] - 0.05 || player.pos.x > KEYS.max[0] + 0.05 || player.pos.z < KEYS.min[2] || player.pos.z > KEYS.max[2] || Math.abs(player.feetY - KEYS.max[1]) > 0.04) return false;
+  const u = (player.pos.z - KEYS.min[2]) / (KEYS.max[2] - KEYS.min[2]), key = Math.round(u * 36);
+  for (let i = 0; i < n; i++) audio.play('piano.note', { pos: { x: player.pos.x, y: KEYS.max[1], z: player.pos.z }, rate: 2 ** ((key + (i ? (Math.random() * 5 | 0) - 2 : 0) - 12) / 12), gain: gain * (i ? 0.7 : 1), refDistance: 2.5 });
+  return true;
+}
 const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });
 knock.vac = vac; // (something dropped on him stuns him)
 player.onSwipe = () => { knock.swipe(player, camera); if (!vac.swipeOutlet(camera)) vac.swipeBody(camera); tutorial?.onSwipe(camera); }; // the paw bats objects, and the outlet he's plugged into
@@ -90,6 +98,8 @@ function portraitWords() {
     _portraitP.set(p.x, p.y, p.z - 0.12);
     if (d < TUNING.hud.portraitRange && (dx * v.x + dy * v.y + dz * v.z) / d > TUNING.hud.portraitCos && world.countOccluders(e, _portraitP, 1) === 0) subtitles.show(p.text, 'portrait:' + p.text, 2.2, '', true);
   }
+  const u = knock.byId.get('urn');
+  if (u && !u.knocked) { const dx = u.x - e.x, dy = u.y + 0.12 - e.y, dz = u.z - e.z, d = Math.hypot(dx, dy, dz); if (d < TUNING.hud.portraitRange && (dx * v.x + dy * v.y + dz * v.z) / d > TUNING.hud.portraitCos) subtitles.show('Grandpa', 'urn', 2.2, '', true); }
 }
 const marker = new LandingMarker(camera);
 const shimmer = new LandingShimmer(scene);
@@ -133,10 +143,21 @@ function resetRun() {
   ended = false; runTime = 0; wakeIcon?.reset();
   catchSeq.reset(); endScreen.hide(); closeup.reset(); todo.reset(); todo.start(1.2);
   audio.resume(); startClock();
-  knock.reset(); debris.reset(); grandma.reset(); vac.reset();
+  const start = params.has('play') ? null : pickStart(); // (the headless checks keep to the old start)
+  knock.reset(); debris.reset(); grandma.reset(); vac.reset(start?.outlet ?? null);
   player.frozen = false; player.noclip = false; player.resetMotion();
-  player.teleport(S.x, S.y, S.z, S.yaw); player.pitch = 0;
+  if (start) player.teleport(start.x, S.y, start.z, start.yaw); else player.teleport(S.x, S.y, S.z, S.yaw);
+  player.pitch = 0;
   debug.thirdPerson = false;
+}
+/** Somewhere else to start this time: a room not the last one, and an outlet for him at least TUNING.house.startFar m off. */
+let lastStart = -1;
+function pickStart() {
+  const ok = LEVEL.spawns.map((sp, i) => i).filter((i) => i !== lastStart && world.penetration(LEVEL.spawns[i][0], LEVEL.spawns[i][1], TUNING.player.radius, 0.02, 0.3) <= 0);
+  const i = ok.length ? ok[Math.floor(Math.random() * ok.length)] : 0, [x, z, yaw] = LEVEL.spawns[i]; lastStart = i;
+  const far = LEVEL.outlets.map((o, k) => k).filter((k) => Math.hypot(LEVEL.outlets[k].pos[0] - x, LEVEL.outlets[k].pos[2] - z) >= TUNING.house.startFar);
+  const outlet = far.length ? far[Math.floor(Math.random() * far.length)] : 0;
+  return { x, z, yaw, outlet };
 }
 let tutWas = false, runTime = 0, ended = false, introT = -1, clockVoice = null, staticVoice = null;
 const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet. Make some noise.'], [7.8, "Knock things over. Wake Grandma. Don't let Mr. Tidy catch you."]];
@@ -150,8 +171,8 @@ const ending = new Ending({ scene, camera, vac, world, onDone: () => {
   else endScreen.show('Good Kitty', stats());
 } });
 knock.onBonus = (o) => { // one of his things: no help with Grandma, and he knows it was you
-  knock.count += TUNING.bonus.anger; vac.bonusBroken(o);
-  subtitles.show(`You unravelled ${o.t.bonus} (${knock.bonus} of ${knock.bonusTotal}). Grandma slept through it. He didn't.`, 'bonus' + knock.bonus, 4.5, '', true);
+  vac.bonusBroken(o);
+  subtitles.show(`Yarn ${knock.bonus}/${knock.bonusTotal}`, 'bonus' + knock.bonus, 2.5, '', true);
 };
 ending.instant = params.has('play'); // (the headless checks go straight to the end screen)
 grandma.onWin = () => {

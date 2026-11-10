@@ -110,9 +110,8 @@ html, body {
   padding: calc(3px * var(--px)) calc(6px * var(--px));
   background: linear-gradient(#41202a, #2c141b); border: 1px solid #7c4a48; box-shadow: inset 0 1px 0 rgba(255, 210, 190, .08);
 }
-#pause button:hover { background: linear-gradient(#55262e, #3a1820); border-color: #d9a35a; }
-/* his red: a little pip on whatever the mouse is over */
-#pause button:hover::before { content: ''; position: absolute; left: calc(3px * var(--px)); top: 50%; width: calc(2px * var(--px)); height: calc(2px * var(--px)); margin-top: calc(-1px * var(--px)); background: var(--red); box-shadow: 0 0 0 1px #2a0806; }
+#pause button:hover { background: linear-gradient(#7a3a44, #52242e); border-color: #f2c878; } /* (no pip: the hovered button just stands out) */
+#pause button:hover .pix { filter: brightness(1.45) contrast(1.1); }
 #pause:not(.title) #resume { border-color: #a8743e; }
 #pause button.small { background: transparent; border-color: #5a3036; box-shadow: none; padding: calc(2px * var(--px)) calc(5px * var(--px)); }
 #pause button.small:hover { background: rgba(196, 48, 42, .12); border-color: #a05a50; }
@@ -127,7 +126,6 @@ html, body {
 #pause .row { display: flex; justify-content: space-between; align-items: center; gap: calc(6px * var(--px)); min-height: calc(13px * var(--px)); }
 #pause .ctl { display: flex; align-items: center; gap: calc(4px * var(--px)); }
 #pause .ctl button.pick { width: auto; min-width: calc(60px * var(--px)); padding: calc(2px * var(--px)) calc(4px * var(--px)); }
-#pause .ctl button.pick:hover::before { display: none; }
 #pause .ctl .val { min-width: calc(22px * var(--px)); display: flex; justify-content: flex-end; }
 #pause input[type=range] { width: calc(60px * var(--px)); accent-color: #c9584c; }
 #pause .controls { display: grid; grid-template-columns: calc(68px * var(--px)) 1fr; gap: calc(1px * var(--px)) calc(6px * var(--px)); align-items: center; margin-bottom: calc(5px * var(--px)); }
@@ -146,8 +144,7 @@ html, body {
 #pause.title .main { align-items: center; gap: calc(2px * var(--px)); }
 #pause.title .main .pix { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
 #pause.title .main button { width: auto; min-width: calc(110px * var(--px)); background: transparent; border-color: transparent; box-shadow: none; padding: calc(2px * var(--px)) calc(10px * var(--px)); }
-#pause.title .main button:hover { background: rgba(30, 8, 10, .45); border-color: rgba(217, 163, 90, .45); }
-#pause.title .main button:hover::before { left: calc(4px * var(--px)); width: calc(3px * var(--px)); height: calc(3px * var(--px)); margin-top: calc(-1.5px * var(--px)); }
+#pause.title .main button:hover { background: rgba(70, 18, 24, .78); border-color: rgba(242, 200, 120, .95); }
 #pause.title .note { max-width: calc(220px * var(--px)); align-self: center; }
 #pause.title.settings { background: radial-gradient(ellipse at center, rgba(34, 10, 14, .5), rgba(4, 1, 2, .9)); align-items: center; }
 #pause.title.settings .panel { width: min(calc(150px * var(--px)), calc(100vw - 32px)); margin-top: 0; overflow: auto;
@@ -193,8 +190,6 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
   box-shadow: inset 0 0 0 1px #3a2610, 0 calc(2px * var(--px)) calc(6px * var(--px)) rgba(0, 0, 0, .6); }
 #end .portrait .art { display: block; width: 100%; height: 100%; image-rendering: pixelated; box-shadow: inset 0 0 0 1px #000; }
 #end .portrait.gone .art { filter: grayscale(.75) sepia(.35) brightness(.72) contrast(1.05); }
-#end .portrait .ribbon { position: absolute; top: calc(4px * var(--px)); right: calc(-7px * var(--px)); width: calc(34px * var(--px)); height: calc(5px * var(--px));
-  background: #0b0b0c; transform: rotate(40deg); transform-origin: center; box-shadow: 0 1px 0 rgba(255, 255, 255, .06); }
 #end .plate { width: calc(64px * var(--px)); image-rendering: pixelated; }
 #end.gone .plate { filter: grayscale(.4) brightness(.8); }
 #end .words { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3px * var(--px)); min-width: 0; }
@@ -213,11 +208,31 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 #cut[hidden] { display: none; }
 
 
-/* ---- the retry screen: his hallway wall, the empty frame ---- */
-#end { background: radial-gradient(ellipse at center, rgba(40, 6, 6, .7) 0%, rgba(0, 0, 0, .95) 70%); }
-#end::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .25) 0 1px, transparent 1px 3px); animation: endScan 6s linear infinite; }
-@keyframes endScan { from { background-position: 0 0; } to { background-position: 0 60px; } }
-#end .box { padding: calc(10px * var(--px)) calc(16px * var(--px)); background: linear-gradient(#140d0a, #0b0706); border: calc(2px * var(--px)) solid #3a2a1e; box-shadow: inset 0 0 0 1px #5a4430, 0 0 60px rgba(0, 0, 0, .9); }
-#end .box img:first-child { border: calc(3px * var(--px)) solid #7a5a32; box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #2a1c10; margin-bottom: calc(2px * var(--px)); }
-#end button { background: linear-gradient(#2a1e14, #1c140e); border: 1px solid #6a5032; }
-#end button:hover { background: linear-gradient(#3a2a1a, #261a10); border-color: #b8945a; }
+/* ---- the end screens, dressed: a win is a warm room (the lamp on, the wallpaper's roses), a death is a cold stone, R.I.P. No moving lines. ---- */
+#end { background:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 200, 120, .16) 0%, rgba(0, 0, 0, 0) 45%),
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, .7) 80%, rgba(0, 0, 0, .95) 100%),
+    repeating-linear-gradient(90deg, rgba(200, 120, 130, .09) 0 calc(2px * var(--px)), transparent calc(2px * var(--px)) calc(18px * var(--px))),
+    #1c1012; }
+#end.gone { background:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, .75) 75%, #000 100%),
+    linear-gradient(#141516, #0a0a0b); }
+#end .card { position: relative; background: linear-gradient(#24171a, #170e10); border-color: #5a3238; outline-color: #c9a44a;
+  box-shadow: 0 0 0 1px #0a0405, 0 calc(6px * var(--px)) calc(30px * var(--px)) rgba(0, 0, 0, .8), inset 0 0 calc(20px * var(--px)) rgba(255, 190, 120, .06); }
+#end .card::before, #end .card::after { content: ''; position: absolute; left: calc(10px * var(--px)); right: calc(10px * var(--px)); height: calc(3px * var(--px));
+  background: radial-gradient(circle at 50% 0, #e8d8c0 0 calc(1px * var(--px)), transparent calc(1.5px * var(--px))) 0 0 / calc(5px * var(--px)) 100% repeat-x; opacity: .55; } /* a lace edge */
+#end .card::before { top: calc(2px * var(--px)); } #end .card::after { bottom: calc(2px * var(--px)); transform: scaleY(-1); }
+#end.gone .card { background: linear-gradient(#2a2a2c, #18181a); border-color: #4a4a4e; outline-color: #7a7a80; box-shadow: 0 0 0 1px #000, 0 calc(6px * var(--px)) calc(30px * var(--px)) rgba(0, 0, 0, .9); }
+#end.gone .card::before, #end.gone .card::after { display: none; }
+#end .rip { width: calc(64px * var(--px)); box-sizing: border-box; display: flex; justify-content: center; padding: calc(2px * var(--px)) 0;
+  background: linear-gradient(#5a5a60, #3a3a40); border: 1px solid #1a1a1c; box-shadow: inset 0 0 0 1px #77777e; } /* a small stone plaque */
+#end button { background: linear-gradient(#3a2226, #24141a); border: 1px solid #8a5a5e; }
+#end button:hover { background: linear-gradient(#5a3438, #3a2026); border-color: #e0c080; }
+#end.gone button { background: linear-gradient(#2e2e32, #1c1c20); border-color: #6a6a70; }
+#end.gone button:hover { background: linear-gradient(#45454a, #2a2a30); border-color: #b0b0b8; }
+
+/* the power surge (src/vacuum/closeup.js): the words, wavering, with a cold glow */
+#surge { position: absolute; top: 13%; left: 50%; transform: translateX(-50%); display: flex; align-items: flex-end; gap: 3px; z-index: 9; pointer-events: none; }
+#surge[hidden] { display: none; }
+#surge .pix { width: calc(var(--w) * 4px); height: calc(var(--h) * 4px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; animation: surge-wave .7s ease-in-out infinite alternate; filter: drop-shadow(0 0 6px rgba(150, 200, 255, .75)); }
+@keyframes surge-wave { from { transform: translateY(-5px) skewX(-6deg); } to { transform: translateY(5px) skewX(6deg); } }

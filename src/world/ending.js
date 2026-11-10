@@ -119,13 +119,19 @@ export class Ending {
     }
     if (!best) best = { p: new THREE.Vector3(v.x + Math.sin(v.heading) * 0.8, y + E.vacUp, v.z + Math.cos(v.heading) * 0.8), a: v.heading, off: 0 };
     this.hoseSide = best.off > 0 ? -1 : 1;
+    { // and it lies on the open floor, not through a wall or a cupboard: the side with room for it, or straight out in front
+      const room = (side) => { let free = 0; for (const [fw, sd] of [[0.14, 0.12], [0.16, 0.3], [0.16, 0.45]]) { const f = [Math.sin(v.heading), Math.cos(v.heading)], x = v.x + f[0] * (0.24 + fw) + f[1] * side * sd, z = v.z + f[1] * (0.24 + fw) - f[0] * side * sd; if (!this.vox || !this.vox.blocked(x, 0.08, z)) free++; } return free; };
+      const a = room(this.hoseSide), b = room(-this.hoseSide);
+      if (b > a) this.hoseSide = -this.hoseSide;
+      this.hoseStraight = Math.max(a, b) < 3; // (no room either side: it just drops in front of him)
+    }
     this.vacCam.copy(best.p); this.vacLook.copy(face); this.vacDir.copy(face).sub(best.p).setY(0).normalize();
   }
 
   /** His hose, off to the side away from the camera: curled up while he's going, then dropping to the floor. */
   _hoseAside(fall) {
     const v = this.vac, h = v._hole(), s = this.hoseSide, f = _a.set(Math.sin(v.heading), 0, Math.cos(v.heading)), side = _b.set(f.z * s, 0, -f.x * s);
-    const P = (fw, sd, y) => new THREE.Vector3(h.x + f.x * fw + side.x * sd, y, h.z + f.z * fw + side.z * sd);
+    const P = (fw, sd, y) => new THREE.Vector3(h.x + f.x * fw + side.x * sd * (this.hoseStraight ? 0.15 : 1), y, h.z + f.z * fw + side.z * sd * (this.hoseStraight ? 0.15 : 1));
     const up = [P(0, 0, h.y), P(0.08, 0.02, h.y + 0.04), P(0.12, 0.14, h.y + 0.16), P(0.06, 0.3, h.y + 0.26)];
     const down = [P(0, 0, h.y), P(0.07, 0.02, h.y - 0.06), P(0.14, 0.12, 0.1), P(0.16, 0.42, 0.03)];
     v.hose.lay(up.map((p, i) => p.lerp(down[i], fall)));

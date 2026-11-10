@@ -259,8 +259,8 @@ function furnishings(tex) {
   const lam = (c, extra) => makePS1(new THREE.MeshLambertMaterial({ color: c, ...extra }));
   const boxM = (mat, x0, x1, y0, y1, z0, z1) => { const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat); m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2); g.add(m); return m; };
   const white = lam(0xe8e4d8), chrome = lam(0xb8bcc4), dark = lam(0x1a2228), glassy = lam(0x3a5868, { emissive: 0x0a1418 });
-  { // the washing machine: a white box with its round glass door at the front, and the knobs along the top
-    const w = S.get('washer'), [x0, , z0] = w.min, [x1, y1, z1] = w.max, cx = (x0 + x1) / 2, cy = y1 * 0.5;
+  for (const id of ['washer', 'dryer']) { // the washing machine and the dryer beside it, a matching pair: white boxes with round glass doors at the front, knobs along the top
+    const w = S.get(id), [x0, , z0] = w.min, [x1, y1, z1] = w.max, cx = (x0 + x1) / 2, cy = y1 * 0.5;
     boxM(white, x0, x1, 0, y1, z0, z1);
     const ring = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 0.02, 16).rotateX(Math.PI / 2), chrome); ring.position.set(cx, cy, z0 - 0.006); g.add(ring);
     const door = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.022, 16).rotateX(Math.PI / 2), glassy); door.position.set(cx, cy, z0 - 0.009); g.add(door);
@@ -279,9 +279,13 @@ function furnishings(tex) {
     boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.min[2] + 0.05, K.max[2] - 0.05); // (under the keys)
     boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.min[2], K.min[2] + 0.05); boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.max[2] - 0.05, K.max[2]); // the cheeks
     const kc = document.createElement('canvas'); kc.width = 64; kc.height = 8; const kg = kc.getContext('2d'); kg.fillStyle = '#f2ecdc'; kg.fillRect(0, 0, 64, 8); kg.fillStyle = '#8a8070'; for (let i = 0; i < 64; i += 2) kg.fillRect(i, 0, 1, 8); kg.fillStyle = '#141210'; for (let i = 0; i < 32; i++) if ([1, 2, 4, 5, 6].includes(i % 7)) kg.fillRect(i * 2 + 1, 0, 1, 5);
-    const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace; pixelTexture(kt);
+    const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace; pixelTexture(kt); kt.wrapS = THREE.RepeatWrapping; kt.repeat.x = -1; kt.offset.x = 1; // (mirrored onto the plane: flipped back, so the twos and threes of black keys run the right way)
     const keys = new THREE.Mesh(new THREE.PlaneGeometry(K.max[2] - K.min[2] - 0.1, P.min[0] - K.min[0]).rotateX(-Math.PI / 2).rotateY(Math.PI / 2), makePS1(new THREE.MeshLambertMaterial({ map: kt })));
     keys.position.set((K.min[0] + P.min[0]) / 2, K.max[1] + 0.002, (K.min[2] + K.max[2]) / 2); g.add(keys);
+    { const B = S.get('pStool'), [bx0, , bz0] = B.min, [bx1, by1, bz1] = B.max, frame = tex('wood_walnut'), pad = tex('fabric_velvet_curtain'); // the piano stool: a padded bench on four turned legs
+      boxM(pad, bx0, bx1, by1 - 0.05, by1, bz0, bz1); boxM(frame, bx0 + 0.005, bx1 - 0.005, by1 - 0.09, by1 - 0.05, bz0 + 0.005, bz1 - 0.005);
+      for (const [lx, lz] of [[bx0 + 0.03, bz0 + 0.03], [bx1 - 0.03, bz0 + 0.03], [bx0 + 0.03, bz1 - 0.03], [bx1 - 0.03, bz1 - 0.03]]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.013, by1 - 0.09, 6), frame); leg.position.set(lx, (by1 - 0.09) / 2, lz); g.add(leg); }
+      boxM(frame, bx0 + 0.03, bx1 - 0.03, 0.12, 0.14, (bz0 + bz1) / 2 - 0.01, (bz0 + bz1) / 2 + 0.01); } // (a stretcher between the legs)
     boxM(lam(0xc9a44a), P.min[0] - 0.005, P.min[0], 0.95, 1.0, (P.min[2] + P.max[2]) / 2 - 0.2, (P.min[2] + P.max[2]) / 2 + 0.2); // a brass name strip
   }
   return g;

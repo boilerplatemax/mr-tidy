@@ -85,7 +85,7 @@ function freshVac(kit, id, anger = 1) {
   for (const m of kit.debris.messes) m.cleaned = true;
   if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
   v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
-  v._endReach(); v._endBlast(); v._endSuck(); v._endCreep(); v._endFog(); v.cloud.reset(); v.foundT = 0; v.stunT = 0; v.stunCd = 99; v.creepCd = 99; v.fogCd = 99; v.stingCd = 99; v.alertCd = 0; v.freezeT = 0; v.thinkT = 999; v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0; v.rushed = true; v.rush = false; v.lurkCd = 999; v.calmT = 0; v.heat = [0, 0, 3, 6, 9, 12][anger] ?? 0;
+  v._endReach(); v._endBlast(); v._endSuck(); v._endCreep(); v._endFog(); v.cloud.reset(); v.foundT = 0; v.stunT = 0; v.stunCd = 99; v.creepCd = 99; v.fogCd = 99; v.stingCd = 99; v.alertCd = 0; v.freezeT = 0; v.thinkT = 999; v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0; v.rushed = true; v.rush = false; v.lurkCd = 999; v.ambushCd = 999; v.streak = []; v.burstCd = 99; v.peekCd = 99; v.calmT = 0; v.heat = [0, 0, 3, 6, 9, 12][anger] ?? 0;
   v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
   v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
   return v;
@@ -143,11 +143,12 @@ function huntChecks(kit) {
   report('gives up on a cat out of reach', up && gave && v.state !== 'CHASE', v.state);
 
   // the chase, and the cat outrunning him at his angriest
-  reset('Hk', 4); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57); v.lungeCd = 99; // (his chasing speed, not the lunge)
+  reset('H2', 4); v.heading = 1.57; v.path = [v.nav.nodes.get('Hk')]; v.pathI = 0; cat(8, -0.45, 0.001, -1.57); v.lungeCd = 99; // (his chasing speed, not the lunge; you run east down the hall)
   for (let i = 0; i < 30 && v.state === 'PATROL'; i++) kit.tick(dt);
   const chasing = v.state === 'CHASE' || v.state === 'HOSE_REACH' || v.state === 'LUNGE'; I.keys.add('KeyW'); I.keys.add('ShiftLeft');
+  for (let i = 0; i < 25; i++) kit.tick(dt); // (up to speed first)
   const d0 = Math.abs(v.x - P.pos.x);
-  for (let i = 0; i < 100; i++) kit.tick(dt);
+  for (let i = 0; i < 75; i++) kit.tick(dt);
   const d1 = Math.abs(v.x - P.pos.x); I.keys.clear();
   report('a running cat outpaces him at anger 3', chasing && d1 > d0 && !caughtBy, `gap ${d0.toFixed(2)} to ${d1.toFixed(2)} m`);
 
@@ -663,7 +664,7 @@ function restartChecks(kit) {
   report('Play again: everything back as it started', fresh());
   // some mischief, then caught
   K._knockOver(K.byId.get('standPlant')); K._knockOver(K.byId.get('mug2'));
-  report('a new run plays: objects break again and count', K.count === 2 && D.messes.length === 2 && G.wake > 0);
+  report('a new run plays: objects break again and count (the first few do not stir Grandma)', K.count === 2 && D.messes.length === 2 && G.free === TUNING.grandma.freeKnocks - 2 && G.wake === 0);
   for (let i = 0; i < 60; i++) kit.tick(dt);
   P.render(1); kit.camera.updateMatrixWorld(true);
   v._catch('hose');
@@ -686,7 +687,7 @@ function grandmaChecks(kit) {
   const total = values.reduce((a, b) => a + b, 0), avg = total / values.length;
   let best = 0, sum = 0; while (sum < 100 && best < values.length) sum += values[best++];
   let worst = 0; sum = 0; for (let i = values.length - 1; i >= 0 && sum < 100; i--) { sum += values[i]; worst++; }
-  report('a run takes about 13–18 knock-overs', 100 / avg >= 13 && 100 / avg <= 18 && total >= 100, `average ${(100 / avg).toFixed(1)}, loudest-first ${best}, quietest-first ${worst}, all ${values.length} give ${total.toFixed(0)}`);
+  const free = TUNING.grandma.freeKnocks; report('a run takes about 25–35 knock-overs (the first few free)', 100 / avg + free >= 25 && 100 / avg + free <= 35 && total >= 100, `average ${(100 / avg + free).toFixed(1)}, loudest-first ${best}, quietest-first ${worst}, all ${values.length} give ${total.toFixed(0)}`);
   const near = G.valueOf(17, -0.7, 10), far = G.valueOf(1, 5, 10);
   report('a crash near her door counts for more', near > far * 1.8, `${near.toFixed(1)} vs ${far.toFixed(1)}`);
   const w0 = G.wake; G.add(-30); G.add(0);
@@ -803,14 +804,14 @@ function climbChecks(kit) {
   const report = (name, ok, note) => rows.push(`${ok && Number.isFinite(P.pos.x + P.pos.z + P.feetY) ? 'ok  ' : 'FAIL'} CLIMB ${name}${note ? ' (' + note + ')' : ''}`);
 
   // the scratch panel from the floor: all the way up, over the top
-  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  put(5.3, 0.001, -6.2, 0); I.keys.add('KeyW');
   let climbed = false, t = 0;
   while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; if (P.mode === 'climb') climbed = true; }
   I.keys.clear();
-  report('floor -> scratchPanel top', climbed && P.groundCollider?.id === 'scratchPanel', `${t.toFixed(2)} s, stamina ${P.stamina.toFixed(2)}`);
+  report('floor -> curtain top (the climbing wall)', climbed && P.groundCollider?.id === 'dcP', `${t.toFixed(2)} s, stamina ${P.stamina.toFixed(2)}`);
 
   // out of stamina part-way: slides down cleanly to the floor
-  put(5.55, 0.001, 4.75, Math.PI); P.stamina = 0.15; I.keys.add('KeyW');
+  put(5.3, 0.001, -6.2, 0); P.stamina = 0.15; I.keys.add('KeyW');
   let slid = false, top = 0; t = 0;
   while (t < 5 && !(slid && P.grounded)) { kit.tick(dt); t += dt; top = Math.max(top, P.feetY); if (P.mode === 'slide') slid = true; }
   I.keys.clear();
@@ -828,14 +829,9 @@ function climbChecks(kit) {
   I.keys.clear();
   report('floor -> curtain -> rail', P.groundCollider?.id === 'dcP', `${t.toFixed(2)} s`);
 
-  // the kitchen's climbed way up
-  put(9.5, 0.001, 4.75, Math.PI); I.keys.add('KeyW'); t = 0;
-  while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; }
-  I.keys.clear();
-  report('floor -> kitchenPanel top', P.groundCollider?.id === 'kitchenPanel', `${t.toFixed(2)} s`);
 
   // cling: let go of W mid-climb and stay put, draining slowly; then S climbs back down to the floor
-  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  put(5.3, 0.001, -6.2, 0); I.keys.add('KeyW');
   for (let i = 0; i < 50; i++) kit.tick(dt);
   I.keys.clear();
   const y0 = P.feetY, s0 = P.stamina;
@@ -848,7 +844,7 @@ function climbChecks(kit) {
   report('S climbs down to the floor', P.grounded && P.feetY === 0);
 
   // jump at a climbable face with no keys held: the claws catch it
-  put(5.55, 0.001, 4.35, Math.PI); I.keys.add('Space'); I.edges.add('Space');
+  put(5.3, 0.001, -5.7, 0); I.keys.add('Space'); I.edges.add('Space');
   for (let i = 0; i < 22; i++) kit.tick(dt);
   I.keys.clear(); t = 0;
   while (t < 1.5 && P.mode !== 'climb' && !(P.grounded && t > 0.1)) { kit.tick(dt); t += dt; }
@@ -887,7 +883,7 @@ function climbChecks(kit) {
   }
 
   // hold Space while clinging: a charged spring, and it goes further than a tap
-  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  put(5.3, 0.001, -6.2, 0); I.keys.add('KeyW');
   for (let i = 0; i < 40; i++) kit.tick(dt);
   I.keys.clear(); P.yaw = 0; const h0 = P.feetY;
   I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt);
@@ -949,14 +945,14 @@ function climbChecks(kit) {
   for (let i = 0; i < 4; i++) kit.tick(dt);
 
   // sideways on a climbable face: moves, animates, and stops at the end instead of falling off
-  put(5.7, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  put(5.0, 0.001, -6.2, 0); I.keys.add('KeyW'); // (the dining-room curtains)
   for (let i = 0; i < 40; i++) kit.tick(dt);
   I.keys.clear(); I.keys.add('KeyD');
   const xc = P.pos.x, dc = P.climbDist;
   for (let i = 0; i < 40; i++) kit.tick(dt);
   const sidestep = Math.abs(P.pos.x - xc), animated = P.climbDist > dc + 0.05;
   for (let i = 0; i < 90; i++) kit.tick(dt);
-  report('sideways on a wall moves, animates, stops at the end', P.mode === 'climb' && sidestep > 0.15 && animated && P.pos.x >= 5.3 - 1e-3 && P.pos.x <= 5.8 + 1e-3, `moved ${sidestep.toFixed(2)} m, ends x ${P.pos.x.toFixed(2)}`);
+  report('sideways on a wall moves, animates, stops at the end', P.mode === 'climb' && sidestep > 0.15 && animated && P.pos.x >= 4.7 - 1e-3 && P.pos.x <= 5.9 + 1e-3, `moved ${sidestep.toFixed(2)} m, ends x ${P.pos.x.toFixed(2)}`);
   I.keys.clear(); I.keys.add('KeyC'); kit.tick(dt); I.keys.clear(); for (let i = 0; i < 90; i++) kit.tick(dt);
 
   // the target sticks to a small perch as the charge builds past it, and the jump lands where the target is
@@ -972,13 +968,13 @@ function climbChecks(kit) {
   report('the target holds on a perch, and the jump lands on it', sawStuck && P.groundCollider?.id === 'chair', `${onChair} ticks on the chair, ${extra} held, ended on ${P.groundCollider?.id || 'floor'}`);
 
   // a kick-off, up the panel: looking back into the room, leaves the wall and flies
-  put(5.55, 0.001, 4.75, Math.PI); I.keys.add('KeyW');
+  put(5.3, 0.001, -6.2, 0); I.keys.add('KeyW');
   for (let i = 0; i < 60; i++) kit.tick(dt);
   const before = P.pos.z;
-  P.yaw = 0; I.edges.add('Space'); kit.tick(dt); I.keys.clear();
+  P.yaw = Math.PI; I.edges.add('Space'); kit.tick(dt); I.keys.clear(); // (looking back into the room)
   const kicked = P.mode === 'move' && !P.grounded && P.vy > 0;
   for (let i = 0; i < 20; i++) kit.tick(dt);
-  report('kick-off leaves the wall', kicked && P.pos.z < before - 0.3, `moved ${(before - P.pos.z).toFixed(2)} m`);
+  report('kick-off leaves the wall', kicked && P.pos.z > before + 0.3, `moved ${(P.pos.z - before).toFixed(2)} m`);
 
   // slink is silent: no footstep events
   let steps = 0; const prevOnStep = P.onStep; P.onStep = () => { steps++; };
@@ -1078,9 +1074,9 @@ function bonusChecks(kit) {
   const K = kit.knock, G = kit.grandma, v = kit.vac, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} BONUS ${name}${note ? ' (' + note + ')' : ''}`);
   kit.resetRun(); v.frozen = false;
-  const w0 = G.wake, c0 = K.count, o = K.byId.get('woolPurple'); K._knockOver(o);
+  const w0 = G.wake, c0 = K.count, h0 = v.heat, o = K.byId.get('woolPurple'); K._knockOver(o);
   report('unravelling one of his balls of wool does not wake Grandma', G.wake === w0, `wake ${G.wake}`);
-  report('but it counts toward his anger, and he comes for it', K.count === c0 + 1 + TUNING.bonus.anger && K.bonus === 1 && (v.state === 'INVESTIGATE' || v.state === 'ALERT'), `${K.count}, ${v.state}`);
+  report('but it counts toward his anger (once, like anything else), and he comes for it', K.count === c0 + 1 && v.heat === h0 + 1 && K.bonus === 1 && (v.state === 'INVESTIGATE' || v.state === 'ALERT'), `${K.count}, heat +${v.heat - h0}, ${v.state}`);
   report('there are five of them', K.bonusTotal === 5);
   kit.resetRun(); v.frozen = true;
   return rows;

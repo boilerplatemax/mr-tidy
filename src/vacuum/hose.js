@@ -290,6 +290,8 @@ export class Hose {
   frame(alpha, cam) {
     for (let i = 0; i <= this.n; i++) {
       const p = this.draw[i].lerpVectors(this.prev[i], this.pts[i], alpha);
+      const B = this.body; // never through his own body: anything inside the drum is pushed out to its skin (the catch, a tight turn)
+      if (B && i > 1 && p.y < B.top) { const dx = p.x - B.x, dz = p.z - B.z, d = Math.hypot(dx, dz); if (d < B.r) { const k = d > 1e-5 ? B.r / d : 0; p.x = B.x + (d > 1e-5 ? dx * k : B.r); p.z = B.z + dz * k; } }
       if (!cam) continue; // nothing comes inside a small bubble round the eye: it bends past instead of passing through the view
       const d = p.distanceTo(cam);
       if (d < H.camClear && d > 1e-5 && i > 0) p.sub(cam).multiplyScalar(H.camClear / d).add(cam);

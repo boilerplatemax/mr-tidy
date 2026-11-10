@@ -90,7 +90,9 @@ function faceTexture(draw) {
   draw(g);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
-  return pixelTexture(t);
+  pixelTexture(t);
+  t.minFilter = THREE.NearestFilter; t.generateMipmaps = false; // (no mipmaps on his face: from across the room they blurred the eyes and ran the pupils down into the whites)
+  return t;
 }
 
 /** A skin that follows his outline, so the face wraps round him instead of floating in front. */

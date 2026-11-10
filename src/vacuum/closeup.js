@@ -17,15 +17,18 @@ export class Closeup {
     this.active = false; this.kind = null; this.t = 0; this.shots = []; this.i = 0;
     this.fromPos = new THREE.Vector3(); this.fromQuat = new THREE.Quaternion(); this.glide = false; this.out = 0; this.outT = 0;
     this.pos = new THREE.Vector3(); this.look = new THREE.Vector3(); this.quat = new THREE.Quaternion(); this.fov = R.fov;
-    // the sparks that run along his cord
-    this.sparkGroup = new THREE.Group(); this.sparkGroup.visible = false; scene.add(this.sparkGroup);
-    const geo = new THREE.BoxGeometry(0.035, 0.035, 0.035), mat = new THREE.MeshBasicMaterial({ color: SG.sparkColor, fog: false });
-    this.sparks = Array.from({ length: SG.sparks }, () => { const m = new THREE.Mesh(geo, mat); this.sparkGroup.add(m); return m; });
+    // the electricity along his cord: the same jagged crackle that wreathes him, running out of the wall and along to him
+    this.arcPos = new Float32Array(SG.cordArcs * 6 * 6); const ag = new THREE.BufferGeometry(); ag.setAttribute('position', new THREE.BufferAttribute(this.arcPos, 3));
+    this.sparkGroup = new THREE.LineSegments(ag, new THREE.LineBasicMaterial({ color: SG.sparkColor, fog: false })); this.sparkGroup.frustumCulled = false; this.sparkGroup.visible = false; scene.add(this.sparkGroup);
     this.sparkT = -1;
+    // and the words, so it's plain what's happening: POWER SURGE, wavering
+    this.title = document.createElement('div'); this.title.id = 'surge'; this.title.hidden = true;
+    import('../ui/menu.js').then(({ pixText }) => { for (const ch of 'POWER SURGE') { const c = pixText(ch === ' ' ? ' ' : ch, '#d8ecff', { bold: true }); c.style.animationDelay = (-Math.random() * 0.3 + this.title.childElementCount * 0.09) + 's'; this.title.append(c); } });
+    document.body.append(this.title);
   }
 
   /** Stop at once (a catch, a new run). */
-  reset() { if (this.active) this._release(); this.active = false; this.sparkGroup.visible = false; this.sparkT = -1; }
+  reset() { if (this.active) this._release(); this.active = false; this.sparkGroup.visible = false; this.sparkT = -1; this.title.hidden = true; }
 
   play(kind) {
     if (this.active) this.reset();
@@ -41,7 +44,7 @@ export class Closeup {
     } else {
       this.glide = false;
       this.shots = [{ ...this._outletShot(), dur: SG.cutOutlet, fov: 62, push: 0.05 }, { ...this._faceShot([0.95, 0.8, 0.65]), dur: SG.cutVac, fov: 60, push: 0.1 }];
-      this.sparkT = 0;
+      this.sparkT = 0; this.title.hidden = false;
     }
     this.active = true;
   }
@@ -69,7 +72,7 @@ export class Closeup {
     return { pos: new THREE.Vector3(x + nx * 0.5, 0.4, z + nz * 0.5), look: new THREE.Vector3(along.x, 0.1, along.z) };
   }
 
-  _release() { this.player.frozen = false; this.camera.fov = R.fov; this.camera.updateProjectionMatrix(); }
+  _release() { this.title.hidden = true; this.player.frozen = false; this.camera.fov = R.fov; this.camera.updateProjectionMatrix(); }
 
   /** Per rendered frame while active (instead of the player's own view). */
   update(dt) {
@@ -107,22 +110,28 @@ export class Closeup {
     cam.updateProjectionMatrix(); cam.updateMatrixWorld();
   }
 
-  /** The power running out of the outlet and along the cord to him, in bright little sparks. */
+  /** The power running out of the outlet and along the cord to him: crackling arcs that start at the wall and spread toward him. */
   _sparks(dt) {
     if (this.sparkT < 0) { this.sparkGroup.visible = false; return; }
     this.sparkT += dt;
-    const c = this.vac.cord, P = c.pts, n = c.n || 0, st = c.start || 0;
-    if (n - st < 3 || this.sparkT > SG.cutOutlet + SG.cutVac) { this.sparkGroup.visible = false; if (this.sparkT > SG.cutOutlet + SG.cutVac) this.sparkT = -1; return; }
-    let L = 0; for (let i = st + 1; i < n; i++) L += Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y, P[i].z - P[i - 1].z);
-    this.sparkGroup.visible = true;
-    const N = this.sparks.length, gap = Math.min(0.5, L / N);
-    this.sparks.forEach((m, j) => {
-      const d = this.sparkT * SG.sparkSpeed - j * gap; // a train of them, out of the wall and away
-      m.visible = d >= 0 && Math.random() < 0.85; // (and round again: a steady stream)
-      if (!m.visible) return;
-      let rem = ((d % L) + L) % L, i = st + 1;
-      for (; i < n; i++) { const l = Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y, P[i].z - P[i - 1].z); if (rem <= l) { const f = l > 1e-6 ? rem / l : 0; m.position.set(P[i - 1].x + (P[i].x - P[i - 1].x) * f, P[i - 1].y + (P[i].y - P[i - 1].y) * f + 0.015, P[i - 1].z + (P[i].z - P[i - 1].z) * f); break; } rem -= l; }
-      m.scale.setScalar(0.6 + Math.random() * 0.9);
-    });
+    const c = this.vac.cord, P = c.pts, n = c.n || 0, st = c.start || 0, end = SG.cutOutlet + SG.cutVac;
+    if (n - st < 3 || this.sparkT > end) { this.sparkGroup.visible = false; this.title.hidden = this.sparkT > end || this.title.hidden; if (this.sparkT > end) this.sparkT = -1; return; }
+    const front = this.sparkT * SG.sparkSpeed, arr = this.arcPos; // how far along it the power has got (m)
+    let w = 0, along = 0;
+    const N = SG.cordArcs;
+    for (let i = st + 1; i < n && w < N * 36; i++) {
+      const a = P[i - 1], b = P[i], l = Math.hypot(b.x - a.x, b.z - a.z);
+      along += l;
+      if (along > front || Math.random() > SG.cordDensity) continue;
+      // a little jagged arc off the cord here: six zig-zag steps round it
+      let x = a.x, y = a.y + 0.01, z = a.z;
+      for (let k = 0; k < 6 && w < N * 36; k++) {
+        const nx = x + (b.x - a.x) * 0.2 + (Math.random() - 0.5) * 0.06, ny = Math.max(0.005, y + (Math.random() - 0.3) * 0.05), nz = z + (b.z - a.z) * 0.2 + (Math.random() - 0.5) * 0.06;
+        arr[w++] = x; arr[w++] = y; arr[w++] = z; arr[w++] = nx; arr[w++] = ny; arr[w++] = nz; x = nx; y = ny; z = nz;
+      }
+    }
+    this.sparkGroup.geometry.setDrawRange(0, w / 3);
+    this.sparkGroup.geometry.attributes.position.needsUpdate = true;
+    this.sparkGroup.visible = w > 0 && Math.random() < 0.9; // (it flickers)
   }
 }

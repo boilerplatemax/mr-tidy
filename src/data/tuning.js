@@ -153,7 +153,7 @@ export const TUNING = {
     arriveAfter: 3, show: 17, egg: 7.5, upAt: 1.45, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs; s the cartoon the aerial brings in runs; m up that counts as "up by the remote", however you got there
     gates: { fall: 0.6, lie: 1.4 }, // once they're over: s to fall; s lying there before they flicker out (TUNING.flicker)
     lamp: { power: 2.6, dist: 5.5, color: 0xffc888 } }, // the living-room floor lamp, on until you pull its plug: its light (it goes with the power, too)
-  flicker: [0.14, 0.14, 0.14, 0.14], // s: how a big thing vanishes: shown, hidden, shown, hidden, gone (the pet gates; big pieces he cleans up)
+  flicker: [0.12, 0.1, 0.12, 0.1, 0.1, 0.08, 0.1, 0.08], // s: how a big thing vanishes: shown, hidden, shown, hidden, gone (the pet gates; big pieces he cleans up)
   // ---------------------------------------------------------------- the ending (src/world/ending.js)
   ending: {
     cut: 1.1, fadeIn: 0.6, idle: 0.7, turn: 0.5, pull: 0.15, grip: 0.02, toVac: 1.05, die: 0.45, after: 4.6, fadeOut: 1.2, // s: the fade from the house; up into her room; she stands a moment; turns to the wall; into the yank when the plug comes out, and when it's in her hand; then the cut to him; how long he keeps going on screen; from then until it's over; the fade at the end
@@ -178,12 +178,13 @@ export const TUNING = {
     speed: [0.9, 1.1, 1.6, 2.5, 2.8], // m/s
     turnRate: 2.4, // rad/s
     arrive: 0.14, // m from a waypoint at which he moves on
-    angerAt: [3, 6, 9, 12], // knock-overs (since he last calmed down) that raise him to stages 2, 3, 4 and 5: cheerful and annoyed each last a few
+    angerAt: [3, 5, 13, 21], // knock-overs (since he last calmed down) that raise him to stages 2, 3, 4 and 5: angry (hunting) on the 5th
     // Calming down: from stages 2–4 (never once the power's gone), with every mess found and nothing seen of the cat for
     // calmTime s, he cheers up again (stage 1). Each time, angerAt is scaled by calmEase (quicker to tick off) and calmTime
     // by calmLonger (he stays angry for longer); calmFrom: stages it can happen from
-    calmTime: 32, calmEase: 0.7, calmLonger: 1.6, calmFrom: [2, 3, 4],
-    rushSpeed: 2.3, // m/s he hurries to the very first mess of the night
+    calmTime: 45, calmEase: 0.7, calmLonger: 1.6, calmFrom: [2, 3], // (rare, and never once he is furious)
+    rushSpeed: 3.0, // m/s he hurries to the very first mess of the night
+    streakWindow: 14, streakBoost: 0.3, streakMax: 2.2, // knock-overs this many s apart are a rampage: each one after the first sends him that much faster to it (share of his speed), up to this many times as fast, and from 3 in a row he hears them from anywhere
     trackGrace: 1.1, // s after losing sight of you in a chase he still knows where you went
     searchRounds: [0, 0, 1, 2, 2], searchGuess: 1.6, // by stage: how many more places he tries after the first look round; m his guess at where you went is off by
     hearNear: 7, // m: cheerful or annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
@@ -192,6 +193,7 @@ export const TUNING = {
     sightRange: [0, 0, 6.5, 10, 11], // m he can see the cat. Neutral and annoyed he doesn't hunt
     harmlessAt: 2, // at this stage and below, touching him does nothing
     hearSneeze: 9, // m he hears a sneeze from
+    hearPiano: [4, 11], // m he hears the piano from: walked on, landed on
     sightCos: 0.82, // cos of half his view: about 70° in all
     slinkSight: 0.5, // slinking halves how far away he notices you
     slinkNotice: 2.5, // ...and he takes this many times longer to react
@@ -226,6 +228,7 @@ export const TUNING = {
       stretch: [1, 1, 1.08, 1.22, 1.3], holeRs: [0.036, 0.036, 0.036, 0.036, 0.036], tone: [1, 0.92, 0.72, 0.5, 0.34], // by stage: how tall he stands; the intake's radius; how dark his body has gone
       twitch: 0.09, listenTilt: 0.14, flickTime: 0.45, // rad of twitching at the end; rad he leans back when he stops to listen; s his face flickers when he changes
       mawNose: { lift: 0.03, r: 0.028, ease: 14 }, // stage 5's toothed maw: m the nose hole (and the hose with it) rises above its usual height, its radius, 1/s it eases there
+      bodyR: 0.24, // m: the drum's radius, which no part of his hose is ever drawn inside
       catchDist: 0.42, // m in front of the hole where the camera ends up: close, but you see the whole of his face
       reelY: 0.2, reelZ: 0.275, // the cord reel on his back (m): height, how far behind him
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
@@ -257,9 +260,9 @@ export const TUNING = {
   // stage 5: s he stands there pulling the power out of the house; s the lights stutter; the little light the cat sees by; arcs around him.
   // The cut (src/vacuum/closeup.js): s on the outlet as the power runs out of it along his cord; s on him, crackling; the
   // sparks' speed along the cord (m/s), how many, their colour; s the electricity stays on him after the cut
-  surge: { time: 3.4, flickerUntil: 2.6, eyeLight: 0.7, eyeDist: 2.6, arcs: 9, cutOutlet: 1.3, cutVac: 1.6, sparkSpeed: 7, sparks: 14, sparkColor: 0xbfe0ff, arcAfter: 0.5, stutterEvery: [4, 11], // stutterEvery: s between each blackout light's little stutters
+  surge: { time: 3.4, flickerUntil: 2.6, eyeLight: 0.7, eyeDist: 2.6, arcs: 9, cutOutlet: 1.3, cutVac: 1.6, sparkSpeed: 7, cordArcs: 110, cordDensity: 0.55, sparkColor: 0xbfe0ff, arcAfter: 0.5, stutterEvery: [4, 11], // stutterEvery: s between each blackout light's little stutters
     bulbs: [[5, 2.85, -0.7], [8.4, 2.85, 2.7], [3, 2.85, -4]], bulbColor: 0xffd49a, bulbPower: 2.4, bulbDist: 6.5 }, // the failing ceiling bulbs in the blackout (hallway, kitchen, dining room): where, colour, strength at full, m they reach
-  voice: { every: 7, hear: 11, huffEvery: 10, huff: 1.1, turn: 3.4, turnFace: 0.75, pokeEvery: 2.5, shhEvery: 6, searchEvery: 5 }, // s between lines; m away you can make him out; s between huffs (stage 2); s a huff takes; s the change to angry takes; s into it his face goes and he says it; s between lines when you bat him; s between his shushes; s between his calls while he searches
+  voice: { every: 7, hear: 11, huffEvery: 10, huff: 1.1, turn: 3.4, turnFace: 0.75, pokeEvery: 2.5, shhEvery: 6, searchEvery: 5, quietStart: 4 }, // (quietStart: s at the start of a run before he says anything) // s between lines; m away you can make him out; s between huffs (stage 2); s a huff takes; s the change to angry takes; s into it his face goes and he says it; s between lines when you bat him; s between his shushes; s between his calls while he searches
   closeup: { dist: [0.78, 0.62, 0.5], up: 0.05, fov: 52, glideIn: 0.45, glideOut: 0.5, near: 4.5, push: 0.12 }, // "...that's enough.": m from his face the camera tries; m above it; degrees the view narrows to; s gliding in and back (when you're near enough to see him: otherwise a cut); m it creeps in
   stalk: { chance: 0.35, speed: 0.45, dip: 0.8 }, // from angry: how often he creeps up instead of coming (always in his dust); how slow; how quiet
   eat: { inflate: 1.6, wide: 1.28, into: 0.32, chomps: [0.45, 0.75, 1.05] }, // stage 5's catch: how tall and wide he swells; m the camera goes into the mouth; s the bites come
@@ -276,6 +279,15 @@ export const TUNING = {
     coil: 0.55, speed: 5.0, time: 0.42, recover: 0.9, // s of winding up (a dead giveaway); m/s and s of the lunge; s standing there after
     reach: 1.55, hoseSpeed: 10, lead: 0.35, // m the hose is rammed out to; m/s it goes; how much of where the cat is going he allows for
     cooldown: [0, 0, 7, 4.5, 3.5], chance: 0.6, // s before the next, by stage; odds he goes for it when he could (if not, he thinks again in a moment)
+  },
+  peek: { // right behind you in a chase, with you running from him: his nozzle comes past you at the very edge of your view (src/vacuum/vacuum.js _tickPeek)
+    reach: [0, 0, 1.7, 2.3, 2.9], every: [0, 0, 5, 3.5, 2.4], hold: [0, 0, 0.9, 1.3, 1.7], // by stage: m behind you he has to be; s between; s it stays
+    ahead: [0, 0, 0.18, 0.26, 0.34], side: 0.3, down: -0.09, // m in front of your eye it reaches (nearer the middle of the view, the angrier he is); m off to the side; m below the eye
+    snap: 0.07, snapRate: 11, speed: 9, // m and rad/s it snaps back and forth; m/s it gets there
+  },
+  burst: { minAnger: 3, lost: 0.7, time: 0.85, speed: 4.6, cooldown: [0, 0, 9, 6, 4.5] }, // lost you round a corner (s) and there you are again: he comes round it all at once, at this speed (faster than you) for this long; s before he can again, by stage
+  ambush: { // he knows where you're hiding: he goes quietly to just outside your room, out of sight, and sends the hose in (then, dodge it, a chase)
+    minAnger: 3, chance: [0, 0, 0.3, 0.4, 0.45], first: 30, cooldown: 45, near: [2.5, 7], time: 16, // by stage, odds on a second thought; s before the first; s between; m from you he waits; s the hose keeps coming
   },
   lurk: { // from angry, now and then he goes and stands where he can see you, and watches (src/vacuum/vacuum.js _startLurk)
     minAnger: 3, chance: [0, 0, 0.35, 0.45, 0.5], first: 25, cooldown: 40, // by stage, odds on a second thought; s before the first; s between
@@ -318,6 +330,7 @@ export const TUNING = {
     roll: 1.3, pitch: 0.55, drop: 0.13, // the view: rad it rolls, rad it tips, m it falls toward the floor
     time: 3.4, speedMul: 0.55, weave: 0.55, weaveRate: 4.6, lean: 0.08, // dazed: s; how much it slows you; rad your steering wanders; rad/s; rad the view hangs off level
     sneezeDelay: 1.6, sneezeDip: 0.05, // s until the sneeze; m the camera jolts
+    shockKnock: 2.2, shockUp: 1.8, // the live outlet in the blackout: m/s it throws you back, and up
     highAt: 0.35, highKnock: 3.6, highUp: 1.3, slideDrag: 0.7, // hit up on something (feet above this, m): thrown harder and flatter (m/s along, up), and it skids with this little grip (1/s) until the tumble's over, so you nearly always go off the edge
   },
   hose: { // the snake out of the hole (src/vacuum/hose.js, src/vacuum/voxels.js)
@@ -383,7 +396,9 @@ export const TUNING = {
 
   // ---------------------------------------------------------------- Grandma and the win (src/world/grandma.js)
   grandma: {
-    gain: 0.8, // scales every crash. The main "how long is a run" number: about 15 knock-overs on average (he reaches the blackout at about 12)
+    gain: 0.5, // scales every crash. The main "how long is a run" number: about 30 knock-overs on average, counting the free ones (he reaches the blackout at about 21)
+    freeKnocks: 5, // the first knock-overs of a run she sleeps right through
+    piano: 4, pianoMax: 3, pianoEvery: 6, // a landing on the piano keys: wake points; how many times a night it can count; s between
     farScale: 0.6, nearScale: 1.5, // what a crash is worth far from her door / right at it
     range: 17, // m from the door at which a crash counts as far
     thresholds: [25, 50, 75], // wake values where the snoring lightens and a cue plays
@@ -476,7 +491,7 @@ export const TUNING = {
     chunkSize: [0.05, 0.09], decalSize: 0.34, // m: the big pieces that a "break" leaves; a stain
     chatter: 3, roll: 1.3, // s dentures chatter across the floor; s a lid or head keeps rolling
     paperPieces: 5, woolPieces: 4, buttons: 20, feathers: 8, puffLife: 0.7, // how far the trails run (0.6 m a piece) and how much spills
-    rollers: { toilet_roll: { len: 7, step: 0.07, width: 0.095, r0: 0.056, r1: 0.034, uniform: false }, yarn_ball: { len: 9, step: 0.05, width: 0.022, r0: 0.049, r1: 0.006, uniform: true, vanish: true }, wool: { len: 18, step: 0.05, width: 0.034, r0: 0.071, r1: 0.008, uniform: true, vanish: true } }, // (wool: his five balls of best wool, which unwind right across a room) things that unwind as they roll: m it holds; m between points; m wide; radius full and spent; shrinks every way
+    rollers: { toilet_roll: { len: 7, step: 0.07, width: 0.095, r0: 0.056, r1: 0.034, uniform: false }, yarn_ball: { len: 9, step: 0.05, width: 0.022, r0: 0.049, r1: 0.006, uniform: true, vanish: true }, wool: { len: 9, step: 0.05, width: 0.034, r0: 0.071, r1: 0.032, uniform: true, vanish: true } }, // (wool: his five balls of best wool, which unwind right across a room) things that unwind as they roll: m it holds; m between points; m wide; radius full and spent; shrinks every way
     rollFriction: 1.15, rollStart: 2.4, rollStop: 0.12, // m/s²; how fast it sets off; m/s at which it stops. Hit it again and it goes again
     handsetLeash: 0.34, // m: the phone's handset stays on its cord // the toilet roll: m of paper; m/s; m between points on the strip; points; m wide; radius full and bare
     vacBounce: 1.6, vacThrow: 1.0, // m/s an object comes off him at, up and outward
@@ -506,7 +521,7 @@ export const TUNING = {
     // rad the paw is turned (toes up, toes swinging left, pad turning to face the way it bats); blendIn / blendOut: share
     // of the swipe spent leaving / going back to the planted paw; below: m under the view it rises from in the air
     swipe: { path: [[0.07, -0.13, -0.14], [0.085, -0.035, -0.15], [-0.06, -0.05, -0.17], [-0.02, -0.14, -0.13]], up: 0.3, across: 0.62, arc: 0.025, pitch: 0.55, yaw: [-0.2, 0.6], roll: [-0.5, -1.0], blendIn: 0.28, blendOut: 0.72, below: 0.14 },
-    darkGlow: 0x6e6252, // the paws' own light in the blackout (glow eases to this as the power goes), so they aren't black
+    darkTint: 0x5a2c10, // the paws' own glow in the blackout (it eases there from glow as the power goes): a dim ginger, so they're orange paws, not black or grey
      // a little light of their own, so an underside isn't black; m: the forearm's length in the model
     hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end
     keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)
@@ -558,6 +573,7 @@ export const TUNING = {
 
   // ---------------------------------------------------------------- the house (src/world/house.js)
   house: {
+    startFar: 7, // m: on a new run he starts plugged in at least this far from you
     tile: { fabric_velvet_curtain: 0.4, carpet_rose: 0.35, fabric_carpet: 0.35, wood_walnut: 0.5, wood_oak: 0.5, cardboard: 0.5, formica_retro: 0.5, paint_cream: 0.5, tile_bath_floor: 0.5 }, // metres per repeat of a texture (default 0.5)
     colors: {
       landTop: 0xc98a4a, // the top of anything you can land on

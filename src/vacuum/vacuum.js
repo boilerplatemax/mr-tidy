@@ -14,7 +14,7 @@ import { audio } from '../audio/audio.js';
 import { subtitles } from '../ui/subtitles.js';
 import { LINES } from './voice.js';
 
-const LK = TUNING.lurk;
+const LK = TUNING.lurk, PK = TUNING.peek, BU = TUNING.burst, AM = TUNING.ambush;
 const V = TUNING.vac, D = TUNING.drone, C = TUNING.cord, H = TUNING.hose, B = TUNING.blast, SU = TUNING.suck, A = TUNING.alert, RO = TUNING.roam, ST = TUNING.sting, CR = TUNING.creep, F = TUNING.fog, SG = TUNING.surge, FR = TUNING.friend, LU = TUNING.lunge;
 const between = ([a, b]) => a + Math.random() * (b - a);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -29,6 +29,7 @@ export class Vacuum {
     this.heat = 0; this.calms = 0; this.calmT = 0; // knock-overs since he last calmed down; how many times he has; how long he's been calming
     this.rushed = false; this.rush = false; this.searchLeft = 0; this.pokeCd = 0; this.shhCd = 0; this.searchSayCd = 0; this.turnFaced = true; this.arcFade = 0;
     this.lurkCd = LK.first; this.lurkPhase = null; this.lurkT = 0; this.lookT = 0;
+    this.streak = []; this.burstT = 0; this.burstCd = 0; this.lostFor = 0; this.peekT = 0; this.peekCd = 0; this.peekSide = 1; this.ambush = false; this.ambushCd = AM.first;
     this.onTurn = null; this.onSurge = null; // the cut-ins: "...that's enough." and the power surge (src/vacuum/closeup.js)
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
     this._dirv = { x: 0, y: 0, z: 0 }; this._under = null; this._notUnder = (c) => c.solid && c !== this._under; this.campT = 0; this.ignoreT = 0;
@@ -63,8 +64,9 @@ export class Vacuum {
   get ready() { return this.model.ready; }
 
   /** Back to the start, for a new run. */
-  reset() {
-    const start = this.nav.nodes.get(LEVEL.vacStart), o = LEVEL.outlets[0];
+  /** outlet: the one he starts plugged into, by its index in LEVEL.outlets (he starts at its waypoint); omitted: the first. */
+  reset(outlet = null) {
+    const o = LEVEL.outlets[outlet ?? 0], start = outlet == null ? this.nav.nodes.get(LEVEL.vacStart) : this.nav.nodes.get(o.node);
     this.hush(0.05);
     this.voice?.stop(0.05); this.voice = null; // (a fresh motor every run: whatever the last one was doing, it's gone)
     this.x = this.px = start.x; this.z = this.pz = start.z; this.heading = this.prevHeading = 0;
@@ -82,8 +84,9 @@ export class Vacuum {
     this.lurkCd = LK.first; this.lurkPhase = null; this.lurkT = 0; this.lookT = 0;
     this.heat = 0; this.calms = 0; this.calmT = 0; this.rushed = false; this.rush = false; this.searchLeft = 0; this.pokeCd = 0; this.shhCd = 0; this.searchSayCd = 0; this.turnFaced = true; this.arcFade = 0;
     this.model.face.visible = true;
-    this.setAnger(1);
-    this.anger = 1; this.model.setFace(1);
+    this.anger = 1; this.setAnger(1); this.model.setFace(1); // (quietly: no "all tidy" tune at the start of a run)
+    this.sayCd = TUNING.voice.quietStart; this.greetCd = TUNING.voice.quietStart + 1; // a moment's peace before he says anything
+    this.streak = []; this.burstT = 0; this.burstCd = 0; this.lostFor = 0; this.peekT = 0; this.peekCd = 0; this.peekSide = 1; this.ambush = false; this.ambushCd = AM.first;
     this.startSound();
   }
 
@@ -176,8 +179,6 @@ export class Vacuum {
   /** You broke one of his things: he's coming, whatever his mood, and he's angrier for it. */
   bonusBroken(o) {
     if (this.dormant || this.off) return;
-    this.heat += TUNING.bonus.anger; this.calmT = 0;
-    { const want = this._stageFor(this.heat); if (want > this.anger) this.setAnger(want, true); }
     this._say('mine', true, true); // (the caption for this one is the game's own, in one line)
     if (this.state !== 'CHASE' && !this._attacking()) { this.state = 'INVESTIGATE'; this.stalk = false; this.routeTo(this.nav.nearest(o.x, o.z)); }
   }
@@ -339,6 +340,13 @@ export class Vacuum {
     camera.getWorldDirection(_s);
     if ((dx * _s.x + dy * _s.y + dz * _s.z) / d < S.cone) return false;
     if (this.plugLock > 0) { audio.play('knock.clink', { pos: p }); return false; } // jammed in for now
+    if (this.anger >= 5) { // the power's all his now: the plug's live, and it throws the cat back
+      audio.play('vac.surgeBuzz', { pos: p, gain: 1.2 }); audio.play('vac.stun', { pos: p, rate: 1.6 });
+      this.model.arcsOn(1); this.arcFade = SG.arcAfter;
+      const P = this.player; P.shock?.(eye.x - p.x, eye.z - p.z);
+      this._investigate(p.x, p.z);
+      return true;
+    }
     if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
     this._endReach(); this._endBlast(); this._endSuck(); this._endCreep(); this._endFog(); this.cloud.thin();
     this.direct = false;
@@ -436,6 +444,7 @@ export class Vacuum {
     this.thinkT = between(RO.think);
     const a = this.anger - 1, r = Math.random();
     if (this.lurkCd <= 0 && Math.random() < LK.chance[a] && this._startLurk()) return;
+    if (this.ambushCd <= 0 && Math.random() < AM.chance[a] && this._startAmbush()) return;
     if (Math.random() < RO.hunchChance[a] && !this.player.noclip) {
       let best = null, bd = Infinity; const P = this.player;
       for (const n of this.route) { const d = Math.hypot(n.x - P.pos.x, n.z - P.pos.z); if (d < bd) { bd = d; best = n; } }
@@ -481,6 +490,30 @@ export class Vacuum {
       return true;
     }
     this.lurkCd = 4; return false;
+  }
+
+  _roomOf(x, z) { return LEVEL.rooms.find((r) => x > r.min[0] && x < r.max[0] && z > r.min[1] && z < r.max[1])?.id ?? null; }
+
+  /** Somewhere out of sight, just outside the room you're in, within the hose's reach: he goes there quietly. */
+  _startAmbush() {
+    const P = this.player;
+    if (P.noclip || this.anger < AM.minAnger || this.cloud.active) return false;
+    const room = this._roomOf(P.pos.x, P.pos.z), a = this._a, b = this._b, picks = [];
+    b.x = P.pos.x; b.y = P.feetY + 0.15; b.z = P.pos.z;
+    for (const n of this.nav.nodes.values()) {
+      const d = Math.hypot(n.x - P.pos.x, n.z - P.pos.z);
+      if (d < AM.near[0] || d > AM.near[1] || this._roomOf(n.x, n.z) === room) continue;
+      a.x = n.x; a.y = 0.35; a.z = n.z;
+      if (!this.world.countOccluders(a, b, 1, true)) continue; // (out of sight: you mustn't see him get there)
+      picks.push(n);
+    }
+    while (picks.length) {
+      const n = picks.splice(Math.floor(Math.random() * picks.length), 1)[0], path = this.planTo(n);
+      if (path.length < 2) continue;
+      this.state = 'INVESTIGATE'; this.ambush = true; this.stalk = true; this.ambushCd = AM.cooldown; this.path = path; this.pathI = 0;
+      return true;
+    }
+    this.ambushCd = 6; return false;
   }
 
   /** Is the cat looking straight at him, with nothing in the way? */
@@ -553,7 +586,7 @@ export class Vacuum {
     this.creepV = audio.play('vac.creep', { follow: this.hose.nozzle, refDistance: 0.8, rolloff: 1.2 });
   }
 
-  _endCreep() { this.creepV?.stop(0.2); this.creepV = null; }
+  _endCreep() { this.creepV?.stop(0.2); this.creepV = null; if (this.state !== 'CREEP') this.ambush = false; }
 
   _creepOver() { this._endCreep(); this.creepCd = CR.cooldown[this.anger - 1]; }
 
@@ -562,8 +595,13 @@ export class Vacuum {
     this.heading = wrap(this.heading + Math.max(-turn, Math.min(turn, diff)));
     this.creepT += dt;
     if (this.hose.tip.distanceTo(this._catChest(this._goal)) <= H.hit + 0.02) { this._creepOver(); this._catch('hose'); return; }
-    if (P.feetY < CR.floorY && !this._catHidden() && !this._catUnder()) { this._creepOver(); this.lastX = P.pos.x; this.lastZ = P.pos.z; this._startChase(); return; } // it came down: forget the hose
-    if (this.creepT >= CR.maxTime || this.hose.maxed || this.hose.stuck) { this._creepOver(); this.ignoreT = V.ignoreTime * 0.5; this._giveUp(); }
+    if (!this.ambush && P.feetY < CR.floorY && !this._catHidden() && !this._catUnder()) { this._creepOver(); this.lastX = P.pos.x; this.lastZ = P.pos.z; this._startChase(); return; } // it came down: forget the hose
+    const t = this.ambush ? AM.time : CR.maxTime;
+    if (this.creepT >= t || this.hose.maxed || this.hose.stuck) {
+      this._creepOver();
+      if (this.ambush) { this.ambush = false; this.lastX = P.pos.x; this.lastZ = P.pos.z; this._startChase(); return; } // you dodged it: and here he comes
+      this.ignoreT = V.ignoreTime * 0.5; this._giveUp();
+    }
   }
 
   // ---- the dust cloud
@@ -663,6 +701,7 @@ export class Vacuum {
     if (this.off || this.plugState !== 'in' || this.dormant) return; // (not here yet: the tutorial's breakages don't count against you)
     if (ev.kind === 'crash') { // every knock-over can raise his anger, whether he hears it or not
       this.heat++; this.calmT = 0;
+      this.streak.push(this.time); while (this.streak.length && this.time - this.streak[0] > V.streakWindow) this.streak.shift();
       const want = this._stageFor(this.heat);
       if (want > this.anger) this.setAnger(want, true);
     }
@@ -676,7 +715,7 @@ export class Vacuum {
       return;
     }
     if (ev.kind === 'crash' && this.anger <= 2 && this.shhCd <= 0 && d <= V.hearNear) { this.shhCd = TUNING.voice.shhEvery; this._say(this.anger === 1 ? 'shh1' : 'shh2', true); } // "Shh! You'll wake Granny!"
-    const heard = ev.kind === 'crash' ? this.anger >= 3 || d <= V.hearNear
+    const heard = ev.kind === 'crash' ? this.anger >= 3 || d <= V.hearNear || this.streak.length >= 3
       : ev.kind === 'thud' ? this.anger >= 2 && d <= (ev.radius ?? V.hearLand[0]) // a landing gives away where you are
         : this.anger >= 3 && d <= (ev.gait === 'walk' ? V.hearWalk : V.hearSteps);
     if (!heard) return;
@@ -685,6 +724,7 @@ export class Vacuum {
   }
 
   _investigate(x, z) {
+    this.ambush = false; // (a noise takes him off whatever he was setting up)
     if (this.state === 'CHASE') { if (!this.seesCat) { this.lastX = x; this.lastZ = z; } return; } // something to go on while he has lost sight of you
     if (this._attacking()) return; // busy: a crash doesn't pull him off an attack (his own can cause one)
     if (this.state === 'CLEAN') { this.pending = { x, z }; return; } // he finishes the job in hand first
@@ -817,7 +857,7 @@ export class Vacuum {
     if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
     this.spotted++; this.stalk = false;
     if (this.anger >= 3 && Math.random() < 0.5) this._say(this.anger >= 5 ? 'hunt5' : this.anger === 4 ? 'hunt4' : 'hunt3');
-    this.rush = false; this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
+    this.rush = false; this.ambush = false; this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.lostFor = 0; this.peekT = 0; this.peekCd = PK.every[this.anger - 1] * 0.5; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
     audio.play('vac.surge', { follow: this.model.hoseSocket, rolloff: 0 });
     this._sting();
     if (this.anger === 4) this._shriek();
@@ -1118,6 +1158,12 @@ export class Vacuum {
       c.goal.set(h.x + fx * 0.14 - fz * sway, h.y + LK.hoseUp, h.z + fz * 0.14 + fx * sway); c.mode = 'sweep'; c.speed = 1.2;
       return c;
     }
+    if (this.state === 'CHASE' && this.peekT > 0) { // right behind you: the nozzle comes past you, at the very edge of your view, snapping
+      const cam = this.camera.position, f = this.camera.getWorldDirection(_s), rx = -f.z, rz = f.x, rl = Math.hypot(rx, rz) || 1, a = this.anger - 1, snap = Math.sin(this.time * PK.snapRate) * PK.snap;
+      c.goal.set(cam.x + f.x * (PK.ahead[a] + snap) + (rx / rl) * this.peekSide * PK.side, Math.max(H.floorY, cam.y + PK.down), cam.z + f.z * (PK.ahead[a] + snap) + (rz / rl) * this.peekSide * PK.side);
+      c.mode = 'sweep'; c.speed = PK.speed;
+      return c;
+    }
     if (this.state === 'CREEP') { // the long way, slowly
       this._catChest(c.goal); c.mode = 'approach'; c.speed = CR.speed * Math.min(CR.maxBoost, 1 + CR.perKnock * this.knock.count); c.maxLen = CR.length; c.replan = CR.replan; c.straight = true;
       return c;
@@ -1148,7 +1194,23 @@ export class Vacuum {
     }
   }
 
+  /** Right behind you and you're running from him: now and then his nozzle comes past you at the edge of the view. */
+  _tickPeek(dt) {
+    if (this.peekT > 0) { this.peekT -= dt; if (this.peekT <= 0) this.peekCd = PK.every[this.anger - 1] * (0.7 + Math.random() * 0.6); return; }
+    if (this.peekCd > 0) { this.peekCd -= dt; return; }
+    const P = this.player, a = this.anger - 1, d = Math.hypot(P.pos.x - this.x, P.pos.z - this.z);
+    if (d > PK.reach[a] || P.feetY > 0.5 || P.noclip) return;
+    const f = this.camera.getWorldDirection(_s), away = ((this.x - P.pos.x) * f.x + (this.z - P.pos.z) * f.z) / (d || 1) < -0.3; // (he's behind you)
+    if (away) { this.peekT = PK.hold[a]; this.peekSide = -this.peekSide; }
+  }
+
   _tickChase(dt) {
+    this._tickPeek(dt);
+    // lost you round a corner... and then there you are again: he lunges round it, all at once
+    if (this.seesCat) { if (this.lostFor >= BU.lost && this.burstCd <= 0 && this.anger >= BU.minAnger) { this.burstT = BU.time; this.burstCd = BU.cooldown[this.anger - 1]; this._shriek(true); audio.play('vac.surge', { follow: this.model.hoseSocket, rolloff: 0, rate: 1.3 }); } this.lostFor = 0; }
+    else this.lostFor += dt;
+    if (this.burstT > 0) this.burstT -= dt;
+    if (this.burstCd > 0) this.burstCd -= dt;
     if (this._canSuck()) { this._startSuck(); return; }
     if (this._canLunge()) { this._startLunge(); return; }
     if (this._canReach()) { this._startReach(); return; }
@@ -1180,7 +1242,7 @@ export class Vacuum {
         if (n !== this.chaseNode) { this.chaseNode = n; this.routeTo(n); }
       }
     }
-    const speed = V.chaseSpeed[this.anger - 1];
+    const speed = this.burstT > 0 ? BU.speed : V.chaseSpeed[this.anger - 1];
     if (this.direct) { // the cord still only goes so far
       if (this._paid() < C.length - 0.05 && Math.hypot(this.directX - this.x, this.directZ - this.z) > V.arrive) this._steer(dt, this.directX, this.directZ, speed);
       return;
@@ -1269,6 +1331,11 @@ export class Vacuum {
       return;
     } // waits there: the replanning decides what's next
     if (this.state === 'SEARCH') { this.sweep = true; this.sweepT = V.searchTime; this.sweepBase = this.heading; this.sweepPh = 0; this._checkHides(); return; }
+    if (this.state === 'INVESTIGATE' && this.ambush) { // in place: the hose goes in after you, wherever you are
+      this.foundT = CR.maxTime; this.creepCd = 0; this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z;
+      if (Math.hypot(this.player.pos.x - this.x, this.player.pos.z - this.z) < CR.range) { this._startCreep(); return; }
+      this.ambush = false; this._resumePatrol(); return;
+    }
     if (this.state === 'INVESTIGATE') {
       this.rush = false;
       if (this._checkHides()) return;
@@ -1292,7 +1359,7 @@ export class Vacuum {
     if (this.dormant) return;
     this.time += dt;
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading;
-    for (const k of ['alertCd', 'heardCd', 'stingCd', 'shriekCd', 'creepCd', 'stunCd', 'foundT', 'sayCd', 'huffCd', 'greetCd', 'chatCd', 'lungeCd', 'pokeCd', 'shhCd', 'searchSayCd', 'arcFade', 'lurkCd']) if (this[k] > 0) this[k] -= dt;
+    for (const k of ['alertCd', 'heardCd', 'stingCd', 'shriekCd', 'creepCd', 'stunCd', 'foundT', 'sayCd', 'huffCd', 'greetCd', 'chatCd', 'lungeCd', 'pokeCd', 'shhCd', 'searchSayCd', 'arcFade', 'lurkCd', 'ambushCd']) if (this[k] > 0) this[k] -= dt;
     if (this.fogCd > 0 && !this.cloud.active) this.fogCd -= dt;
     this.cloud.tick(dt);
     if (!this.frozen) this._bump();
@@ -1338,7 +1405,8 @@ export class Vacuum {
       if (m) { this._startClean(m); return; }
     }
     if (this.state === 'PATROL') { this.thinkT -= dt; if (this.thinkT <= 0) { this._think(); if (this.state !== 'PATROL') return; } }
-    this._followPath(dt, this.rush && this.state === 'INVESTIGATE' ? V.rushSpeed : V.speed[this.anger - 1] * (this.state === 'PATROL' ? 1 : V.investigateMul) * (this.stalk && this.state !== 'PATROL' ? TUNING.stalk.speed : 1));
+    const rampage = this.state === 'INVESTIGATE' ? Math.min(V.streakMax, 1 + V.streakBoost * Math.max(0, this.streak.filter((t) => this.time - t < V.streakWindow).length - 1)) : 1; // (break things one after another and he comes running)
+    this._followPath(dt, this.rush && this.state === 'INVESTIGATE' ? V.rushSpeed * Math.max(1, rampage * 0.8) : rampage * V.speed[this.anger - 1] * (this.state === 'PATROL' ? 1 : V.investigateMul) * (this.stalk && this.state !== 'PATROL' ? TUNING.stalk.speed : 1));
   }
 
   /** Per rendered frame. */
@@ -1350,6 +1418,7 @@ export class Vacuum {
     this.cloud.frame(dt, this.camera.position);
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;
+    { const B = this.hose.body || (this.hose.body = {}); B.x = r.position.x; B.z = r.position.z; B.r = V.model.bodyR * (this.model.w ?? 1); B.top = V.height * this.model.k; }
     this.hose.frame(alpha, this.camera.position);
     for (const b of this.blasts) b.frame(alpha);
     const paid = this._paid();

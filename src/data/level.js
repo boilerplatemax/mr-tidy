@@ -115,7 +115,7 @@ export const LEVEL = {
     box('gDoor', 'hall', 18 - IN, 18 + IN, -1.1, -0.3, 0, 2.05, { noVisual: true, land: false, occludes: true }), // (her door: always shut as far as anything but the ending is concerned)
     box('tvUnit', 'living', 5.25, 6 - IN, 1.6, 3.0, 0, 1.05, { noVisual: true }), // a big old set: you can read it from across the room
     // A scratching panel beside the rod: a second, climbed way onto the route (and a kick-off wall).
-    box('scratchPanel', 'living', 5.3, 5.8, 5.0, 5.4 - IN, 0, 1.95, { stripes: ['n'], tex: 'fabric_carpet' }),
+    box('scratchPanel', 'living', 5.3, 5.8, 5.0, 5.4 - IN, 0, 1.95, { noVisual: true }), // a tall narrow bookcase in the corner (its top is a perch by the curtain rod)
     box('header', 'living', 5.85, 6.15, 3.9, 4.8, 2.05, 2.12, { tex: 'wood_walnut' }), // the top of the door frame, through the wall
 
     // ------------------------------------------------------------ kitchen: charged jumps along the counters
@@ -128,31 +128,29 @@ export const LEVEL = {
     box('chair', 'kitchen', 7.3, 7.75, 2.7, 3.15, 0, 0.45),
     box('k1', 'kitchen', 6.6, 7.6, 5.0, 5.4 - IN, 1.87, 1.95),
     box('k2', 'kitchen', 8.2, 9.2, 5.0, 5.4 - IN, 1.87, 1.95),
-    box('kitchenPanel', 'kitchen', 9.3, 9.75, 5.0, 5.4 - IN, 0, 1.95, { stripes: ['n'], tex: 'fabric_carpet' }), // a climbed way off the kitchen floor, between k2 and the fridge
     box('shelfD2', 'kitchen', 6.6, 7.9, IN, 0.35, 1.52, 1.60), // dead end above c1
 
     // ------------------------------------------------------------ hallway: the dangerous crossing
     box('sideTable', 'hall', 10.0, 10.7, -1.4 + IN, -0.875, 0, 0.7),
-    box('hallTable', 'hall', 0.15, 0.85, -0.42, -IN, 0, 0.78, { noVisual: true }), // the little table under Biscuit
+    box('hallTable', 'hall', 0.95, 1.65, -0.42, -IN, 0, 0.78, { noVisual: true }), // the little table under Biscuit
     box('plantStand', 'hall', 14.8, 15.2, -1.3, -0.9, 0, 1.1, { tex: 'wood_walnut' }),
 
     // ------------------------------------------------------------ the laundry room: linen cupboards and boxes of old linen, 1.1 m apart (a jump alone can't do it)
     // DESIGN NOTE: neighbouring units touch. A slot narrower than the cat (0.24 m) is a trap it can drop into and not leave.
     box('w1', 'storage', 10.8 + IN, 11.35, 3.0, 3.8, 0, 1.1, { tex: 'cardboard' }),
-    box('w2', 'storage', 10.8 + IN, 11.35, 3.8, 4.6 - IN, 0, 2.2),
     box('e1', 'storage', 14.85, 15.4 - IN, 0.6, 1.9, 0, 1.1, { tex: 'cardboard' }),
     box('e2', 'storage', 14.85, 15.4 - IN, 1.9, 3.0, 0, 2.2),
     box('s1', 'storage', 13.25, 13.7, 4.05, 4.6 - IN, 0, 1.1, { tex: 'cardboard' }),
     box('s2', 'storage', 13.7, 14.6, 4.05, 4.6 - IN, 0, 2.2),
     box('washer', 'storage', 11.45, 12.05, 3.95, 4.6 - IN, 0, 0.85, { noVisual: true }), // the washing machine (drawn in src/world/house.js)
-    box('lSink', 'storage', 12.1, 12.9, 4.0, 4.6 - IN, 0, 0.9, { tex: 'paint_cream', topTex: 'formica_retro' }), // the deep sink, boxed in
+    box('dryer', 'storage', 12.1, 12.7, 3.95, 4.6 - IN, 0, 0.85, { noVisual: true }), // the tumble dryer beside it, its twin (drawn in src/world/house.js)
     box('lShelf', 'storage', 11.45, 12.9, 4.2, 4.6 - IN, 1.5, 1.54, { noVisual: true }), // folded linen up on a shelf
     box('iron', 'storage', 12.7, 13.8, 1.55, 1.9, 0.84, 0.88, { noVisual: true }), // the ironing board, left up (a cat fits under it; drawn in src/world/house.js)
 
     // ------------------------------------------------------------ the parlour: the piano, her good chair, the plants
     box('piano', 'parlour', 17.55, 18 - IN, 1.0, 2.6, 0, 1.25, { noVisual: true }), // an upright piano (drawn in src/world/house.js)
     box('pKeys', 'parlour', 17.3, 17.55, 1.05, 2.55, 0, 0.78, { noVisual: true }), // its keyboard, sticking out: a step up
-    box('pStool', 'parlour', 16.85, 17.2, 1.6, 2.0, 0, 0.5, { tex: 'fabric_velvet_curtain' }),
+    box('pStool', 'parlour', 16.85, 17.2, 1.6, 2.0, 0, 0.5, { noVisual: true, occludes: false }), // (drawn in src/world/house.js: a padded bench)
     box('pShelf', 'parlour', 17.6, 18 - IN, 2.9, 3.9, 1.71, 1.75, { noVisual: true }),
     box('pStand', 'parlour', 17.45, 17.8, 0.2, 0.55, 0, 0.95, { tex: 'wood_walnut' }), // a plant stand
     box('pTable', 'parlour', 16.3, 16.7, 4.1, 4.5, 0, 0.7, { noVisual: true }), // (well clear of the armchair: no slot a cat could drop into)
@@ -215,7 +213,7 @@ export const LEVEL = {
     { model: 'couch', fit: ['couchSeat', 'couchBack', 'couchArmN', 'couchArmS'], rot: 90, hide: ['doily_L', 'doily_R'] }, // (no doilies: flat white cards on the arms, hiding the print)
     { model: 'cattree_platform_60', fit: ['tree1'] }, { model: 'cattree_platform_60', fit: ['tree2'] }, { model: 'cattree_platform_60', fit: ['tree3'] }, { model: 'cattree_perch_tray', fit: ['tree4'], rot: 180 },
     { model: 'cattree_post_80', fit: ['tree1post'] }, { model: 'cattree_post_80', fit: ['tree2post'] }, { model: 'cattree_post_80', fit: ['tree3post'] }, { model: 'cattree_post_80', fit: ['tree4post'] },
-    { model: 'psx_nightstand_oak', fit: ['book1'], rot: 180 }, { model: 'bookcase', fit: ['book2'], rot: 180 }, { model: 'bookcase', fit: ['book3'], rot: 180 }, { model: 'bookcase', fit: ['book4'], rot: 180 },
+    { model: 'psx_nightstand_oak', fit: ['book1'], rot: 180 }, { model: 'bookcase', fit: ['book2'], rot: 180 }, { model: 'bookcase', fit: ['book3'], rot: 180 }, { model: 'bookcase', fit: ['book4'], rot: 180 }, { model: 'bookcase', fit: ['scratchPanel'], rot: 180 },
     { model: 'tv_console', fit: ['tvUnit'], rot: -90, h: 0.8, tv: true }, // (scaled so its top is the collider's top)
     { model: 'psx_rug_braided', at: [3.0, 0.002, 1.6] }, { model: 'psx_floor_lamp', at: [0.35, 0, 4.55], rot: 180 }, { model: 'ceiling_light', at: [3, 0.6, 2.7] },
     // kitchen
@@ -224,10 +222,10 @@ export const LEVEL = {
     { model: 'shelf_floating_120', fit: ['k1'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['k2'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['shelfD2'], top: true },
     { model: 'ceiling_light', at: [8.4, 0.6, 2.7] },
     // hallway
-    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'side_table', fit: ['hallTable'], rot: 180, h: 0.78 }, { model: 'grandma_door', at: [18, 0, -0.7], rot: -90, door: true },
+    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'side_table', fit: ['hallTable'], rot: 180, h: 0.78 }, { model: 'grandma_door', at: [18, 0, -0.7], rot: -90, door: true }, { model: 'door_wood', at: [IN + 0.03, 0, -0.7], rot: -90 }, // (the front door: it doesn't open)
     { model: 'ceiling_light', at: [5, 0.6, -0.7] }, { model: 'ceiling_light', at: [13, 0.6, -0.7] },
     // storage
-    { model: 'psx_wardrobe_oak', fit: ['w2'], rot: 90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['e2'], rot: -90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['s2'], rot: 180, h: 2.07 },
+    { model: 'psx_wardrobe_oak', fit: ['e2'], rot: -90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['s2'], rot: 180, h: 2.07 },
     { model: 'psx_box', fit: ['sBox'] }, { model: 'shelf_floating_120', fit: ['lShelf'], rot: 180, top: true }, { model: 'ceiling_light', at: [13.1, 0.6, 2.3] },
     // parlour
     { model: 'armchair', at: [17.525, 0, 4.1], rot: -90 }, { model: 'side_table', fit: ['pTable'], h: 0.78 }, { model: 'shelf_floating_120', fit: ['pShelf'], rot: -90, top: true }, { model: 'psx_rug_braided', at: [16.6, 0.002, 2.3], rot: 90 }, { model: 'ceiling_light', at: [16.7, 0.6, 2.3] },
@@ -305,7 +303,7 @@ export const LEVEL = {
   waypoints: {
     L1: [4.85, 1.1], L2: [3.05, 1.0], L3: [1.8, 2.0], L4: [2.0, 4.2], L5: [4.4, 3.7], Ld: [5.5, 4.35], // living room
     Kd: [6.6, 4.35], K1: [6.8, 4.0], K2: [9.5, 4.2], K3: [9.55, 2.3], K4: [8.5, 1.4], K5: [6.7, 1.7], // kitchen
-    Hw: [1.2, -0.45], Hl: [3.05, -0.45], H2: [5.6, -0.45], Hb: [7.95, -0.45], Hk: [8.5, -0.45], H3: [11.2, -0.45], Hz: [12.05, -0.45], Hs: [13.75, -0.45], Ht: [16.35, -0.45], H4: [16.8, -0.45], // hallway
+    Hw: [1.2, -0.88], Hl: [3.05, -0.45], H2: [5.6, -0.45], Hb: [7.95, -0.45], Hk: [8.5, -0.45], H3: [11.2, -0.45], Hz: [12.05, -0.45], Hs: [13.75, -0.45], Ht: [16.35, -0.45], H4: [16.8, -0.45], // hallway
     Sd: [13.75, 0.5], S1: [13.75, 2.4], S2: [12.3, 2.4], Sk: [11.3, 2.3], S3: [14.2, 3.5], Sq: [15.0, 3.7], // laundry room
     Qd: [15.4, 3.7], Q2: [16.5, 3.6], Q1: [16.3, 2.0], Qh: [16.0, 0.4], Hq: [16.0, -0.45], // parlour, and the hall outside it
     Dd: [3.05, -1.85], D1: [1.2, -2.4], D2: [1.2, -5.2], D3: [3.0, -5.6], D4: [5.0, -5.4], D5: [5.0, -2.6], // dining room
@@ -326,6 +324,8 @@ export const LEVEL = {
     ['Sd', 'S1'], ['S1', 'S2'], ['S1', 'S3'], ['S2', 'S3'], ['S3', 'Sq'], ['Sq', 'Qd'],
     ['Qd', 'Q2'], ['Q2', 'Q1'], ['Q1', 'Qh'], ['Qh', 'Hq'],
   ],
+  // Where a run after the first can start you, [x, z, yaw]: a different room each time (src/main.js pickStart)
+  spawns: [[2.5, 1.6, 0], [7.6, 1.9, 1.57], [1.3, -3.6, -1.57], [7.0, -2.4, 0], [12.3, -3.2, 3.14], [13.0, 2.6, 0], [16.4, 3.4, 0], [16.0, -2.7, 1.57], [9.5, -0.7, 1.57]],
   vacStart: 'L1', // where he starts
   // His fixed loop (he finds his own way between stops). It takes in the whole house, including the far end of the hallway.
   patrol: ['L2', 'Hl', 'Hk', 'H3', 'Hs', 'S1', 'S2', 'S1', 'Hs', 'H4', 'Hs', 'H3', 'Hk', 'K4', 'K3', 'K2', 'K1', 'K5', 'K1', 'Kd', 'Ld', 'L5', 'L4', 'L3', 'L2', 'L1', 'D1', 'D2', 'D3', 'D4', 'D5', 'B1', 'B2', 'W1', 'W2', 'W3', 'Sk', 'S3', 'Q1', 'Q2', 'T1'],
@@ -341,7 +341,6 @@ export const LEVEL = {
     { id: 'clock', type: 'mantel_clock', on: 'book3', x: 1.42, z: 5.18, yaw: Math.PI }, // (facing the room)
     { id: 'figurine', type: 'cat_figurine', on: 'book2', x: 0.98, z: 5.18 },
     { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.62, z: 1.85, yaw: -1.57 },
-    { id: 'tvPlant', type: 'spider_plant', on: 'tvUnit', x: 5.6, z: 2.78 },
     { id: 'remote', type: 'tv_remote', on: 'rodW', x: 3.05, z: 5.2, yaw: 0.4 }, // the TV remote: the tutorial's, then just another thing to bat off
     { id: 'succulent', type: 'succulent_pot', on: 'coffeeTable', x: 3.25, z: 2.78 },
     { id: 'monstera', type: 'monstera', on: 'floor', topple: true, x: 5.55, z: 0.45 },
@@ -364,7 +363,7 @@ export const LEVEL = {
     { id: 'geranium', type: 'geranium_pot', on: 'c3', x: 10.45, z: 4.2 },
     { id: 'jade', type: 'jade_plant', on: 'c2b', x: 10.45, z: 1.2 },
     // hallway: louder the closer to Grandma's door
-    { id: 'hallVase', type: 'vase', on: 'hallTable', x: 0.5, z: -0.25 },
+    { id: 'hallVase', type: 'vase', on: 'hallTable', x: 1.3, z: -0.25 },
     { id: 'phone', type: 'rotary_phone', on: 'sideTable', x: 10.4, z: -1.1 },
     { id: 'glasses', type: 'glasses', on: 'sideTable', x: 10.12, z: -1.05 },
     { id: 'standPlant', type: 'snake_plant', on: 'plantStand', x: 15.0, z: -1.1 },
@@ -373,10 +372,9 @@ export const LEVEL = {
     { id: 'w1Mug', type: 'mug', on: 'w1', x: 11.1, z: 3.4 },
     { id: 's1Pot', type: 'teapot', on: 's1', x: 13.47, z: 4.3, yaw: 1.57 },
     { id: 'e1Frame', type: 'picture_frame', on: 'e1', x: 15.1, z: 1.2, yaw: -1.57 },
-    { id: 'w2Vase', type: 'vase', on: 'w2', x: 11.1, z: 4.2 },
+    { id: 'w2Vase', type: 'vase', on: 'w1', x: 11.1, z: 3.25 },
     { id: 'e2Plate', type: 'dinner_plate', on: 'e2', x: 15.1, z: 2.5 },
     { id: 's2Candle', type: 'candlestick', on: 's2', x: 14.2, z: 4.3 },
-    { id: 'duster', type: 'feather_duster', on: 'washer', x: 11.75, z: 4.25 },
     { id: 'pothos', type: 'pothos', on: 'lShelf', x: 12.5, z: 4.36 },
     { id: 'roll2', type: 'toilet_roll', on: 'lShelf', x: 11.7, z: 4.36 },
     // the parlour
@@ -432,7 +430,6 @@ export const LEVEL = {
   grabLinks: [
     ['floor', 'plantStand', { x: 15.0, z: -0.62 }],
     ['floor', 'w1', { x: 11.8, z: 3.4 }],
-    ['w1', 'w2'],
     ['floor', 'e1', { x: 14.6, z: 1.2 }],
     ['e1', 'e2'],
     ['floor', 's1', { x: 13.45, z: 3.8 }],
@@ -441,7 +438,7 @@ export const LEVEL = {
   ],
   links: [
     // the high route, living room ↔ kitchen, without touching the floor
-    ['book4', 'rodW'], ['rodW', 'bracketA'], ['bracketA', 'rodE'], ['rodE', 'header'], ['header', 'k1'], ['k1', 'k2'], ['k2', 'kitchenPanel'], ['kitchenPanel', 'fridge'],
+    ['book4', 'rodW'], ['rodW', 'bracketA'], ['bracketA', 'rodE'], ['rodE', 'header'], ['header', 'k1'], ['k1', 'k2'], ['k2', 'fridge'],
     // the climb onto it
     ['book1', 'book2'], ['book2', 'book3'], ['book3', 'book4'],
     // the counter run

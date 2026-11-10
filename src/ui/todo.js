@@ -18,7 +18,7 @@ export class TodoList {
 
   _rows(knocks, evil) {
     const n = Math.min(knocks, T.knocks), done = n >= T.knocks;
-    const rows = [{ text: "MARMALADE'S TO-DO", color: '#e8c878' }, { check: true, text: 'Nap', dim: true }, { check: done, text: `Knock things over (${n}/${T.knocks})`, dim: done }, { check: true, text: 'Look innocent', dim: true }];
+    const rows = [{ text: 'TO-DO LIST', color: '#e8c878' }, { check: true, text: 'Nap', dim: true }, { check: done, text: `Knock things over (${n}/${T.knocks})`, dim: done }, { check: true, text: 'Look innocent', dim: true }];
     if (evil) rows.push({ check: false, text: 'Wake Grandma', color: '#f0a090' });
     return rows;
   }

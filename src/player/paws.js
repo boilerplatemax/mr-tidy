@@ -55,7 +55,7 @@ export class Paws {
     this.side = 0; // 0 .. 1: how much the climb is going sideways
     this.acts = {}; this.move = 0; this.drop = 0; this.linger = 0; this._w = new Map();
     this.world = null; this._g = { y: 0, surface: '', collider: null }; this.nextPaw = 1; this.swipeU = -1; this.walkVisible = false;
-    this.dark = 0; this.mats = []; this._glow = new THREE.Color(V.glow); this._darkGlow = new THREE.Color(V.darkGlow); // in the blackout they keep a little light of their own, or they'd be black shapes
+    this.dark = 0; this.mats = []; // (in the blackout they keep a little light of their own, or they'd be black shapes)
   }
 
   /** Put a paw at a world position and orientation (from its basis), in the camera's space. */
@@ -249,7 +249,7 @@ export class Paws {
 
   /** Per rendered frame, after the camera is placed. hidden: third-person debug view. */
   frame(player, dt, alpha, hidden = false) {
-    if (this.mats.length) { _col.copy(this._glow).lerp(this._darkGlow, Math.min(1, this.dark)); for (const m of this.mats) m.emissive.copy(_col); }
+    if (this.mats.length) { _col.setHex(V.glow).lerp(this._dark || (this._dark = new THREE.Color(V.darkTint)), Math.min(1, this.dark)); for (const m of this.mats) m.emissive.copy(_col); } // (lit like the tail: a faint warm glow, a little more of it, in ginger, when the lights are out)
     if (this.rig) this.rig.visible = false; // (the rig's own swipe clip is retired: the walking paw does the swipe itself)
     const gripping = (player.mode === 'hang' || player.mode === 'mantle') && !!player.hang.col;
     const climbing = !gripping && (player.mode === 'climb' || player.mode === 'slide') && !!player.climb.col;

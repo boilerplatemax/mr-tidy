@@ -1,10 +1,9 @@
 // The end-of-run screen ("Good Kitty", or caught), in the pixel font. Marmalade's portrait hangs on the left in a gilt frame
-// with her nameplate, like the cats in the hallway: bright for a win, faded with a black ribbon when he got her. The button
+// with no name on it: bright for a win; grey, with a stone R.I.P. plaque under it, when he got her. The button
 // starts a new run straight away.
 import { pixText } from './menu.js';
 import { marmaladePortrait } from './marmalade.js';
 
-const PLATES = 'game-assets/textures/portraits/';
 
 export class EndScreen {
   /** onAgain(): the button was clicked (a user gesture: it can take the mouse back). */
@@ -29,8 +28,8 @@ export class EndScreen {
     this.el.className = mood;
     // left: the portrait and its plate
     const hang = document.createElement('div'); hang.className = 'hang';
-    const plate = new Image(); plate.className = 'plate'; plate.src = PLATES + (mood === 'gone' ? 'nameplate_player_dead.png' : 'nameplate_player_alive.png');
-    hang.append(marmaladePortrait(58, mood), plate);
+    hang.append(marmaladePortrait(58, mood)); // (no name on the frame: she's just the cat)
+    if (mood === 'gone') { const rip = document.createElement('div'); rip.className = 'rip'; rip.append(pixText('R.I.P.', '#e8e4dc')); hang.append(rip); } // a little stone plaque
     // right: the words
     const words = document.createElement('div'); words.className = 'words';
     const big = pixText(title, mood === 'gone' ? '#d9c7a8' : '#f0dca8'); big.classList.add(opts.small ? 'mid' : 'big');

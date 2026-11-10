@@ -18,7 +18,8 @@ export class Grandma {
     this.wake = 0; this.stage = 0; this.awake = false; this.t = 0; this.shown = false;
     this.voice = null; this.level = 0; this.levelT = 0;
     this.onWin = null; this.onScreen = null;
-    noise.on((ev) => { if (ev.kind === 'crash') this.add(this.valueOf(ev.x, ev.z, ev.loud)); });
+    this.free = G.freeKnocks; this.pianoLeft = G.pianoMax; this.pianoCd = 0;
+    noise.on((ev) => { if (ev.kind !== 'crash') return; if (this.free > 0) { this.free--; return; } this.add(this.valueOf(ev.x, ev.z, ev.loud)); }); // (the first few she sleeps right through)
   }
 
   /** How many points a crash of this loudness is worth at this spot: closer to her door counts for more. */
@@ -29,6 +30,12 @@ export class Grandma {
 
   /** The stage for a wake value: 0 deep sleep .. 3 very light, 4 awake (the HUD icon reads this too). */
   stageOf(w) { return w >= 100 ? 4 : w >= G.thresholds[2] ? 3 : w >= G.thresholds[1] ? 2 : w >= G.thresholds[0] ? 1 : 0; }
+
+  /** A cat on the piano: it's loud, and it stirs her a little (only a few times a night: you can't play her awake). Returns whether it counted. */
+  piano() {
+    if (this.pianoCd > 0 || this.pianoLeft <= 0) return false;
+    this.pianoCd = G.pianoEvery; this.pianoLeft--; this.add(G.piano); return true;
+  }
 
   /** Only ever adds: the meter never decreases. */
   add(points) {
@@ -50,7 +57,7 @@ export class Grandma {
 
   /** Back to sleep, for a new run. */
   reset() {
-    this.wake = 0; this.stage = 0; this.awake = false; this.t = 0; this.shown = false; this.levelT = 0;
+    this.wake = 0; this.stage = 0; this.awake = false; this.t = 0; this.shown = false; this.levelT = 0; this.free = G.freeKnocks; this.pianoLeft = G.pianoMax; this.pianoCd = 0;
     this.house.doorStrip.color.setHex(TUNING.house.colors.doorStrip);
     this.voice?.stop(0.05); this.voice = null;
     this.startSound();
@@ -72,6 +79,7 @@ export class Grandma {
 
   /** Per fixed tick. (px, pz): where the cat is. */
   tick(dt, px, pz) {
+    if (this.pianoCd > 0) this.pianoCd -= dt;
     if (!this.awake && this.stage >= 2) { // she's coming up: at the last the lamp in there flickers
       if (this.stage === 3) this.house.doorStrip.color.setHex(Math.random() < 0.09 ? 0x5a4326 : TUNING.house.colors.doorStrip);
     }
