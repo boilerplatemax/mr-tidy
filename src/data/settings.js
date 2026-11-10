@@ -5,13 +5,14 @@
 // setting means, or changing a default you want everyone to get: bump VERSION and add a migration below.
 import { TUNING } from './tuning.js';
 
-const VERSION = 3;
+const VERSION = 4;
 const KEY = `${TUNING.game.storagePrefix}.settings`;
 const R = TUNING.render;
 
 /** MIGRATIONS[n] turns a version-n settings object into version n + 1. Example for a future v2:
  *  1: (s) => ({ ...s, warp: false }), // v1 → v2: warp became off by default for everyone */
 const MIGRATIONS = {
+  3: (s) => ({ ...s, framing: 'fill' }), // v3 → v4: fill screen is the default framing now (4:3 was), for everyone
   2: (s) => ({ ...s, ...LOOK_PRESETS.authored, look: 'authored' }), // v2 → v3: the comfort look is gone: everyone is back on the PS1 look
   1: (s) => ({ ...s, jitter: false }), // v1 → v2: vertex wobble off by default (it made floor edges hop as the cat walked)
 };
@@ -29,7 +30,7 @@ export const LOOK_PRESETS = {
 const DEFAULTS = {
   look: 'authored', // 'authored' | 'clean' | 'custom' (any single look option changed)
   ...LOOK_PRESETS.authored,
-  framing: '4:3', // '4:3' (the design: pillarboxed) | 'fill' (widescreen, same line count)
+  framing: 'fill', // 'fill' (widescreen, same line count: the default) | '4:3' (pillarboxed)
   brightness: 1.0, // display gamma lift, 0.7–1.6
   sensitivity: 1.0,
   invertY: false,

@@ -12,7 +12,16 @@
 </head>
 <body>
   <canvas id="game"></canvas>
-  <div id="loading">LOADING</div>
+  <div id="loading">
+    <div class="ld" aria-label="Loading">
+      <div class="ld-track">
+        <svg class="ld-thread" viewBox="0 0 220 12" preserveAspectRatio="none"><path d="M0 9 C 14 3, 22 3, 36 8 S 58 12, 72 7 S 96 2, 110 7 S 134 12, 148 7 S 172 3, 186 8 S 208 10, 220 6"/></svg>
+        <div class="ld-paws"><svg class="ld-paw" style="left:8px;top:0px" viewBox="0 0 5 5"><path d="M1 0h1v1h-1zM3 0h1v1h-1zM0 1h1v1h-1zM4 1h1v1h-1zM1 2h3v1h-3zM0 3h5v1h-5zM1 4h3v1h-3z"/></svg><svg class="ld-paw" style="left:34px;top:10px" viewBox="0 0 5 5"><path d="M1 0h1v1h-1zM3 0h1v1h-1zM0 1h1v1h-1zM4 1h1v1h-1zM1 2h3v1h-3zM0 3h5v1h-5zM1 4h3v1h-3z"/></svg><svg class="ld-paw" style="left:60px;top:0px" viewBox="0 0 5 5"><path d="M1 0h1v1h-1zM3 0h1v1h-1zM0 1h1v1h-1zM4 1h1v1h-1zM1 2h3v1h-3zM0 3h5v1h-5zM1 4h3v1h-3z"/></svg><svg class="ld-paw" style="left:86px;top:10px" viewBox="0 0 5 5"><path d="M1 0h1v1h-1zM3 0h1v1h-1zM0 1h1v1h-1zM4 1h1v1h-1zM1 2h3v1h-3zM0 3h5v1h-5zM1 4h3v1h-3z"/></svg><svg class="ld-paw" style="left:112px;top:0px" viewBox="0 0 5 5"><path d="M1 0h1v1h-1zM3 0h1v1h-1zM0 1h1v1h-1zM4 1h1v1h-1zM1 2h3v1h-3zM0 3h5v1h-5zM1 4h3v1h-3z"/></svg><svg class="ld-paw" style="left:138px;top:10px" viewBox="0 0 5 5"><path d="M1 0h1v1h-1zM3 0h1v1h-1zM0 1h1v1h-1zM4 1h1v1h-1zM1 2h3v1h-3zM0 3h5v1h-5zM1 4h3v1h-3z"/></svg><svg class="ld-paw" style="left:164px;top:0px" viewBox="0 0 5 5"><path d="M1 0h1v1h-1zM3 0h1v1h-1zM0 1h1v1h-1zM4 1h1v1h-1zM1 2h3v1h-3zM0 3h5v1h-5zM1 4h3v1h-3z"/></svg></div>
+        <div class="ld-ball"><svg viewBox="0 0 12 12" shape-rendering="crispEdges"><path fill="#c84a64" d="M4 1h4v1h-4zM2 2h1v1h-1zM5 2h1v1h-1zM7 2h3v1h-3zM1 3h1v1h-1zM4 3h1v1h-1zM6 3h2v1h-2zM9 3h2v1h-2zM1 4h1v1h-1zM3 4h1v1h-1zM5 4h2v1h-2zM8 4h2v1h-2zM1 5h2v1h-2zM4 5h2v1h-2zM7 5h2v1h-2zM10 5h1v1h-1zM1 6h1v1h-1zM3 6h2v1h-2zM6 6h2v1h-2zM9 6h2v1h-2zM2 7h2v1h-2zM5 7h2v1h-2zM8 7h2v1h-2zM2 8h1v1h-1zM4 8h2v1h-2zM7 8h2v1h-2zM3 9h2v1h-2zM6 9h2v1h-2zM5 10h2v1h-2z"/><path fill="#f08a9c" d="M3 2h2v1h-2zM2 3h2v1h-2zM2 4h1v1h-1z"/><path fill="#8a2440" d="M4 0h4v1h-4zM2 1h2v1h-2zM8 1h2v1h-2zM1 2h1v1h-1zM6 2h1v1h-1zM10 2h1v1h-1zM5 3h1v1h-1zM8 3h1v1h-1zM0 4h1v1h-1zM4 4h1v1h-1zM7 4h1v1h-1zM10 4h2v1h-2zM0 5h1v1h-1zM3 5h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM11 5h1v1h-1zM0 6h1v1h-1zM2 6h1v1h-1zM5 6h1v1h-1zM8 6h1v1h-1zM11 6h1v1h-1zM0 7h2v1h-2zM4 7h1v1h-1zM7 7h1v1h-1zM10 7h2v1h-2zM1 8h1v1h-1zM3 8h1v1h-1zM6 8h1v1h-1zM9 8h2v1h-2zM1 9h2v1h-2zM5 9h1v1h-1zM8 9h3v1h-3zM2 10h3v1h-3zM7 10h3v1h-3zM4 11h4v1h-4z"/></svg></div>
+      </div>
+      <div class="ld-word">LOADING<span>.</span><span>.</span><span>.</span></div>
+    </div>
+  </div>
   <script type="module" src="src/main.js"></script>
 </body>
 </html>

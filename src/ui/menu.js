@@ -1,24 +1,45 @@
 // The title screen, the pause screen and the settings, in one element (#pause), every word in the pixel font.
 //   • Before play (title mode): no veil, no box: the live scene shows through; just the title, Begin and Settings.
-//     Settings opens the tabbed panel with a Back button.
-//   • During play (it opens whenever pointer lock is lost or the tab hides): Paused, Resume, and the tabs.
-// Tabs (Game · Display · Controls), two columns, nothing scrolls at 1280×720 (check with fitReport()). Every option
-// applies live: a change calls setSetting, which saves and notifies every listener (renderer, audio, this menu).
+//     Settings opens a narrow card listing the categories in a column, with Back.
+//   • During play (it opens whenever pointer lock is lost or the tab hides): Paused, Resume, and the categories.
+// Opening a category (Game · Display · Controls) widens the card to its options in two columns, with Back; nothing
+// scrolls at 1280×720 (check with fitReport()). The game's name only shows on the title. Every option applies live:
+// a change calls setSetting, which saves and notifies every listener (renderer, audio, this menu).
 import { settings, setSetting, applyLookPreset, resetSettings, onSettingsChange } from '../data/settings.js';
 import { write, measure, wrap, LINE } from './hand-font.js';
 import { TUNING } from '../data/tuning.js';
 
-const INK = '#e8dfc6', DIM = '#8a826e', GOLD = '#cfc4a6';
+// Grandma's house at night: cream ink, dusty rose for the quieter words, old gilt for the headings
+const INK = '#f2e4c8', DIM = '#c39a92', GOLD = '#e6c27a';
 
-/** A canvas of pixel text (CSS-scaled by --px on #pause). */
-export function pixText(text, color = INK) {
-  const lines = String(text).split('\n');
-  const w = Math.max(1, ...lines.map((l) => measure(l))) + 1, h = lines.length * LINE + 1;
+const GAP = measure('II') - 2 * measure('I'); // the font's own space between letters
+const adv = (ch) => (ch === ' ' ? 3 : measure(ch)) + GAP + 1;
+
+/** Write a line letter by letter, each stroke doubled and one pixel more between letters, so it reads heavier. */
+function writeBold(g, text, x, y, color) {
+  let cx = x;
+  for (const ch of text) { if (ch !== ' ') write(g, ch, cx, y, { hand: 'print', color, bold: true }); cx += adv(ch); }
+}
+const boldWidth = (t) => [...t].reduce((w, ch) => w + adv(ch), 0);
+
+/**
+ * A canvas of pixel text (CSS-scaled by --px on #pause). opts.bold: heavier strokes with a dark outline all round
+ * (for words laid straight over the scene: the title and its buttons).
+ */
+export function pixText(text, color = INK, opts = {}) {
+  const lines = String(text).split('\n'), bold = !!opts.bold, pad = bold ? 1 : 0;
+  const w = Math.max(1, ...lines.map((l) => (bold ? boldWidth(l) : measure(l)))) + 1 + pad * 2, h = lines.length * LINE + 1 + pad * 2;
   const c = document.createElement('canvas');
   c.width = w; c.height = h; c.className = 'pix';
   c.style.setProperty('--w', w); c.style.setProperty('--h', h);
   const g = c.getContext('2d');
-  lines.forEach((l, i) => { write(g, l, 1, i * LINE + 1, { hand: 'print', color: '#000' }); write(g, l, 0, i * LINE, { hand: 'print', color }); });
+  lines.forEach((l, i) => {
+    const y = i * LINE + pad;
+    if (bold) {
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1], [2, 1], [2, 2], [1, 2]]) writeBold(g, l, pad + dx, y + dy, '#140809');
+      writeBold(g, l, pad, y, color);
+    } else { write(g, l, 1, y + 1, { hand: 'print', color: '#000' }); write(g, l, 0, y, { hand: 'print', color }); }
+  });
   return c;
 }
 const para = (text, maxW, color) => pixText(wrap(text, maxW).join('\n'), color);
@@ -46,37 +67,38 @@ export const TABS = {
     ['Stable thin details', 'supersample', 'cycle', [[2, 'On (2x supersample)'], [1, 'Off (raw pixels)']]],
   ],
 };
-// Controls: two columns of [group title, [[key, action], ...]]. Edit for your game.
+// Controls: two columns of [group title, [[key, action], ...]]. (The debug keys still work; F9 and the README list them, not here.)
 export const CONTROL_COLUMNS = [
   [['Moving', [['W A S D', 'Move'], ['Mouse', 'Look'], ['Shift', 'Run. In the air: dash'], ['C (hold)', 'Slink (silent)'], ['Space (hold)', 'Charge, release: jump'], ['Left click', 'Swipe'], ['Esc', 'Pause']]]],
-  [['Parkour', [['Space', 'Hanging: pull up'], ['S or C', 'Hanging: let go'], ['W into stripes', 'Climb'], ['Space', 'Climbing: kick off'], ['C', 'Climbing: let go']]], ['Debug', [['F1', 'Overlay'], ['F2 / F3', 'Third person / noclip'], ['F4', 'Anger +1'], ['F5', 'Wake +20'], ['F6', 'Trigger the catch'], ['F8', 'Freeze the vac'], ['F9', 'Key list']]]],
+  [['Parkour', [['Space', 'Hanging: pull up'], ['S or C', 'Hanging: let go'], ['W into stripes', 'Climb'], ['Space', 'Climbing: kick off'], ['C', 'Climbing: let go']]]],
 ];
 
 export class Menu {
   /** onBegin: the click that starts / resumes play (call input.requestLock() in it: it's a user gesture). */
   constructor(onBegin) {
     this.tab = 'Game';
+    this.view = 'home'; // 'home' (the title, or Paused) · 'cats' (the title's column of categories) · 'cat' (one category open)
     this.started = false;
     const el = this.el = document.createElement('div');
     el.id = 'pause';
     el.innerHTML = `<div class="panel"><div class="title"></div><div class="sub"></div>
-      <div class="main"><button id="resume" type="button"></button><button id="settings" type="button" class="small" hidden></button></div>
+      <div class="main"><button id="resume" type="button"></button><button id="settings" type="button"></button></div>
       <div class="note"></div><div class="tabs"></div><div class="body"></div>
-      <div class="foot"><button id="back" type="button" class="small" hidden></button><button id="reset" type="button" class="small"></button></div></div>`;
+      <div class="foot"><button id="back" type="button" class="small"></button><button id="reset" type="button" class="small"></button></div></div>`;
     document.body.append(el);
     const $ = this.$ = (s) => el.querySelector(s);
-    $('.title').append(Object.assign(pixText(TUNING.game.title, GOLD), { className: 'pix big' }));
+    $('.title').append(Object.assign(pixText(TUNING.game.title, GOLD, { bold: true }), { className: 'pix big' }));
     this._btn($('#reset'), 'Reset settings', DIM);
-    this._btn($('#settings'), 'Settings', DIM); this._btn($('#back'), 'Back');
+    this._btn($('#back'), '< Back');
     $('#resume').onclick = (e) => { e.stopPropagation(); onBegin(); };
     $('#reset').onclick = (e) => { e.stopPropagation(); resetSettings(); };
-    $('#settings').onclick = (e) => { e.stopPropagation(); el.classList.add('settings'); this.render(); };
-    $('#back').onclick = (e) => { e.stopPropagation(); el.classList.remove('settings'); };
+    $('#settings').onclick = (e) => { e.stopPropagation(); this._go('cats'); };
+    $('#back').onclick = (e) => { e.stopPropagation(); this._go(this.view === 'cat' && !this.started ? 'cats' : 'home'); };
     el.addEventListener('click', (e) => { if (e.target === el && this.started) onBegin(); }); // paused: a click outside the panel resumes (on the title it does nothing)
     el.addEventListener('contextmenu', (e) => e.preventDefault());
     for (const name of [...Object.keys(TABS), 'Controls']) {
       const b = document.createElement('button'); b.type = 'button'; b.dataset.tab = name;
-      b.onclick = (e) => { e.stopPropagation(); this.tab = name; this.render(); };
+      b.onclick = (e) => { e.stopPropagation(); this.tab = name; this._go('cat'); };
       $('.tabs').append(b);
     }
     onSettingsChange(() => { if (!el.hidden) this.render(); });
@@ -85,7 +107,9 @@ export class Menu {
     this.render();
   }
 
-  _btn(b, text, color = INK) { b.replaceChildren(pixText(text, color)); }
+  _btn(b, text, color = INK, opts) { b.replaceChildren(pixText(text, color, opts)); }
+
+  _go(view) { this.view = view; this.render(); }
 
   /** Whole-number pixel scale for the menu's font: about the game's own pixels on this screen. */
   _scale() {
@@ -93,12 +117,32 @@ export class Menu {
     this.el.style.setProperty('--px', px);
   }
 
+  /** Which parts show: the title's name and buttons, the column of categories, or one category's options. */
+  _layout() {
+    const $ = this.$, v = this.view, title = !this.started;
+    this.el.classList.toggle('title', title);
+    this.el.classList.toggle('settings', v !== 'home'); // (on the title: the veil and the card come up)
+    this.el.classList.toggle('cat', v === 'cat'); // (the card widens to the options)
+    $('.title').hidden = !(title && v === 'home');
+    $('.main').hidden = v !== 'home';
+    $('#settings').hidden = !title;
+    $('.note').hidden = !(title && v === 'home');
+    $('.tabs').hidden = !(v === 'cats' || (v === 'home' && !title));
+    $('.body').hidden = v !== 'cat';
+    $('.foot').hidden = v === 'home';
+    $('#reset').hidden = v !== 'cat' || this.tab === 'Controls';
+    const sub = v === 'cat' ? this.tab : v === 'cats' ? 'Settings' : title ? '' : 'Paused';
+    $('.sub').replaceChildren(...(sub ? [Object.assign(pixText(sub, GOLD), { className: 'pix mid' })] : []));
+  }
+
   render() {
     const $ = this.$;
-    for (const b of this.el.querySelectorAll('.tabs button')) { const on = b.dataset.tab === this.tab; b.classList.toggle('on', on); this._btn(b, b.dataset.tab, on ? INK : DIM); }
+    this._layout();
+    for (const b of this.el.querySelectorAll('.tabs button')) this._btn(b, b.dataset.tab);
     const body = $('.body');
     body.replaceChildren();
     body.className = 'body cols';
+    if (this.view !== 'cat') return;
     if (TABS[this.tab]) {
       const rows = TABS[this.tab];
       let cut = Math.ceil(rows.length / 2);
@@ -163,27 +207,26 @@ export class Menu {
     this.el.hidden = false;
     this._scale();
     const $ = this.$;
-    this.started = started;
-    this.el.classList.toggle('title', !started); this.el.classList.remove('settings');
+    this.started = started; this.view = 'home';
     document.body.classList.toggle('on-title', !started);
-    $('#settings').hidden = started; $('#back').hidden = started;
-    $('.sub').replaceChildren(...(started ? [pixText('Paused', DIM)] : []));
-    this._btn($('#resume'), started ? 'Resume' : 'Begin');
+    const bold = started ? undefined : { bold: true }; // (on the title the words sit right on the scene: heavier, outlined)
+    this._btn($('#resume'), started ? 'Resume' : 'Begin', INK, bold);
+    this._btn($('#settings'), 'Settings', '#e3c6b4', bold);
     $('.note').replaceChildren(...(!started && note ? [para(note, 400, DIM)] : []));
     this.render();
   }
   hide() { this.el.hidden = true; document.body.classList.remove('on-title'); }
 
-  /** Dev: every tab at this window size: does the panel scroll, does anything stick out? */
+  /** Dev: every category at this window size: does the panel scroll, does anything stick out? */
   fitReport() {
-    const was = { hidden: this.el.hidden, tab: this.tab, settings: this.el.classList.contains('settings') }, p = this.$('.panel'), out = {};
-    this.el.hidden = false; this.el.classList.add('settings');
+    const was = { hidden: this.el.hidden, tab: this.tab, view: this.view }, p = this.$('.panel'), out = {};
+    this.el.hidden = false; this.view = 'cat';
     for (const tab of [...Object.keys(TABS), 'Controls']) {
       this.tab = tab; this.render();
       const over = [...p.querySelectorAll('.col > *, .row, .controls > *')].filter((e) => e.getBoundingClientRect().right > (e.closest('.col') || p).getBoundingClientRect().right + 1).length;
       out[tab] = { scrolls: p.scrollHeight > p.clientHeight + 1 || p.scrollWidth > p.clientWidth + 1, over };
     }
-    this.tab = was.tab; this.render(); this.el.hidden = was.hidden; this.el.classList.toggle('settings', was.settings);
+    this.tab = was.tab; this.view = was.view; this.render(); this.el.hidden = was.hidden;
     return { size: [innerWidth, innerHeight], ok: Object.values(out).every((t) => !t.scrolls && !t.over), tabs: out };
   }
 }

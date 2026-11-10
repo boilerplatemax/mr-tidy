@@ -13,10 +13,30 @@ html, body {
   image-rendering: pixelated; image-rendering: crisp-edges; display: block;
 }
 
+/* the loading screen (index.html): a ball of Grandma's wool rolls across, unwinding, and a cat's paw prints follow it */
 #loading {
-  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  color: #6f6858; letter-spacing: .3em; background: #000; z-index: 30; transition: opacity .6s ease-out;
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 30; transition: opacity .6s ease-out;
+  background: radial-gradient(ellipse at 50% 55%, #1e0f12 0%, #0b0607 60%, #000 100%);
 }
+#loading .ld { display: flex; flex-direction: column; align-items: center; gap: 20px; transform: translateY(3vh) scale(1.7); }
+#loading .ld-track { position: relative; width: 232px; height: 40px; animation: ld-fade 3.2s ease-in-out infinite; }
+#loading .ld-ball { position: absolute; left: 0; bottom: 4px; width: 24px; height: 24px; animation: ld-roll 3.2s linear infinite; }
+#loading .ld-ball svg { display: block; width: 100%; height: 100%; image-rendering: pixelated; }
+#loading .ld-thread { position: absolute; left: 0; bottom: 6px; width: 220px; height: 12px; overflow: visible; animation: ld-unwind 3.2s linear infinite; }
+#loading .ld-thread path { fill: none; stroke: #b8435a; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linecap: square; }
+#loading .ld-paws { position: absolute; left: 0; top: -6px; width: 200px; height: 22px; animation: ld-follow 3.2s linear infinite; }
+#loading .ld-paw { position: absolute; width: 8px; height: 8px; transform: rotate(90deg); shape-rendering: crispEdges; }
+#loading .ld-paw path { fill: #b08a7c; }
+#loading .ld-word { color: #ecd3a8; font: bold 13px/1 'Courier New', Consolas, 'Lucida Console', ui-monospace, monospace; letter-spacing: .42em; text-shadow: 2px 2px 0 #3a1418; padding-left: .42em; }
+#loading .ld-word span { display: inline-block; letter-spacing: .1em; animation: ld-hop 1.2s ease-in-out infinite; }
+#loading .ld-word span:nth-child(2) { animation-delay: .15s; }
+#loading .ld-word span:nth-child(3) { animation-delay: .3s; }
+@keyframes ld-roll { 0% { transform: translateX(0) rotate(0); } 82%, 100% { transform: translateX(208px) rotate(1000deg); } }
+@keyframes ld-unwind { 0% { clip-path: inset(-4px 208px -4px 0); } 82%, 100% { clip-path: inset(-4px 0 -4px 0); } }
+@keyframes ld-follow { 0%, 14% { clip-path: inset(0 200px 0 0); } 94%, 100% { clip-path: inset(0 0 0 0); } }
+@keyframes ld-fade { 0% { opacity: 0; } 6%, 88% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes ld-hop { 0%, 60%, 100% { transform: none; } 30% { transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) { #loading .ld-track, #loading .ld-ball, #loading .ld-thread, #loading .ld-paws, #loading .ld-word span { animation: none; } }
 #loading.gone { opacity: 0; pointer-events: none; }
 #loading[hidden] { display: none; }
 
@@ -44,64 +64,101 @@ html, body {
 #hud .hud-label { position: absolute; image-rendering: pixelated; image-rendering: crisp-edges; transition: opacity .35s linear; opacity: 0; }
 #hud .hud-prompt { transition-duration: .08s; } /* the action prompt is quick to come and go */
 
-/* the pause menu + settings in the pixel font (src/ui/menu.js). --px = screen px per font pixel. */
+/* the pause menu + settings in the pixel font (src/ui/menu.js). --px = screen px per font pixel.
+   Grandma's house at night: faded rose damask, a lace doily edge, old gilt, and a little of his red. */
 #pause {
   position: absolute; inset: 0; z-index: 10;
-  background: rgba(0, 0, 0, .62);
+  background: radial-gradient(ellipse at center, rgba(34, 10, 14, .5), rgba(4, 1, 2, .9));
   display: flex; align-items: center; justify-content: center;
   --px: 2;
+  --rose: #6e3a3e; --rose-hi: #a2605c; --gilt: #b88c4a; --cream: #efe0c4; --red: #c4302a;
 }
-#pause[hidden] { display: none; }
+#pause[hidden], #pause [hidden] { display: none !important; }
 #pause .pix { width: calc(var(--w) * var(--px) * 1px); height: calc(var(--h) * var(--px) * 1px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+#pause .pix.mid { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
 #pause .pix.big { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
 #pause .panel {
-  width: min(calc(440px * var(--px)), calc(100vw - 32px)); max-height: calc(100vh - 24px); overflow: auto; box-sizing: border-box;
-  background: #0d0c0a; border: 1px solid #3a352b; padding: calc(8px * var(--px)) calc(12px * var(--px));
+  position: relative; box-sizing: border-box; max-height: calc(100vh - 24px); overflow: auto;
+  width: min(calc(150px * var(--px)), calc(100vw - 32px)); /* the column of categories: narrow */
+  padding: calc(10px * var(--px)) calc(12px * var(--px));
   display: flex; flex-direction: column; gap: calc(3px * var(--px));
+  /* the wallpaper: faint rose damask (a diamond of dots), stripes, on a deep plum ground */
+  background:
+    radial-gradient(circle at 50% 50%, rgba(214, 140, 140, .09) 0 calc(1.5px * var(--px)), transparent calc(1.5px * var(--px) + 1px)) 0 0 / calc(14px * var(--px)) calc(14px * var(--px)),
+    radial-gradient(circle at 50% 50%, rgba(214, 140, 140, .06) 0 calc(1px * var(--px)), transparent calc(1px * var(--px) + 1px)) calc(7px * var(--px)) calc(7px * var(--px)) / calc(14px * var(--px)) calc(14px * var(--px)),
+    repeating-linear-gradient(90deg, rgba(255, 220, 200, .025) 0 calc(1px * var(--px)), transparent calc(1px * var(--px)) calc(7px * var(--px))),
+    linear-gradient(#2c151a, #1b0c10);
+  border: calc(2px * var(--px)) solid var(--rose);
+  box-shadow: inset 0 0 0 1px var(--gilt), inset 0 0 0 calc(3px * var(--px)) rgba(0, 0, 0, .25), 0 0 0 1px #0a0405, 0 calc(4px * var(--px)) 40px rgba(0, 0, 0, .8);
 }
+#pause.cat .panel { width: min(calc(440px * var(--px)), calc(100vw - 32px)); } /* a category open: wide enough for two columns */
+/* the lace doily along the top and bottom edges */
+#pause .panel::before, #pause .panel::after {
+  content: ''; position: absolute; left: calc(4px * var(--px)); right: calc(4px * var(--px)); height: calc(3px * var(--px)); pointer-events: none;
+  background: radial-gradient(circle at 50% 0, rgba(239, 224, 196, .32) 0 calc(2px * var(--px)), transparent calc(2px * var(--px) + 1px)) 0 0 / calc(6px * var(--px)) 100% repeat-x;
+}
+#pause .panel::before { top: calc(1px * var(--px)); }
+#pause .panel::after { bottom: calc(1px * var(--px)); transform: scaleY(-1); }
 #pause .panel > * { flex-shrink: 0; }
 #pause .title, #pause .sub, #pause .note { display: flex; justify-content: center; text-align: center; }
+#pause .sub { padding-bottom: calc(3px * var(--px)); margin-bottom: calc(2px * var(--px)); background: linear-gradient(90deg, transparent, var(--gilt), transparent) bottom / 100% 1px no-repeat; }
 #pause .sub:empty, #pause .note:empty { display: none; }
-#pause .main { display: flex; flex-direction: column; gap: calc(3px * var(--px)); margin: calc(3px * var(--px)) 0; }
-#pause button { background: #2a261e; border: 1px solid #4a4334; padding: calc(3px * var(--px)) calc(6px * var(--px)); cursor: pointer; display: flex; justify-content: center; align-items: center; width: 100%; }
-#pause button:hover { background: #3a3428; }
-#pause button.small { background: transparent; border-color: #2a261e; padding: calc(2px * var(--px)); }
-#pause button[hidden] { display: none; }
-#pause .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin-top: calc(4px * var(--px)); border-bottom: 1px solid #4a4334; }
-#pause .tabs button { background: transparent; border: 1px solid transparent; border-bottom: none; }
-#pause .tabs button.on { background: #1a1814; border-color: #4a4334; }
-#pause .body { display: flex; flex-direction: column; gap: calc(3px * var(--px)); padding: calc(4px * var(--px)) 0; min-height: calc(110px * var(--px)); } /* tabs never jump in height */
+#pause .main { display: flex; flex-direction: column; gap: calc(3px * var(--px)); margin: calc(2px * var(--px)) 0; }
+#pause button {
+  position: relative; cursor: pointer; display: flex; justify-content: center; align-items: center; width: 100%;
+  padding: calc(3px * var(--px)) calc(6px * var(--px));
+  background: linear-gradient(#41202a, #2c141b); border: 1px solid #7c4a48; box-shadow: inset 0 1px 0 rgba(255, 210, 190, .08);
+}
+#pause button:hover { background: linear-gradient(#55262e, #3a1820); border-color: #d9a35a; }
+/* his red: a little pip on whatever the mouse is over */
+#pause button:hover::before { content: ''; position: absolute; left: calc(3px * var(--px)); top: 50%; width: calc(2px * var(--px)); height: calc(2px * var(--px)); margin-top: calc(-1px * var(--px)); background: var(--red); box-shadow: 0 0 0 1px #2a0806; }
+#pause:not(.title) #resume { border-color: #a8743e; }
+#pause button.small { background: transparent; border-color: #5a3036; box-shadow: none; padding: calc(2px * var(--px)) calc(5px * var(--px)); }
+#pause button.small:hover { background: rgba(196, 48, 42, .12); border-color: #a05a50; }
+#pause .tabs { display: flex; flex-direction: column; gap: calc(3px * var(--px)); }
+#pause:not(.title) .main + .note + .tabs { margin-top: calc(2px * var(--px)); padding-top: calc(4px * var(--px)); background: linear-gradient(90deg, transparent, rgba(184, 140, 74, .5), transparent) top / 100% 1px no-repeat; }
+#pause .tabs button { justify-content: flex-start; padding-left: calc(10px * var(--px)); }
+#pause .tabs button::after { content: ''; position: absolute; right: calc(5px * var(--px)); color: transparent; width: calc(3px * var(--px)); height: calc(5px * var(--px));
+  background: linear-gradient(45deg, transparent 45%, var(--rose-hi) 45% 60%, transparent 60%) top / 100% 50% no-repeat, linear-gradient(-45deg, transparent 45%, var(--rose-hi) 45% 60%, transparent 60%) bottom / 100% 50% no-repeat; }
+#pause .body { display: flex; flex-direction: column; gap: calc(3px * var(--px)); padding: calc(4px * var(--px)) 0; min-height: calc(110px * var(--px)); } /* categories never jump in height */
 #pause .body.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 calc(16px * var(--px)); align-items: start; }
 #pause .col { display: flex; flex-direction: column; gap: calc(3px * var(--px)); min-width: 0; }
 #pause .row { display: flex; justify-content: space-between; align-items: center; gap: calc(6px * var(--px)); min-height: calc(13px * var(--px)); }
 #pause .ctl { display: flex; align-items: center; gap: calc(4px * var(--px)); }
 #pause .ctl button.pick { width: auto; min-width: calc(60px * var(--px)); padding: calc(2px * var(--px)) calc(4px * var(--px)); }
+#pause .ctl button.pick:hover::before { display: none; }
 #pause .ctl .val { min-width: calc(22px * var(--px)); display: flex; justify-content: flex-end; }
-#pause input[type=range] { width: calc(60px * var(--px)); accent-color: #b8a06a; }
+#pause input[type=range] { width: calc(60px * var(--px)); accent-color: #c9584c; }
 #pause .controls { display: grid; grid-template-columns: calc(68px * var(--px)) 1fr; gap: calc(1px * var(--px)) calc(6px * var(--px)); align-items: center; margin-bottom: calc(5px * var(--px)); }
 #pause .controls .head { grid-column: 1 / -1; margin-bottom: calc(1px * var(--px)); }
-#pause .foot { display: flex; justify-content: center; gap: calc(6px * var(--px)); }
+#pause .foot { display: flex; justify-content: space-between; gap: calc(6px * var(--px)); margin-top: calc(2px * var(--px)); }
 #pause .foot button { width: auto; }
 
 /* The title screen: before play the pause screen is the title. No veil, no box: the live scene shows through; just the
-   name and the buttons on it. The settings sit behind their own button (.settings). */
+   name and the buttons on it, a little below the top, heavy and outlined so they read over the room. Settings brings
+   the card up (.settings). */
 #pause.title { background: transparent; align-items: flex-start; }
-#pause.title .panel { width: auto; min-width: calc(150px * var(--px)); background: transparent; border-color: transparent; margin-top: 11vh; }
+#pause.title .panel { width: auto; min-width: calc(150px * var(--px)); background: transparent; border-color: transparent; box-shadow: none; margin-top: 22vh; overflow: visible; }
+#pause.title .panel::before, #pause.title .panel::after { display: none; }
 #pause.title .pix.big { width: calc(var(--w) * var(--px) * 3px); height: calc(var(--h) * var(--px) * 3px); }
-#pause.title .title { margin-bottom: calc(6px * var(--px)); }
-#pause.title .main { align-items: center; gap: calc(1px * var(--px)); }
-#pause.title .main button { width: auto; min-width: calc(110px * var(--px)); background: transparent; border-color: transparent; }
-#pause.title .main button:hover { background: rgba(207, 196, 166, .07); border-color: rgba(207, 196, 166, .12); }
-#pause.title .tabs, #pause.title .body, #pause.title .foot { display: none; }
+#pause.title .title { margin-bottom: calc(10px * var(--px)); }
+#pause.title .main { align-items: center; gap: calc(2px * var(--px)); }
+#pause.title .main .pix { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
+#pause.title .main button { width: auto; min-width: calc(110px * var(--px)); background: transparent; border-color: transparent; box-shadow: none; padding: calc(2px * var(--px)) calc(10px * var(--px)); }
+#pause.title .main button:hover { background: rgba(30, 8, 10, .45); border-color: rgba(217, 163, 90, .45); }
+#pause.title .main button:hover::before { left: calc(4px * var(--px)); width: calc(3px * var(--px)); height: calc(3px * var(--px)); margin-top: calc(-1.5px * var(--px)); }
 #pause.title .note { max-width: calc(220px * var(--px)); align-self: center; }
-#pause.title.settings { background: rgba(0, 0, 0, .62); align-items: center; }
-#pause.title.settings .panel { width: min(calc(440px * var(--px)), calc(100vw - 32px)); background: #0d0c0a; border-color: #3a352b; margin-top: 0; }
-#pause.title.settings .pix.big { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
-#pause.title.settings .title { margin-bottom: 0; }
-#pause.title.settings .main, #pause.title.settings .note { display: none; }
-#pause.title.settings .tabs { display: grid; }
-#pause.title.settings .body.cols { display: grid; }
-#pause.title.settings .foot { display: flex; }
+#pause.title.settings { background: radial-gradient(ellipse at center, rgba(34, 10, 14, .5), rgba(4, 1, 2, .9)); align-items: center; }
+#pause.title.settings .panel { width: min(calc(150px * var(--px)), calc(100vw - 32px)); margin-top: 0; overflow: auto;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(214, 140, 140, .09) 0 calc(1.5px * var(--px)), transparent calc(1.5px * var(--px) + 1px)) 0 0 / calc(14px * var(--px)) calc(14px * var(--px)),
+    radial-gradient(circle at 50% 50%, rgba(214, 140, 140, .06) 0 calc(1px * var(--px)), transparent calc(1px * var(--px) + 1px)) calc(7px * var(--px)) calc(7px * var(--px)) / calc(14px * var(--px)) calc(14px * var(--px)),
+    repeating-linear-gradient(90deg, rgba(255, 220, 200, .025) 0 calc(1px * var(--px)), transparent calc(1px * var(--px)) calc(7px * var(--px))),
+    linear-gradient(#2c151a, #1b0c10);
+  border-color: var(--rose);
+  box-shadow: inset 0 0 0 1px var(--gilt), inset 0 0 0 calc(3px * var(--px)) rgba(0, 0, 0, .25), 0 0 0 1px #0a0405, 0 calc(4px * var(--px)) 40px rgba(0, 0, 0, .8); }
+#pause.title.settings.cat .panel { width: min(calc(440px * var(--px)), calc(100vw - 32px)); }
+#pause.title.settings .panel::before, #pause.title.settings .panel::after { display: block; }
 /* nothing of the game's own overlays shows on the title */
 body.on-title #hud, body.on-title #subtitles { display: none; }
 
@@ -155,16 +212,6 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 #cut[hidden] { display: none; }
 
 
-/* ---- the house style: dark wood, old brass, a little dither ---- */
-#pause .panel { background: linear-gradient(#17110e, #0f0b09); border: calc(2px * var(--px)) solid #3a2a1e; outline: 1px solid #0a0706; box-shadow: inset 0 0 0 1px #5a4430, 0 0 40px rgba(0, 0, 0, .8); background-image: repeating-linear-gradient(0deg, rgba(255, 255, 255, .015) 0 1px, transparent 1px 3px), linear-gradient(#17110e, #0f0b09); }
-#pause:not(.title) { background: radial-gradient(ellipse at center, rgba(20, 8, 6, .55), rgba(0, 0, 0, .88)); }
-#pause button { background: linear-gradient(#2a1e14, #1c140e); border: 1px solid #6a5032; box-shadow: inset 0 1px 0 rgba(255, 220, 160, .08); }
-#pause button:hover { background: linear-gradient(#3a2a1a, #261a10); border-color: #b8945a; }
-#pause .tabs { border-bottom-color: #6a5032; }
-#pause .tabs button.on { background: #24180f; border-color: #6a5032; }
-#pause input[type=range] { accent-color: #c8a060; }
-#pause.title .main button { border-color: transparent; background: transparent; box-shadow: none; }
-#pause.title .main button:hover { background: rgba(200, 160, 96, .08); border-color: rgba(200, 160, 96, .25); }
 /* ---- the retry screen: his hallway wall, the empty frame ---- */
 #end { background: radial-gradient(ellipse at center, rgba(40, 6, 6, .7) 0%, rgba(0, 0, 0, .95) 70%); }
 #end::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .25) 0 1px, transparent 1px 3px); animation: endScan 6s linear infinite; }
@@ -173,4 +220,3 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 #end .box img:first-child { border: calc(3px * var(--px)) solid #7a5a32; box-shadow: inset 0 0 0 1px #000, 0 0 0 1px #2a1c10; margin-bottom: calc(2px * var(--px)); }
 #end button { background: linear-gradient(#2a1e14, #1c140e); border: 1px solid #6a5032; }
 #end button:hover { background: linear-gradient(#3a2a1a, #261a10); border-color: #b8945a; }
-#pause.title .panel { background: transparent; box-shadow: none; outline: none; border-color: transparent; }
