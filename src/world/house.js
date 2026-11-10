@@ -279,7 +279,7 @@ function furnishings(tex) {
     boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.min[2] + 0.05, K.max[2] - 0.05); // (under the keys)
     boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.min[2], K.min[2] + 0.05); boxM(wood, K.min[0], P.min[0], 0, K.max[1], K.max[2] - 0.05, K.max[2]); // the cheeks
     const kc = document.createElement('canvas'); kc.width = 64; kc.height = 8; const kg = kc.getContext('2d'); kg.fillStyle = '#f2ecdc'; kg.fillRect(0, 0, 64, 8); kg.fillStyle = '#8a8070'; for (let i = 0; i < 64; i += 2) kg.fillRect(i, 0, 1, 8); kg.fillStyle = '#141210'; for (let i = 0; i < 32; i++) if ([1, 2, 4, 5, 6].includes(i % 7)) kg.fillRect(i * 2 + 1, 0, 1, 5);
-    const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace; pixelTexture(kt); kt.wrapS = THREE.RepeatWrapping; kt.repeat.x = -1; kt.offset.x = 1; // (mirrored onto the plane: flipped back, so the twos and threes of black keys run the right way)
+    const kt = new THREE.CanvasTexture(kc); kt.colorSpace = THREE.SRGBColorSpace; pixelTexture(kt); kt.wrapT = THREE.RepeatWrapping; kt.repeat.y = -1; kt.offset.y = 1; // (the plane maps it front to back: flipped, so the black keys sit at the back, under the fallboard, and the white key fronts face the bench)
     const keys = new THREE.Mesh(new THREE.PlaneGeometry(K.max[2] - K.min[2] - 0.1, P.min[0] - K.min[0]).rotateX(-Math.PI / 2).rotateY(Math.PI / 2), makePS1(new THREE.MeshLambertMaterial({ map: kt })));
     keys.position.set((K.min[0] + P.min[0]) / 2, K.max[1] + 0.002, (K.min[2] + K.max[2]) / 2); g.add(keys);
     { const B = S.get('pStool'), [bx0, , bz0] = B.min, [bx1, by1, bz1] = B.max, frame = tex('wood_walnut'), pad = tex('fabric_velvet_curtain'); // the piano stool: a padded bench on four turned legs

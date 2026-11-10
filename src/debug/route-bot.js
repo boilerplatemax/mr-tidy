@@ -1025,10 +1025,10 @@ async function endingChecks(kit) {
   let t = 0, near = 9, offAt = -1, room = false, inHand = false, camOk = true, cordGone = false; const vx = v.x, vz = v.z, o = v.cord.outlet;
   while (E.active && t < 30) {
     E.update(dt); v.frame(1, dt); t += dt;
-    if (E.nan?.visible) { room = true; near = Math.min(near, Math.hypot(E.nan.position.x - E.to.x, E.nan.position.z - E.to.y)); if (v.cord.plugHeld && E.held.parent !== kit.scene) inHand = true; if (v.cord.trim > 0.99) cordGone = true; }
+    if (E.nan?.visible) { room = true; near = Math.min(near, Math.hypot(E.nan.position.x - E.to.x, E.nan.position.z - E.to.y)); if (v.cord.plugHeld && E.held.parent !== kit.scene) inHand = true; if (v.cord.plugHeld && v.cord.trim === 0 && v.cord.plug.visible && v.cord.plug.position.y < 0.05) cordGone = true; }
     if (v.off && offAt < 0) { offAt = t; camOk = Math.hypot(kit.camera.position.x - v.x, kit.camera.position.z - v.z) > 0.5 && !E.vox.blocked(kit.camera.position.x, kit.camera.position.y, kit.camera.position.z); }
   }
-  report('she comes to his outlet, pulls the plug (it comes away in her hand) and the cord whips away', room && near < 0.05 && inHand && cordGone && Math.hypot(E.to.x - o.pos[0], E.to.y - o.pos[2]) < 1, `she gets within ${near.toFixed(2)} m`);
+  report('she comes to his outlet, pulls the plug (it comes away in her hand) and drops it, the cord lying there', room && near < 0.05 && inHand && cordGone && Math.hypot(E.to.x - o.pos[0], E.to.y - o.pos[2]) < 1, `she gets within ${near.toFixed(2)} m`);
   report('then he dies where he is, filmed from open space in front of him', offAt > 4 && v.model.dead && v.x === vx && v.z === vz && camOk, `power off at ${offAt.toFixed(1)} s`);
   report('and the lights come back on', v.dark < 0.01, v.dark.toFixed(2));
   report('then Good Kitty', E.done && !kit.endScreen.el.hidden);

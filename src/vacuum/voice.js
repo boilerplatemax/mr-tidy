@@ -24,6 +24,8 @@ export const LINES = {
   calm: [1, ['Ahh. Spotless again.', 'There we are. All tidy.', 'Silly me. Where was I?', 'Deep breaths, Mister Tidy.']],
   search: [3, ['Come out, kitty kitty.', 'Here, kitty kitty...', 'I can smell you.', "Where's my little mess?", 'You cannot hide forever.', 'Kitty? Kiiitty?']],
   search5: [5, ['I know you are here.', 'Come out, come out.', 'There is nowhere to hide.']],
+  fog: [3, ['Time to dust.', 'Breathe it in, kitty.', 'Let me tidy the air.']], // the dust storm, announced
+  fog5: [5, ['Dust to dust.', 'Breathe it in.', 'Nowhere to hide in the dust.']],
   lurk: [3, ['I see you.', 'Peekaboo.', 'Shh. Shh.', 'I was only watching.']], // (stared out of a lurk, as he slips away)
   lurk5: [5, ['I see you.', 'Always watching.', 'Sleep tight, kitty.']],
 };

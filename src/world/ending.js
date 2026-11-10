@@ -1,5 +1,5 @@
 // The ending: Grandma wakes. A gentle fade, and there she is in the room where his plug is, in the warm light of the lamp
-// she's put on: she shuffles to the wall, bends and pulls his plug, and the cord whips away across the floor after him.
+// she's put on: she shuffles to the wall, bends and pulls his plug, and drops it: it lies there on the floor.
 // Cut to him, wherever he is in the house, still going... and then not: the X eyes, the slump, the lights coming back on.
 // She has something to say about it. Fade out. Numbers are in TUNING.ending.
 import * as THREE from 'three';
@@ -166,11 +166,15 @@ export class Ending {
       this._at('yank', yankAt, () => this._clip('yankPlug', false));
       this._at('grip', yankAt + E.grip, () => { v.cord.plugHeld = true; v.cord.plug.visible = false; this.held.position.copy(v.cord.plug.position); this.held.quaternion.copy(v.cord.plug.quaternion); this.held.visible = true; this.hand?.attach(this.held); }); // it comes away in her hand
       this._at('pull', pullAt, () => audio.play('vac.unplug', { pos: v.cord.plugPos, gain: 1.4 }));
-      if (t >= pullAt) v.cord.setTrim(smooth((t - pullAt) / E.whip)); // and the cord whips away across the floor after him
+      this._at('drop', pullAt + E.drop, () => { // she lets it fall: it lies there on the floor, the cord with it, going nowhere now
+        const o = v.cord.outlet, [x, , z] = o.pos, [nx, , nz] = o.n;
+        this.held.visible = false; this.scene.attach(this.held);
+        v.cord.plug.position.set(x + nx * 0.16, 0.025, z + nz * 0.16); v.cord.plug.rotation.set(0, Math.atan2(nx, nz) + 0.6, Math.PI / 2); v.cord.plug.visible = true;
+      });
       return;
     }
     // him
-    this._at('vac', vacAt, () => { this.lamp.intensity = 0; if (this.nan) this.nan.visible = false; this.held.visible = false; v.cord.setTrim(1); this._placeVacCam(); this.dark0 = v.dark; v.caught = true; }); // (caught: his own hose code leaves the hose alone now)
+    this._at('vac', vacAt, () => { this.lamp.intensity = 0; if (this.nan) this.nan.visible = false; this._placeVacCam(); this.dark0 = v.dark; v.caught = true; }); // (caught: his own hose code leaves the hose alone now)
     this._hoseAside(smooth((t - dieAt) / 0.5));
     const push = smooth((t - vacAt) / (endAt - vacAt)) * E.push;
     const sink = smooth((t - dieAt) / 0.9);
@@ -187,7 +191,7 @@ export class Ending {
     this.active = false; this.done = false; this.t = 0; this.fired = {};
     this.fade.style.opacity = '0'; this.lamp.intensity = 0; this.held.visible = false; this.scene.attach(this.held);
     if (this.nan) this.nan.visible = false;
-    this.vac.cord.plugHeld = false;
+    this.vac.cord.plugHeld = false; this.vac.cord.plug.rotation.set(0, 0, 0); // (it was lying on its side on the floor)
     this.vac.model.slumped = false; this.vac.model.dead = false; this.vac.model.calm = false;
   }
 }

@@ -166,14 +166,14 @@ export class Vacuum {
   }
 
   /** A line from his repertoire, if he hasn't just spoken. Heard, and captioned, only near him. */
-  _say(group, force = false, quiet = false) {
+  _say(group, force = false, quiet = false, everywhere = false) {
     const VO = TUNING.voice, set = LINES[group];
     if (!set || this.dormant || this.off || (!force && this.sayCd > 0)) return;
     this.sayCd = VO.every;
     let i = Math.floor(Math.random() * set[1].length); if (set[1].length > 1 && i === this.lastLine?.[group]) i = (i + 1) % set[1].length;
     (this.lastLine ??= {})[group] = i;
-    audio.play(`vac.say.${group}.${i}`, { follow: this.model.hoseSocket, refDistance: 3, rolloff: 0.7 });
-    const L = audio.listenerPos; if (Math.hypot(this.x - L.x, this.z - L.z) < VO.hear) if (!quiet) subtitles.line(null, set[1][i], 3); // (no name: it's obviously him)
+    audio.play(`vac.say.${group}.${i}`, { follow: this.model.hoseSocket, refDistance: everywhere ? 8 : 3, rolloff: everywhere ? 0.2 : 0.7 });
+    const L = audio.listenerPos; if (everywhere || Math.hypot(this.x - L.x, this.z - L.z) < VO.hear) if (!quiet) subtitles.line(null, set[1][i], 3); // (no name: it's obviously him)
   }
 
   /** You broke one of his things: he's coming, whatever his mood, and he's angrier for it. */
@@ -623,6 +623,7 @@ export class Vacuum {
     if (this.direct) this._rejoin();
     this.state = 'FOG'; this.fogPhase = 'wind'; this.fogT = 0; this.coughI = 0;
     this._shriek(true);
+    this._say(this.anger >= 5 ? 'fog5' : 'fog', true, false, true); // (heard and captioned wherever you are: it's coming for the whole house)
   }
 
   _endFog() { this.fogPhase = null; }

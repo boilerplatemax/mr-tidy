@@ -162,11 +162,11 @@ export const TUNING = {
     // off the wall and to one side she stands, so her (left) hand is at the outlet and her head stays clear of the wall as
     // she bends. clearance: m of room she needs. startFrom: [m back into the room, m to her left] she tries coming in from.
     // camTries: [m back, m to the left, m up] the camera tries, looking at lookY m up between her and the outlet; camIn /
-    // camDrop: how far it eases in (share) and down (m). whip: s the cord takes to whip away. lamp: the light she's put on
+    // camDrop: how far it eases in (share) and down (m). drop: s after the pull she lets the plug fall. lamp: the light she's put on
     walkSpeed: 0.5, standOff: 0.62, handSide: 0.12, clearance: 0.24,
     startFrom: [[1.2, 0], [1.0, 0.5], [1.0, -0.5], [0.8, 0.8], [0.8, -0.8], [0.6, 0], [0.2, 0.9], [0.2, -0.9]],
     camTries: [[2.3, 1.1, 1.35], [2.3, -1.1, 1.35], [1.9, 0.8, 1.3], [1.9, -0.8, 1.3], [1.5, 0.6, 1.25], [1.5, -0.6, 1.25], [2.6, 0, 1.4], [0.35, 2.2, 1.35], [0.35, -2.2, 1.35], [0.3, 1.6, 1.3], [0.3, -1.6, 1.3], [0.95, 2.1, 1.3], [0.95, -2.1, 1.3], [0.9, 1.6, 1.25], [0.9, -1.6, 1.25], [1.2, 0, 1.2]], // (the short, sideways ones are for a narrow hallway)
-    lookY: 0.7, camIn: 0.22, camDrop: 0.3, whip: 0.8, lamp: 3.2, lightColor: 0xffc27a,
+    lookY: 0.7, camIn: 0.22, camDrop: 0.3, drop: 0.45, lamp: 3.2, lightColor: 0xffc27a,
     vacDist: [1.15, 0.9, 0.7], vacUp: 0.08, push: 0.18, sink: [0.16, 0.08], vacAngles: [0.45, -0.45, 0.8, -0.8, 0.15, -0.15, 1.2, -1.2], // rad off his heading the camera tries, in order. sink: m the camera and where it looks drop as he slumps (to keep his dead face in view) // m: how far in front of him the camera can stand (it tries the first, then closer); above his face; how far it creeps in
   },
   assets: { tail: 'game-assets/models/cat_tail.glb', grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb', marmalade: 'game-assets/textures/portraits/portrait_10_marmalade.png' }, // if the vac fails to load, a primitive stands in. marmalade: a picture of her for the end screens (e.g. 'game-assets/textures/portraits/portrait_marmalade.png'); null draws her
@@ -265,7 +265,7 @@ export const TUNING = {
   voice: { every: 7, hear: 11, huffEvery: 10, huff: 1.1, turn: 3.4, turnFace: 0.75, pokeEvery: 2.5, shhEvery: 6, searchEvery: 5, quietStart: 4 }, // (quietStart: s at the start of a run before he says anything) // s between lines; m away you can make him out; s between huffs (stage 2); s a huff takes; s the change to angry takes; s into it his face goes and he says it; s between lines when you bat him; s between his shushes; s between his calls while he searches
   closeup: { dist: [0.78, 0.62, 0.5], up: 0.05, fov: 52, glideIn: 0.45, glideOut: 0.5, near: 4.5, push: 0.12 }, // "...that's enough.": m from his face the camera tries; m above it; degrees the view narrows to; s gliding in and back (when you're near enough to see him: otherwise a cut); m it creeps in
   stalk: { chance: 0.35, speed: 0.45, dip: 0.8 }, // from angry: how often he creeps up instead of coming (always in his dust); how slow; how quiet
-  eat: { inflate: 1.6, wide: 1.28, into: 0.32, chomps: [0.45, 0.75, 1.05] }, // stage 5's catch: how tall and wide he swells; m the camera goes into the mouth; s the bites come
+  eat: { inflate: 1.6, wide: 1.28, into: 0.13, chomps: [0.45, 0.75, 1.05] }, // stage 5's catch: how tall and wide he swells; m the camera goes into the mouth; s the bites come
   stuck: { after: 2.5, move: 0.04, tries: 2 }, // he hasn't moved this far in this long while trying to: find another way; after this many goes, he's moved
   stun: { time: 0.65, perKg: 0.3, max: 1.2, cooldown: 5 }, // something dropped on him: s he reels, plus this much per kg, at most; s before it can work again
   hide: { range: 2.6, chance: [0, 0, 0.35, 0.55, 0.7], time: 4 }, // the tub and behind the closed curtains: he goes looking when he reaches where he lost you. m he checks from; odds he finds you, by stage; s he then knows
@@ -370,6 +370,7 @@ export const TUNING = {
     hoseGap: 0.6, // m the end of the hose stays ahead of you as it reels in: never around the camera
     turn: 0.16, // s to turn and face him at the end of it
     hold: 2.0, // s held on his face (the laugh or the scream)
+    faceGap: 0.15, // m: the closest the camera ever comes to his face in the catch
     faceJitter: 0.003, // m he trembles (all of him, so his face never slides off his body)
     beat: 0.8, // s of black silence before the restart screen
     screamRate: 2.3, screamGain: 1.4, screamRamp: 0.9, // the motor at the end: pitch, loudness, s to get there
@@ -549,7 +550,7 @@ export const TUNING = {
   },
 
   hud: {
-    portraitRange: 1.5, portraitCos: 0.9, // m and how squarely you must look at a portrait to read its plate
+    portraitRange: 1.5, portraitCos: 0.975, // m and how squarely you must look at a portrait to read its plate
     wakeIcon: true, wakeShow: 3.5, wakeFade: 0.8, wakeNear: 2.6, // Grandma's face and how close she is to waking: on; s it stays up after a knock-over wakes her a little more; s it fades in and out over; m from her door it shows
     lines: 240, // the HUD's own pixel grid (lines), whatever the render resolution: the pixel font stays one size
   },

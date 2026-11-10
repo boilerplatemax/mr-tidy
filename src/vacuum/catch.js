@@ -130,6 +130,7 @@ export class CatchSequence {
       cam.quaternion.slerpQuaternions(this.from, this.to, smooth(k));
       cam.position.copy(this.end);
       if (this.eat) { const u = Math.max(0, (this.t - C.hold * 0.4) / (C.hold * 0.6)); _p.copy(this.faceAt).sub(this.end).setY(0).normalize(); cam.position.addScaledVector(_p, TUNING.eat.into * u * u); cam.position.y -= 0.06 * u; } // in, between the teeth
+      { const v2 = this.vac, dx = cam.position.x - v2.x, dz = cam.position.z - v2.z, d = Math.hypot(dx, dz), min = TUNING.vac.model.bodyR * (v2.model.w ?? 1) + C.faceGap; if (d < min && d > 1e-4) { cam.position.x = v2.x + (dx / d) * min; cam.position.z = v2.z + (dz / d) * min; } } // (never into his face, however he swells)
       cam.updateMatrixWorld();
       v.tremble = C.faceJitter; // trembling with rage: all of him (the face stays on his body)
       if (this.t >= C.hold) this._toCut();

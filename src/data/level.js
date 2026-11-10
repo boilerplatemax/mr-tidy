@@ -263,7 +263,6 @@ export const LEVEL = {
   // When the power goes (stage 5): what still gives any light. needs: goes out if that object has been knocked over.
   darkLights: [
     { x: 5.0, y: 0.65, z: 2.3, color: 0x8fb0ff, power: 3.6, dist: 6, flicker: 0.5 }, // the television (unplugged: it comes on by itself)
-    { x: 7.2, y: 1.05, z: 0.45, color: 0x60ff90, power: 0.8, dist: 2.6, flicker: 0 }, // the oven clock, on its battery
     { x: 13.7, y: 0.4, z: 1.9, color: 0xc8a070, power: 0.55, dist: 2.4, flicker: 0, follow: 'vac' }, // a faint glow from his motor: wherever he is
     { x: 17.4, y: 0.25, z: -0.7, color: 0xffc27a, power: 2.6, dist: 5, flicker: 0.06 }, // the light under Grandma's door
     { x: 9.45, y: 0.32, z: -2.0, color: 0x90e0a0, power: 1.0, dist: 3, flicker: 0 }, // a night-light in the bathroom
