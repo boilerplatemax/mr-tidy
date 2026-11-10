@@ -94,9 +94,12 @@ export class Cord {
     add(sx, sy, sz);
     // trimming drops points from the outlet end: the free end whips along the floor toward the reel
     const start = Math.min(n - 1, Math.round(this.trim * (n - 1)));
-    this.plug.visible = this.trim < 0.999;
-    if (this.trim > 0.001) this.plug.position.set(P[start].x, Math.max(P[start].y, 0.03), P[start].z);
-    else this.plug.position.copy(this.plugHome);
+    this.n = n; this.start = start; // (what is drawn: P[start..n), from the outlet end to the reel)
+    if (!this.plugHeld) { // (the ending: Grandma has it in her hand)
+      this.plug.visible = this.trim < 0.999;
+      if (this.trim > 0.001) this.plug.position.set(P[start].x, Math.max(P[start].y, 0.03), P[start].z);
+      else this.plug.position.copy(this.plugHome);
+    }
     const r = C.radius, pos = this.pos, m = n - start;
     for (let i = start; i < n; i++) {
       const a = P[Math.max(start, i - 1)], b = P[Math.min(n - 1, i + 1)];

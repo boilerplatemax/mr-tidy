@@ -1,6 +1,6 @@
 // Mr. Tidy's body: the user's shop vac model, scaled to the build prompt's size. The face is painted on a skin that follows
 // the shape of his body, and it gets worse as he does: a cartoon face at first, then two black holes and a black smile with
-// the intake for a nose, then the Momo stare (huge bulging eyes, a thin grin round him), then the toothed maw. Anchors the game hangs things off: hoseSocket, cordSocket.
+// the intake for a nose, then something much further gone. Anchors the game hangs things off: hoseSocket, cordSocket.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { makePS1, pixelTexture } from '../render/ps1-material.js';
@@ -22,41 +22,24 @@ const blob = (g, cx, cy, rx, ry, color, rough = 0) => {
 
 const EYE_X = 0.1, EYE_Y = 0.155; // every face has its eyes here, on the drum either side of the intake
 
-/**
- * A staring eye, after the Momo statue: big, round and bulging, a dark rim, a ring of yellowed white all the way round, and
- * a big black iris a touch toward the nose (he's looking right at you). white: px of white showing. glow: a pinpoint
- * pupil that shines in the dark. stretch: [x, y] for the scream.
- */
-function stareEye(g, side, r, white, { glow = null, whiteColor = '#d6cba2', stretch = [1, 1], lift = 0 } = {}) {
-  const cx = X(side * EYE_X), cy = Y(EYE_Y + lift), rx = r * stretch[0], ry = r * stretch[1];
-  blob(g, cx, cy, rx + 2, ry + 2, '#1a0403'); // the rim: the socket it bulges out of
-  if (white > 0) blob(g, cx, cy, rx, ry, whiteColor);
-  const ix = cx - side * Math.min(1.5, white * 0.35), iy = cy + Math.min(1, white * 0.2); // (the iris sits in a little, so the white shows most on the outside)
-  blob(g, ix, iy, rx - white, ry - white, '#000000');
-  if (glow) blob(g, ix, iy - 1, 2.6, 2.6, glow);
-}
-
-/** A grin, lipless and thin, stretched round him: a crescent that thins out to its corners. Clear of the eyes and the intake. */
-function grin(g, span, mid, rise, thick, thin) {
+/** Two black holes for eyes and a black smile. wild: the last stage, wider and uneven. screaming: the mouth wide open. */
+function drawHoles(g, wild, screaming) {
+  const eyeR = (wild ? 0.05 : 0.042) * FA.pxPerM;
+  [-1, 1].forEach((side) => {
+    const cx = X(side * EYE_X), cy = Y(EYE_Y + (wild ? side * 0.005 : 0)), ry = eyeR * (screaming ? 1.28 : 1), rx = eyeR * (screaming ? 0.85 : 1);
+    blob(g, cx, cy, rx + 2, ry + 2, wild ? '#1a0403' : '#4a0606'); // the recess
+    blob(g, cx, cy, rx, ry, '#000000');
+  });
   g.fillStyle = '#000000';
+  if (screaming) { blob(g, W / 2, Y(0.05), 0.15 * FA.pxPerM, 17, '#000000'); return; }
+  // the smile: a crescent under the nose, clear of the eyes and the intake
+  const span = wild ? 0.225 : 0.165, top0 = 0.046, low0 = wild ? 0.018 : 0.028, rise = wild ? 0.06 : 0.05, riseLow = wild ? 0.098 : 0.078;
   for (let px = X(-span); px <= X(span); px++) {
-    const k = ((px - W / 2) / FA.pxPerM / span) ** 2, y = mid + k * rise, th = thick + (thin - thick) * k;
-    const a = Math.round(Y(y + th / 2)), b = Math.round(Y(y - th / 2));
-    g.fillRect(Math.round(px), a, 1, Math.max(1, b - a));
+    const k = ((px - W / 2) / FA.pxPerM / span) ** 2;
+    const yU = top0 + k * rise + (wild ? Math.abs(Math.sin(px * 0.95)) * 0.005 : 0), yL = low0 + k * riseLow;
+    const a = Math.round(Y(yU)), b = Math.round(Y(yL));
+    if (b > a) g.fillRect(Math.round(px), a, 1, b - a);
   }
-}
-
-/**
- * The angry faces. 3: the black holes and the smile, but the eyes already too big, a thin white showing round them, the
- * smile pulled thinner and wider. 4: the Momo stare, huge bulging eyes with the whites showing all round, and a long thin
- * grin from one side of him to the other. Big black shapes that never touch. screaming: the mouth drops wide open.
- */
-function drawHoles(g, wild, screaming, glow = null) {
-  const P = FA.pxPerM, tall = M.stretch[wild ? 3 : 2]; // (he stands taller at these stages: the eyes are drawn squat so they stay round on him)
-  for (const side of [-1, 1]) stareEye(g, side, (wild ? 0.056 : 0.047) * P, wild ? 5 : 2, { stretch: screaming ? [0.92, 1.22 / tall] : [1, 1 / tall], lift: wild ? side * 0.003 : 0, glow, whiteColor: glow ? '#b8ad88' : undefined });
-  if (screaming) { blob(g, W / 2, Y(0.042), 0.19 * P, 11, '#000000'); return; } // (wide, not tall: it stays clear of the nose)
-  if (wild) grin(g, 0.25, 0.052, 0.042, 0.015, 0.005);
-  else grin(g, 0.19, 0.048, 0.048, 0.022, 0.008);
 }
 
 /** Unplugged for good: crosses for eyes and a flat, slack mouth. */
@@ -67,12 +50,12 @@ function drawDead(g) {
 }
 
 /**
- * Stage 5, about to eat you: the stare, the nose hole raised up between the eyes (the hose comes out of it there), and
+ * Stage 5, about to eat you: the holes for eyes, the nose hole raised up between them (the hose comes out of it there), and
  * under it a mouth like a carved pumpkin's, right round him, with teeth. Nothing touches.
  */
 function drawMaw(g) {
   const P = FA.pxPerM;
-  for (const side of [-1, 1]) stareEye(g, side, 0.054 * P, 5, { whiteColor: '#b8ad88', glow: '#d8e4ff', stretch: [1, TUNING.eat.wide / TUNING.eat.inflate] }); // (he swells taller than wide as he eats: drawn squat, so they're round)
+  for (const side of [-1, 1]) { blob(g, X(side * 0.11), Y(0.2), 0.05 * P, 0.04 * P, '#000000', 0.1); blob(g, X(side * 0.11), Y(0.2), 2.5, 2.5, '#d8e4ff'); } // the holes, a glint deep in each
   g.fillStyle = '#000000';
   const span = 0.3, top = 0.088, low = 0.02;
   const yU = (k) => top - k * 0.012, yL = (k) => low + k * 0.05;
@@ -138,7 +121,7 @@ export function buildVacuum() {
   const out = {
     root, body, ready: false, stage: 1, k: 1, shriekT: 0, flick: 0, alert: 0, twitchT: 0, tiltZ: 0, tiltX: 0, bodyMats: [],
     still: false, kick: 0,
-    faces: { 1: faceTexture((g) => drawCalm(g, 1)), 2: faceTexture((g) => drawCalm(g, 2)), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => drawHoles(g, true, false, '#d8e4ff')), s:faceTexture((g) => drawHoles(g, true, true)), dead: faceTexture(drawDead), maw: faceTexture(drawMaw) },
+    faces: { 1: faceTexture((g) => drawCalm(g, 1)), 2: faceTexture((g) => drawCalm(g, 2)), 3: faceTexture((g) => drawHoles(g, false, false)), 4: faceTexture((g) => drawHoles(g, true, false)), 5: faceTexture((g) => { drawHoles(g, true, false); for (const side of [-1, 1]) { blob(g, X(side * EYE_X), Y(EYE_Y), 3, 3, '#d8e4ff'); } }), s: faceTexture((g) => drawHoles(g, true, true)), dead: faceTexture(drawDead), maw: faceTexture(drawMaw) },
   };
 
   // the intake: a black disc, smaller once it has become a nose
@@ -223,8 +206,9 @@ export function buildVacuum() {
     body.scale.set(M.scaleXZ * out.w, M.scaleY * out.k, M.scaleXZ * out.w); face.scale.set(out.w, out.k, out.w);
     if (out.maw || out.dead) show(out.stage);
     const MN = M.mawNose, mq = 1 - Math.exp(-MN.ease * dt); // the maw raises the nose hole between the eyes, and the hose with it
-    out.noseLift += ((out.maw ? MN.lift : 0) - out.noseLift) * mq;
-    const cur = hole.scale.x + ((out.maw ? MN.r : M.holeRs[s]) / M.holeR - hole.scale.x) * (out.maw ? mq : ease);
+    const high = out.maw || out.stage >= 5; // the final stage: the nose hole sits up between the eyes
+    out.noseLift += ((high ? MN.lift : 0) - out.noseLift) * mq;
+    const cur = hole.scale.x + ((high ? MN.r : M.holeRs[s]) / M.holeR - hole.scale.x) * (out.maw ? mq : ease);
     hole.scale.set(cur, cur, 1); hole.position.y = out.holeY(); out.hoseSocket.position.y = out.holeY();
     hole.position.z = M.holeZ * out.w; out.hoseSocket.position.z = M.holeZ * out.w - 0.02; // (out in front of him as he swells)
     for (const m of out.bodyMats) { const c = m.color.r + (M.tone[s] - m.color.r) * ease; m.color.setRGB(c, c * (1 - (1 - M.tone[s]) * 0.2), c * (1 - (1 - M.tone[s]) * 0.2)); }

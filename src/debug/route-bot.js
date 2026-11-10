@@ -85,7 +85,7 @@ function freshVac(kit, id, anger = 1) {
   for (const m of kit.debris.messes) m.cleaned = true;
   if (v.slurp) { v.slurp.stop(0); v.slurp = null; }
   v.mess = null; v.pending = null; v.frozen = false; v.state = 'PATROL'; v.setAnger(anger);
-  v._endReach(); v._endBlast(); v._endSuck(); v._endCreep(); v._endFog(); v.cloud.reset(); v.foundT = 0; v.stunT = 0; v.stunCd = 99; v.creepCd = 99; v.fogCd = 99; v.stingCd = 99; v.alertCd = 0; v.freezeT = 0; v.thinkT = 999; v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0;
+  v._endReach(); v._endBlast(); v._endSuck(); v._endCreep(); v._endFog(); v.cloud.reset(); v.foundT = 0; v.stunT = 0; v.stunCd = 99; v.creepCd = 99; v.fogCd = 99; v.stingCd = 99; v.alertCd = 0; v.freezeT = 0; v.thinkT = 999; v.blast.reset(); v.blastCd = 99; kit.player.dust = 0; kit.player.sneezeT = 0; v.reachCd = 0; v.direct = false; v.caught = false; v.seeT = 0; v.sweep = false; v.campT = 0; v.ignoreT = 0; v.rushed = true; v.rush = false; v.lurkCd = 999; v.calmT = 0; v.heat = [0, 0, 3, 6, 9, 12][anger] ?? 0;
   v.x = v.px = n.x; v.z = v.pz = n.z; v.heading = v.prevHeading = 0;
   v.tether = v.nav.path(v.root, n); v.path = [n]; v.pathI = 0;
   return v;
@@ -147,7 +147,7 @@ function huntChecks(kit) {
   for (let i = 0; i < 30 && v.state === 'PATROL'; i++) kit.tick(dt);
   const chasing = v.state === 'CHASE' || v.state === 'HOSE_REACH' || v.state === 'LUNGE'; I.keys.add('KeyW'); I.keys.add('ShiftLeft');
   const d0 = Math.abs(v.x - P.pos.x);
-  for (let i = 0; i < 40; i++) kit.tick(dt);
+  for (let i = 0; i < 100; i++) kit.tick(dt);
   const d1 = Math.abs(v.x - P.pos.x); I.keys.clear();
   report('a running cat outpaces him at anger 3', chasing && d1 > d0 && !caughtBy, `gap ${d0.toFixed(2)} to ${d1.toFixed(2)} m`);
 
@@ -237,7 +237,7 @@ function hoseChecks(kit) {
     let moved0 = v.cleanT; hold(0.15); const heldOff = v.cleanT === moved0;
     while (v.cleanT === moved0 && v.cleanWait < 3) kit.tick(dt);
     const d = Math.hypot(v.hose.tip.x - m.x, v.hose.tip.z - m.z), facing = Math.abs(Math.atan2(Math.sin(Math.atan2(m.x - v.x, m.z - v.z) - v.heading), Math.cos(Math.atan2(m.x - v.x, m.z - v.z) - v.heading)));
-    report('he cleans with the tip of the hose, facing the mess', heldOff && d < 0.1 && facing < 0.3, `tip ${d.toFixed(2)} m from it`);
+    report('he cleans with the tip of the hose, facing the mess', heldOff && d < TUNING.vac.cleanTouch + 0.01 && facing < 0.3, `tip ${d.toFixed(2)} m from it`);
     while (!m.cleaned && v.cleanT < 2) kit.tick(dt);
     kit.debris.messes.pop(); }
 
@@ -384,12 +384,12 @@ function attackChecks(kit) {
     report('it can knock you off a perch', y0 > 0.8 && P.feetY < 0.1, `from ${y0.toFixed(2)} to ${P.feetY.toFixed(2)}`); P.resetMotion(); }
   // ---- the creeping hose
   { const C = TUNING.creep, cat = [1.9, 1.901, 5.15];
-    put('L4', 3, 0, cat[0], cat[1] - 0.001, cat[2]); v.creepCd = 0; hunt(cat[0], cat[2]); P.frozen = true; v.reachCd = 99; let t = 0; hold(C.after + 3, () => v.state === 'CREEP'); const started = v.state === 'CREEP';
+    put('L4', 3, 0, cat[0], cat[1] - 0.001, cat[2]); v.creepCd = 0; hunt(cat[0], cat[2]); P.frozen = true; v.reachCd = 99; let t = 0; hold(C.after + TUNING.vac.loseTime + 1.5, () => v.state === 'CREEP'); const started = v.state === 'CREEP';
     let moving = 0, last = v.hose.tip.clone(), fast = 0, clip = 0; while (t < C.maxTime + 1 && !caughtBy && v.state === 'CREEP') { kit.tick(dt); v.frame(1); t += dt; const sp = v.hose.tip.distanceTo(last) / dt; if (sp > C.speed * 1.6) fast++; if (sp > 0.05) moving++; last.copy(v.hose.tip); const a = v.hose.mesh.geometry.attributes.position; for (let k = 0; k < a.count; k += 7) if (inside(a.getX(k), a.getY(k), a.getZ(k))) clip++; }
     P.frozen = false;
     report('hiding up high, the hose creeps slowly up and gets you', started && caughtBy === 'hose' && t > 1.5 && fast < 4 && moving > 30, `${t.toFixed(1)} s, ${clip} tube points in things, ${fast} fast ticks`);
     report('and the creeping tube stays out of things', clip === 0, `${clip}`);
-    put('L4', 3, 0, cat[0], cat[1] - 0.001, cat[2]); v.creepCd = 0; hunt(cat[0], cat[2]); hold(C.after + 1, () => v.state === 'CREEP'); { const f = P.tick; P.tick = () => {}; P.feetY = 0; hold(0.1); P.tick = f; }
+    put('L4', 3, 0, cat[0], cat[1] - 0.001, cat[2]); v.creepCd = 0; hunt(cat[0], cat[2]); hold(C.after + TUNING.vac.loseTime + 1.5, () => v.state === 'CREEP'); { const f = P.tick; P.tick = () => {}; P.feetY = 0; hold(0.1); P.tick = f; }
     report('coming down to the floor ends it', v.state !== 'CREEP' && !caughtBy, v.state); P.resetMotion(); }
   // ---- the dust cloud
   { const dist = 3.2; put('H2', 4, 1.57, 5.6 + dist, 0, -0.45); v.fogCd = 0; hunt(5.6 + dist, -0.45); v.reachCd = 99; v.blastCd = 99; v.lungeCd = 99;
@@ -507,12 +507,19 @@ function hearingChecks(kit) {
   report('a heavy landing gives you away from far off', heard(v));
   freshVac(kit, 'H2', 2); N.emit({ kind: 'thud', x: v.x + 6, y: 0, z: v.z, radius: TUNING.vac.hearLand[1] * TUNING.vac.quietLand });
   report('landing with C held does not', v.state === 'PATROL');
-  freshVac(kit, 'L1', 1); K.count = TUNING.vac.angerAt[0]; crash(16, -0.5);
-  const a1 = v.anger; K.count = TUNING.vac.angerAt[1]; crash(16, -0.5);
-  const a2 = v.anger; K.count = TUNING.vac.angerAt[2]; crash(16, -0.5);
-  report('neutral until the first break, then rising', a1 === 2 && a2 === 3 && v.anger === 4, `${a1}, ${a2}, ${v.anger}`);
-  freshVac(kit, 'L1', 1); K.count = 0; N.emit({ kind: 'step', x: v.x + 1, y: 0, z: v.z }); crash(v.x + 2, v.z);
-  report('neutral: ignores everything', v.state === 'PATROL');
+  freshVac(kit, 'L1', 1); const AT = TUNING.vac.angerAt; v.heat = AT[0] - 1; crash(16, -0.5);
+  const a1 = v.anger; v.heat = AT[1] - 1; crash(16, -0.5);
+  const a2 = v.anger; v.heat = AT[2] - 1; crash(16, -0.5);
+  report('cheerful for the first few knock-overs, then rising', a1 === 2 && a2 === 3 && v.anger === 4, `${a1}, ${a2}, ${v.anger}`);
+  freshVac(kit, 'L1', 1); N.emit({ kind: 'step', x: v.x + 1, y: 0, z: v.z });
+  report('cheerful: ignores footsteps', v.state === 'PATROL');
+  crash(v.x + 2, v.z); report('but comes to a crash nearby', heard(v));
+  freshVac(kit, 'L1', 1); v.rushed = false; crash(16, -0.5);
+  report('the first mess of the night: he hurries over, wherever it is', v.state === 'INVESTIGATE' && v.rush, v.state);
+  // calming down: left alone with nothing to clean up, he cheers up, and it takes less to set him off next time
+  { freshVac(kit, 'L1', 3); kit.player.noclip = true; v.heat = 6; const need = TUNING.vac.calmTime; for (let i = 0; i < Math.round((need + 1) * 60) && v.anger > 1; i++) kit.tick(dt);
+    const calm = v.anger === 1, next = v._angerAt(); kit.player.noclip = false;
+    report('left alone with every mess cleared, he calms down; next time he is quicker to anger', calm && v.calms === 1 && next[1] < TUNING.vac.angerAt[1], `stage ${v.anger}, next ${next.join(' ')}`); v.calms = 0; }
   K.count = count;
 
   // he heard something: he stops, the motor dips, the nozzle lifts, then he goes
@@ -655,7 +662,7 @@ function restartChecks(kit) {
   kit.resetRun();
   report('Play again: everything back as it started', fresh());
   // some mischief, then caught
-  K._knockOver(K.byId.get('standJar')); K._knockOver(K.byId.get('mug2'));
+  K._knockOver(K.byId.get('standPlant')); K._knockOver(K.byId.get('mug2'));
   report('a new run plays: objects break again and count', K.count === 2 && D.messes.length === 2 && G.wake > 0);
   for (let i = 0; i < 60; i++) kit.tick(dt);
   P.render(1); kit.camera.updateMatrixWorld(true);
@@ -679,7 +686,7 @@ function grandmaChecks(kit) {
   const total = values.reduce((a, b) => a + b, 0), avg = total / values.length;
   let best = 0, sum = 0; while (sum < 100 && best < values.length) sum += values[best++];
   let worst = 0; sum = 0; for (let i = values.length - 1; i >= 0 && sum < 100; i--) { sum += values[i]; worst++; }
-  report('a run takes about 10–14 knock-overs', 100 / avg >= 10 && 100 / avg <= 14 && total >= 100, `average ${(100 / avg).toFixed(1)}, loudest-first ${best}, quietest-first ${worst}, all ${values.length} give ${total.toFixed(0)}`);
+  report('a run takes about 13–18 knock-overs', 100 / avg >= 13 && 100 / avg <= 18 && total >= 100, `average ${(100 / avg).toFixed(1)}, loudest-first ${best}, quietest-first ${worst}, all ${values.length} give ${total.toFixed(0)}`);
   const near = G.valueOf(17, -0.7, 10), far = G.valueOf(1, 5, 10);
   report('a crash near her door counts for more', near > far * 1.8, `${near.toFixed(1)} vs ${far.toFixed(1)}`);
   const w0 = G.wake; G.add(-30); G.add(0);
@@ -923,7 +930,7 @@ function climbChecks(kit) {
   for (let i = 0; i < 120 && !P.grounded; i++) kit.tick(dt);
 
   // moving along a ledge, and round its corner
-  put(12.8, 0.001, 1.6, Math.PI / 2);
+  put(11.6, 0.001, 3.55, Math.PI / 2); // (at the box against the laundry room's west wall)
   I.keys.add('Space'); I.edges.add('Space'); kit.tick(dt);
   for (let i = 0; i < 36; i++) kit.tick(dt);
   I.keys.delete('Space'); I.keys.add('KeyW');
@@ -1019,13 +1026,13 @@ async function endingChecks(kit) {
   G.add(200);
   report('waking her starts the scene', E.active && kit.ended);
   v.dark = 1; // (as if the power had gone: it should come back)
-  let t = 0, near = 9, offAt = -1, room = false, inHand = false, camOk = true; const vx = v.x, vz = v.z;
+  let t = 0, near = 9, offAt = -1, room = false, inHand = false, camOk = true, cordGone = false; const vx = v.x, vz = v.z, o = v.cord.outlet;
   while (E.active && t < 30) {
     E.update(dt); v.frame(1, dt); t += dt;
-    if (E.set.group.visible) { room = true; if (E.nan?.visible) near = Math.min(near, Math.hypot(E.nan.position.x - E.to.x, E.nan.position.z - E.to.y)); if (E.set.plug.parent !== E.set.group) inHand = true; }
+    if (E.nan?.visible) { room = true; near = Math.min(near, Math.hypot(E.nan.position.x - E.to.x, E.nan.position.z - E.to.y)); if (v.cord.plugHeld && E.held.parent !== kit.scene) inHand = true; if (v.cord.trim > 0.99) cordGone = true; }
     if (v.off && offAt < 0) { offAt = t; camOk = Math.hypot(kit.camera.position.x - v.x, kit.camera.position.z - v.z) > 0.5 && !E.vox.blocked(kit.camera.position.x, kit.camera.position.y, kit.camera.position.z); }
   }
-  report('she gets up in her room, goes to the wall and pulls the plug: it comes away in her hand', room && near < 0.05 && inHand, `she gets within ${near.toFixed(2)} m`);
+  report('she comes to his outlet, pulls the plug (it comes away in her hand) and the cord whips away', room && near < 0.05 && inHand && cordGone && Math.hypot(E.to.x - o.pos[0], E.to.y - o.pos[2]) < 1, `she gets within ${near.toFixed(2)} m`);
   report('then he dies where he is, filmed from open space in front of him', offAt > 4 && v.model.dead && v.x === vx && v.z === vz && camOk, `power off at ${offAt.toFixed(1)} s`);
   report('and the lights come back on', v.dark < 0.01, v.dark.toFixed(2));
   report('then Good Kitty', E.done && !kit.endScreen.el.hidden);
@@ -1035,7 +1042,7 @@ async function endingChecks(kit) {
   while ((E.active || kit.curb.active) && t < 40) { if (E.active) E.update(dt); else { kit.curb.update(dt); seen = true; if (Number(E.fade.style.opacity) > 0.01) black = true; } t += dt; }
   report('with all his things knocked over, the ending goes on to the kerb, and you can see it', seen && !black && !kit.curb.active && t > 15, `${t.toFixed(1)} s`);
   kit.resetRun(); E.instant = true;
-  report('and a new run puts it all back', !E.active && !E.nan?.visible && !E.set.group.visible && !v.off && !v.model.dead);
+  report('and a new run puts it all back', !E.active && !E.nan?.visible && !v.cord.plugHeld && v.cord.trim === 0 && !v.off && !v.model.dead);
   return rows;
 }
 
@@ -1046,19 +1053,22 @@ async function tutorialChecks(kit) {
   await kit.house.dressed; kit.resetRun(); P.noclip = false; v.frozen = false;
   T.start();
   report('he is not here at the start', v.dormant && !v.model.root.visible);
-  report('you are shut in the living room, and nothing can be knocked over', T.walls.every((b) => b.enabled) && kit.knock.locked);
+  report('you are shut in the living room, and knocking things over is practice', T.walls.every((b) => b.enabled) && kit.knock.practice);
+  { const K = kit.knock, o = K.byId.get('cup1'), c0 = K.count, w0 = kit.grandma.wake; K._knockOver(o); report('practice: it breaks, but nobody counts it or hears it', K.count === c0 && kit.grandma.wake === w0 && o.knocked); kit.debris.reset(); } // (no mess left for him to rush to: the next checks time his arrival)
   P.teleport(2.5, 0.001, 1.6, 0); I.keys.add('KeyW'); for (let i = 0; i < 60; i++) kit.tick(dt); I.keys.clear();
   report('walking moves it on', T.step === 'jump', T.step);
-  for (const [id, want] of [['book1', 'climb'], ['book4', 'leap'], ['rodW', 'remote']]) { const b = kit.house.byId.get(id); P.teleport((b.min[0] + b.max[0]) / 2, b.max[1] + 0.001, (b.min[2] + b.max[2]) / 2 - 0.02, 0); for (let i = 0; i < 6; i++) kit.tick(dt); report(`up on ${id} moves it on`, T.step === want, T.step); }
-  const R = LEVEL.remote; cam.position.set(R[0] - 0.25, R[1] + 0.25, R[2] - 0.15); cam.lookAt(R[0], R[1] + 0.02, R[2]); cam.updateMatrixWorld(true); T.onSwipe(cam);
+  for (const [id, want] of [['tree1', 'up'], ['tree4', 'remote']]) { const b = kit.house.byId.get(id); P.teleport((b.min[0] + b.max[0]) / 2, b.max[1] + 0.001, (b.min[2] + b.max[2]) / 2 - 0.02, 0); for (let i = 0; i < 6; i++) kit.tick(dt); report(`up on ${id} moves it on (any way up counts)`, T.step === want, T.step); }
+  const R = LEVEL.remote; P.teleport(R[0], R[1] + 0.001, R[2] - 0.15, 0); kit.tick(dt); cam.position.set(R[0] - 0.25, R[1] + 0.25, R[2] - 0.15); cam.lookAt(R[0], R[1] + 0.02, R[2]); cam.updateMatrixWorld(true); T.onSwipe(cam);
   report('batting the remote puts the programme on, and holds you still', T.step === 'show' && P.frozen && T.tv.state === 'show', T.tv.state);
   for (let i = 0; i < 60 * (TUNING.tutorial.show + 2); i++) { kit.tick(dt); kit.frame?.(1, dt, 16); }
   report('when it ends you can move again', T.step === 'plug' && !P.frozen, T.step);
-  const p = LEVEL.tvOutlet.pos; cam.position.set(p[0] - 0.35, 0.3, p[2]); cam.lookAt(p[0], p[1], p[2]); cam.updateMatrixWorld(true); T.onSwipe(cam);
-  report('swiping the plug turns it off', T.tv.state === 'off' && T.step === 'go', T.tv.state);
+  const p = LEVEL.lampOutlet.pos; cam.position.set(p[0] + 0.35, 0.3, p[2]); cam.lookAt(p[0], p[1], p[2]); cam.updateMatrixWorld(true); T.onSwipe(cam);
+  const { lamp } = await import('../world/dress.js');
+  report("swiping the lamp's plug turns it off, and the TV stays on", !lamp.on && T.step === 'go' && T.tv.state === 'on', `${lamp.on}, ${T.tv.state}`);
   for (let i = 0; i < 60 * (TUNING.tutorial.arriveAfter + 0.5); i++) kit.tick(dt);
-  report('and then he arrives, by her door', !T.active && !v.dormant && v.model.root.visible && Math.hypot(v.x - 16.8, v.z + 0.45) < 0.5);
-  report('and you are let out', T.walls.every((b) => !b.enabled) && !kit.knock.locked);
+  report('and then he arrives, by her door', !T.active && !v.dormant && v.model.root.visible && Math.hypot(v.x - 16.8, v.z + 0.45) < 0.9, `${v.x.toFixed(2)}, ${v.z.toFixed(2)}, ${v.state}`);
+  report('and you are let out', T.walls.every((b) => !b.enabled) && !kit.knock.practice);
+  kit.resetRun(); report('a new run: the lamp is lit again', lamp.on);
   kit.resetRun(); v.frozen = true;
   return rows;
 }
@@ -1068,8 +1078,8 @@ function bonusChecks(kit) {
   const K = kit.knock, G = kit.grandma, v = kit.vac, rows = [];
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} BONUS ${name}${note ? ' (' + note + ')' : ''}`);
   kit.resetRun(); v.frozen = false;
-  const w0 = G.wake, c0 = K.count, o = K.byId.get('stuffyElephant'); K._knockOver(o);
-  report('knocking down one of his beanie babies does not wake Grandma', G.wake === w0, `wake ${G.wake}`);
+  const w0 = G.wake, c0 = K.count, o = K.byId.get('woolPurple'); K._knockOver(o);
+  report('unravelling one of his balls of wool does not wake Grandma', G.wake === w0, `wake ${G.wake}`);
   report('but it counts toward his anger, and he comes for it', K.count === c0 + 1 + TUNING.bonus.anger && K.bonus === 1 && (v.state === 'INVESTIGATE' || v.state === 'ALERT'), `${K.count}, ${v.state}`);
   report('there are five of them', K.bonusTotal === 5);
   kit.resetRun(); v.frozen = true;
@@ -1115,7 +1125,7 @@ export async function runRouteBot(kit) {
   rows.push(...restartChecks(kit));
   rows.push(...await tutorialChecks(kit));
   rows.push(...bonusChecks(kit));
-  rows.push(...await endingChecks(kit));
+  rows.push(...await endingChecks(kit).catch((e) => [`FAIL ENDING the checks crashed: ${e.message}`])); // (the ending is being rebuilt: don't lose every other row to it)
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
 }

@@ -71,8 +71,9 @@ export class Player {
     if (l < 1e-4) { dx = -this.fx; dz = -this.fz; } else { dx /= l; dz /= l; }
     this.tumbleT = DUST.tumble; this.hitAge = 0; this.hitSide = Math.random() < 0.5 ? -1 : 1;
     this.charging = false; this.chargeT = 0; this.dashT = 0; this.swipeT = -1;
-    this.vel.x = dx * DUST.knock; this.vel.z = dz * DUST.knock; this.vy = DUST.knockUp; this.grounded = false;
-    this.launched = true; this.launchX = dx; this.launchZ = dz; this.launchSpeed = DUST.knock;
+    const high = this.feetY >= DUST.highAt, knock = high ? DUST.highKnock : DUST.knock; // up on something: it sends you skidding off it
+    this.vel.x = dx * knock; this.vel.z = dz * knock; this.vy = high ? DUST.highUp : DUST.knockUp; this.grounded = false;
+    this.launched = true; this.launchX = dx; this.launchZ = dz; this.launchSpeed = knock; this.tumbleSlide = high;
   }
 
   resetMotion() { this.tumbleT = 0; this.hitAge = 99; this.pullX = this.pullZ = 0; this.dust = 0; this.sneezeT = 0; this.mode = 'move'; this.stamina = 1; this.clawLock = 0; this.dashT = 0; this.dashCd = 0; this.airDashUsed = false; this.swipeT = -1; this.charging = false; this.chargeT = 0; this.bufferT = 0; this.grabLock = 0; this.launched = false; this.viewDip = 0; this.aim.ok = false; }
@@ -344,6 +345,8 @@ export class Player {
     }
     let tx = this.wx * speed, tz = this.wz * speed;
     let rate = this.wlen > 0 ? P.accel : P.decel;
+    if (this.tumbleT > 0 && this.tumbleSlide && this.grounded && this.groundCollider) { tx = this.vel.x; tz = this.vel.z; rate = 0; this.vel.x *= Math.exp(-DUST.slideDrag * dt); this.vel.z *= Math.exp(-DUST.slideDrag * dt); } // (bowled over up there: it skids, it doesn't stop)
+    if (this.tumbleT <= 0) this.tumbleSlide = false;
     if (this.grounded) { tx += this.pullX; tz += this.pullZ; }
     this.pullX = this.pullZ = 0;
     if (!this.grounded) {

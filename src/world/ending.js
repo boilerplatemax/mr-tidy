@@ -1,12 +1,12 @@
-// The ending: Grandma wakes. A gentle fade, then her bedroom, warm under the bedside lamp: she gets up, shuffles to the
-// wall, bends and pulls a plug, and the cord it was on runs away across the floor and under her door. Cut to him, wherever
-// he is in the house, still going... and then not: the X eyes, the tongue, the slump, the lights coming back on. She has
-// something to say about it. Fade out. Her room is its own little set, off in the dark past the end of the house (like the
-// kerb), so nobody walks into a wall. Numbers are in TUNING.ending.
+// The ending: Grandma wakes. A gentle fade, and there she is in the room where his plug is, in the warm light of the lamp
+// she's put on: she shuffles to the wall, bends and pulls his plug, and the cord whips away across the floor after him.
+// Cut to him, wherever he is in the house, still going... and then not: the X eyes, the slump, the lights coming back on.
+// She has something to say about it. Fade out. Numbers are in TUNING.ending.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
-import { loadGLB, boxUV } from '../render/geometry.js';
-import { makePS1, pixelTexture } from '../render/ps1-material.js';
+import { LEVEL } from '../data/level.js';
+import { loadGLB } from '../render/geometry.js';
+import { makePS1 } from '../render/ps1-material.js';
 import { audio } from '../audio/audio.js';
 import { subtitles } from '../ui/subtitles.js';
 
@@ -14,74 +14,25 @@ const E = TUNING.ending;
 const smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _look = new THREE.Vector3(), _p = new THREE.Vector3();
 
-function houseTex(name, tile) {
-  const t = new THREE.TextureLoader().load(`game-assets/textures/house/${name}.png`);
-  t.colorSpace = THREE.SRGBColorSpace; t.wrapS = t.wrapT = THREE.RepeatWrapping; pixelTexture(t);
-  const m = makePS1(new THREE.MeshLambertMaterial({ map: t })); m.userData.tile = tile;
-  return m;
-}
-
-/** Her bedroom, built around (0, 0, 0) and then moved out to E.set. Returns the group and the parts that move. */
-function bedroom() {
-  const g = new THREE.Group(), [hx, hz] = E.room, H = 2.4, T = 0.12;
-  const paper = houseTex('wallpaper_rose', 0.6), floor = houseTex('floor_planks', 0.8), ceil = houseTex('ceiling_popcorn', 0.8);
-  const box = (w, h, d, x, y, z, mat) => { const geo = new THREE.BoxGeometry(w, h, d); boxUV(geo, mat.userData.tile ?? 0.5); const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); g.add(m); return m; };
-  box(hx * 2, 0.1, hz * 2, 0, -0.05, 0, floor);
-  box(hx * 2, 0.1, hz * 2, 0, H + 0.05, 0, ceil);
-  box(hx * 2 + T * 2, H, T, 0, H / 2, -hz - T / 2, paper); // north: the bed's head
-  box(hx * 2 + T * 2, H, T, 0, H / 2, hz + T / 2, paper); // south: the outlet
-  box(T, H, hz * 2, -hx - T / 2, H / 2, 0, paper); // west
-  const [d0, d1] = E.doorZ; // east: the door, with the cord going under it
-  box(T, H, d0 + hz, hx + T / 2, H / 2, (-hz + d0) / 2, paper);
-  box(T, H, hz - d1, hx + T / 2, H / 2, (d1 + hz) / 2, paper);
-  box(T, H - 2.05, d1 - d0, hx + T / 2, (H + 2.05) / 2, (d0 + d1) / 2, paper);
-  const dark = new THREE.Mesh(new THREE.PlaneGeometry(d1 - d0, 2.05), new THREE.MeshBasicMaterial({ color: 0x050505, fog: false })); // the hall beyond, black
-  dark.position.set(hx + T + 0.02, 1.02, (d0 + d1) / 2); dark.rotation.y = -Math.PI / 2; g.add(dark);
-  // the skirting, so the walls sit down on the floor
-  const skirt = makePS1(new THREE.MeshLambertMaterial({ color: 0xe8e0cc }));
-  for (const [w, d, x, z] of [[hx * 2, 0.02, 0, -hz + 0.01], [hx * 2, 0.02, 0, hz - 0.01], [0.02, hz * 2, -hx + 0.01, 0]]) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.08, d), skirt); m.position.set(x, 0.04, z); g.add(m); }
-  // the bedside lamp: a shade on a stem, lit
-  const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 0.16, 8, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd6a0, side: THREE.DoubleSide, fog: false }));
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.05, 0.2, 6), makePS1(new THREE.MeshLambertMaterial({ color: 0xb08a40 })));
-  const [lx, ly, lz] = E.lampAt; stem.position.set(lx, ly + 0.1, lz); shade.position.set(lx, ly + 0.26, lz); g.add(stem, shade);
-  const lamp = new THREE.PointLight(E.lightColor, 0, 6, 1.0); lamp.position.set(lx, ly + 0.45, lz + 0.25); g.add(lamp);
-  // the outlet on the south wall, its plug in it, and the cord off along the floor and under the door
-  const [ox, oy] = E.outlet, oz = hz - 0.005;
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.12, 0.01), makePS1(new THREE.MeshLambertMaterial({ color: 0xece4d0 }))); plate.position.set(ox, oy, oz); g.add(plate);
-  const black = makePS1(new THREE.MeshLambertMaterial({ color: 0x1e1e20 }));
-  const plug = new THREE.Group(); plug.position.set(ox, oy - 0.025, oz - 0.03);
-  { const body = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.04, 0.045), black); plug.add(body); }
-  g.add(plug);
-  const foot = new THREE.Vector3(ox + 0.05, 0.007, hz - 0.06); // where the cord meets the floor
-  const run = new THREE.CatmullRomCurve3([foot, new THREE.Vector3(ox + 0.4, 0.007, hz - 0.12), new THREE.Vector3(hx - 0.5, 0.007, d1 - 0.15), new THREE.Vector3(hx - 0.06, 0.007, (d0 + d1) / 2 + 0.1), new THREE.Vector3(hx + 0.6, 0.007, (d0 + d1) / 2)]);
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(run, 40, 0.008, 4), black));
-  const drop = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 1, 4), black); g.add(drop); // from the plug down to the floor: it follows the plug
-  // a warm strip of light under the door? No: the hall is dark. A thin line of it, cold.
-  return { group: g, lamp, plug, drop, foot };
-}
-
 export class Ending {
-  /** onDone(): the screen has faded out. vox: free space, for placing the camera by him. */
-  constructor({ scene, camera, vac, vox, onDone }) {
-    Object.assign(this, { scene, camera, vac, vox, onDone });
+  /** onDone(): the screen has faded out. vox: free space, for placing the camera. world: the house, to find room for her. */
+  constructor({ scene, camera, vac, vox, world, onDone }) {
+    Object.assign(this, { scene, camera, vac, vox, world, onDone });
     this.active = false; this.done = false; this.t = 0; this.fired = {};
     this.instant = false; // (headless checks skip the scene)
     this.fade = document.createElement('div'); this.fade.id = 'cut'; this.fade.style.opacity = '0'; this.fade.style.pointerEvents = 'none'; document.body.append(this.fade);
-    this.set = bedroom(); this.set.group.position.set(E.set[0], 0, E.set[1]); this.set.group.visible = false; scene.add(this.set.group);
+    // her lamp: there from the start at no strength (adding a light later would recompile every material)
+    this.lamp = new THREE.PointLight(E.lightColor, 0, 6, 1.0); scene.add(this.lamp);
+    this.held = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.03), makePS1(new THREE.MeshLambertMaterial({ color: TUNING.cord.plugColor }))); this.held.visible = false; scene.add(this.held); // the plug, in her hand
     this.nan = null; this.mixer = null; this.clips = {}; this.hand = null;
-    this.ready = Promise.all([
-      loadGLB(TUNING.assets.grandma).then((g) => {
-        this.nan = g.scene; this.nan.visible = false; this.set.group.add(this.nan);
-        this.hand = this.nan.getObjectByName('hand_L');
-        this.mixer = new THREE.AnimationMixer(this.nan);
-        for (const c of g.animations) this.clips[c.name] = this.mixer.clipAction(c);
-      }).catch((e) => console.warn('grandma failed to load:', e?.message || e)),
-      ...E.props.map((p) => loadGLB(`game-assets/models/house/${p.model}.glb`).then((g) => { g.scene.position.fromArray(p.at); g.scene.rotation.y = ((p.rot || 0) * Math.PI) / 180; if (p.scale) g.scene.scale.setScalar(p.scale); this.set.group.add(g.scene); }).catch(() => {})),
-    ]);
-    const [ox] = E.outlet, hz = E.room[1];
-    this.to = new THREE.Vector2(ox - E.handSide, hz - E.handReach); // where she stands so her (left) hand is at the outlet
-    this.from = new THREE.Vector2(E.start[0], E.start[1]);
-    this.walk = this.from.distanceTo(this.to) / E.walkSpeed;
+    this.ready = loadGLB(TUNING.assets.grandma).then((g) => {
+      this.nan = g.scene; this.nan.visible = false; scene.add(this.nan);
+      this.hand = this.nan.getObjectByName('hand_L');
+      this.mixer = new THREE.AnimationMixer(this.nan);
+      for (const c of g.animations) this.clips[c.name] = this.mixer.clipAction(c);
+    }).catch((e) => console.warn('grandma failed to load:', e?.message || e));
+    this.from = new THREE.Vector2(); this.to = new THREE.Vector2(); this.walk = 1; this.heading = 0;
+    this.camFrom = new THREE.Vector3(); this.camTo = new THREE.Vector3(); this.lookAt = new THREE.Vector3();
     this.vacCam = new THREE.Vector3(); this.vacLook = new THREE.Vector3(); this.vacDir = new THREE.Vector3(); this.dark0 = 0;
   }
 
@@ -99,27 +50,58 @@ export class Ending {
     this.active = true; this.done = false; this.t = 0; this.fired = {};
     this.fade.hidden = false; this.fade.style.opacity = '0';
     const v = this.vac;
-    v.frozen = true; v.hush(0.3); v.cloud.thin(); v.state = 'PATROL'; // (only the motor goes on, until she pulls the plug)
+    v.frozen = true; v.hush(0.3); v.cloud.thin(); v.state = 'PATROL'; // (only the motor goes on, until she pulls the plug; frozen, his plug can't go looking for another outlet either)
   }
 
   /** The black's gone (the kerb comes next, and it needs to be seen). */
   clearFade() { this.fade.style.opacity = '0'; }
 
-  /** Her room, with her in it, under cover of the fade. */
-  _stageRoom() {
-    const S = this.set;
-    S.group.visible = true; S.lamp.intensity = E.lamp;
-    if (S.plug.parent !== S.group) S.group.attach(S.plug);
-    const [ox, oy] = E.outlet; S.plug.position.set(ox, oy - 0.025, E.room[1] - 0.03); S.plug.rotation.set(0, 0, 0);
-    if (this.nan) { this.nan.visible = true; this.nan.position.set(this.from.x, 0, this.from.y); this.nan.rotation.y = E.startHeading; }
-    this._clip('idle', true);
+  /** Room for her (and her shuffle) at x, z? */
+  _free(x, z, r = E.clearance) { return this.world ? this.world.penetration(x, z, r, 0.05, 1.6) <= 0 : true; }
+
+  /** The room (from LEVEL.rooms) a point is in, if any. */
+  _room(x, z) { return LEVEL.rooms.find((r) => x > r.min[0] && x < r.max[0] && z > r.min[1] && z < r.max[1]) || null; }
+
+  /** Inside this room, clear of its walls? */
+  _inRoom(room, x, z, m = 0.2) { return !room || (x > room.min[0] + m && x < room.max[0] - m && z > room.min[1] + m && z < room.max[1] - m); }
+
+  /** Can the camera stand at p and see q? */
+  _sees(p, q) { const vx = this.vox; return !vx || (!vx.blocked(p.x, p.y, p.z) && vx.lineFree(p, q)); }
+
+  /** Where she stands, where she comes from, and where the camera watches from: all worked out from his outlet. */
+  _plan() {
+    const o = this.vac.cord.outlet, [ox, , oz] = o.pos, [nx, , nz] = o.n, fx = -nx, fz = -nz, lx = fz, lz = -fx; // she faces the wall; her left
+    const room = this._room(ox + nx * 0.3, oz + nz * 0.3); // (everything happens in his outlet's own room: no watching her through a doorway)
+    // where she stands so her left hand is at the outlet, far enough off the wall that she doesn't put her head through it as she bends
+    let sx = ox + nx * E.standOff - lx * E.handSide, sz = oz + nz * E.standOff - lz * E.handSide;
+    for (const k of [0, 0.2, -0.2, 0.4, -0.4]) if (this._free(sx + lx * k, sz + lz * k)) { sx += lx * k; sz += lz * k; break; }
+    this.to.set(sx, sz); this.heading = Math.atan2(fx, fz);
+    // she comes in from a little way back into the room
+    this.from.set(sx + nx * 0.5, sz + nz * 0.5);
+    for (const [b, sd] of E.startFrom) { const x = sx + nx * b + lx * sd, z = sz + nz * b + lz * sd; if (this._inRoom(room, x, z, 0.25) && this._free(x, z) && this._free((x + sx) / 2, (z + sz) / 2)) { this.from.set(x, z); break; } }
+    this.walk = Math.max(0.4, this.from.distanceTo(this.to) / E.walkSpeed);
+    // the camera: back in the room and off to one side, looking at her and the outlet
+    this.lookAt.set((sx + ox) / 2 + nx * 0.1, E.lookY, (sz + oz) / 2 + nz * 0.1);
+    let cam = null;
+    for (const [b, sd, y] of E.camTries) {
+      const p = _p.set(sx + nx * b + lx * sd, y, sz + nz * b + lz * sd);
+      if (this._inRoom(room, p.x, p.z) && this._sees(p, this.lookAt)) { cam = p.clone(); break; }
+    }
+    if (!cam) for (const [b, sd, y] of E.camTries) { // (nothing with a clear view by the free-space grid: walls are what matter, in a tight spot)
+      const p = _p.set(sx + nx * b + lx * sd, y, sz + nz * b + lz * sd);
+      if (this._inRoom(room, p.x, p.z) && (!this.world || (this.world.countOccluders(p, this.lookAt, 1) === 0 && this.world.penetration(p.x, p.z, 0.08, p.y - 0.1, p.y + 0.1) <= 0))) { cam = p.clone(); break; }
+    }
+    if (!cam) cam = new THREE.Vector3(sx + nx * 1.6, 1.3, sz + nz * 1.6);
+    this.camFrom.copy(cam); this.camTo.copy(cam).lerp(this.lookAt, E.camIn); this.camTo.y = cam.y - E.camDrop;
+    this.lamp.position.set(sx + nx * 1.2, 1.9, sz + nz * 1.2);
   }
 
-  /** The cord from the plug down to the floor, wherever the plug is. */
-  _drop() {
-    const S = this.set; S.plug.getWorldPosition(_a); S.group.worldToLocal(_a); _b.copy(S.foot);
-    const l = _a.distanceTo(_b); S.drop.scale.set(1, Math.max(0.001, l), 1); S.drop.position.copy(_a).lerp(_b, 0.5);
-    S.drop.quaternion.setFromUnitVectors(_p.set(0, 1, 0), _a.sub(_b).normalize());
+  /** Her, in the room, under cover of the fade. */
+  _stageRoom() {
+    this._plan();
+    this.lamp.intensity = E.lamp;
+    if (this.nan) { this.nan.visible = true; this.nan.position.set(this.from.x, 0, this.from.y); this.nan.rotation.y = Math.atan2(this.to.x - this.from.x, this.to.y - this.from.y); }
+    this._clip('idle', true);
   }
 
   /** Somewhere in front of him with room for a camera and a clear view of his face: he turns to it (it's a cut). */
@@ -131,7 +113,7 @@ export class Ending {
         if (best) break;
         const a = v.heading + off;
         const p = _p.set(v.x + Math.sin(a) * d, y + E.vacUp, v.z + Math.cos(a) * d);
-        if (!this.vox || (!this.vox.blocked(p.x, p.y, p.z) && this.vox.lineFree(p, _a.set(v.x + Math.sin(a) * 0.35, y, v.z + Math.cos(a) * 0.35)))) best = { p: p.clone(), a: v.heading, off };
+        if (this._sees(p, _a.set(v.x + Math.sin(a) * 0.35, y, v.z + Math.cos(a) * 0.35))) best = { p: p.clone(), a: v.heading, off };
       }
       if (best) break;
     }
@@ -152,38 +134,37 @@ export class Ending {
   /** Per rendered frame while active. */
   update(dt) {
     this.t += dt;
-    const t = this.t, cam = this.camera, v = this.vac, S = this.set;
+    const t = this.t, cam = this.camera, v = this.vac;
     this.mixer?.update(dt);
     const inAt = E.cut, walkAt = inAt + E.idle, turnAt = walkAt + this.walk, bendAt = turnAt + E.turn, bendLen = this.clips.bendReach?.getClip().duration ?? 1.6;
     const yankAt = bendAt + bendLen, pullAt = yankAt + E.pull, vacAt = pullAt + E.toVac, dieAt = vacAt + E.die, endAt = dieAt + E.after;
-    // the black: down slowly from the house, up into her room; a plain cut to him; down at the very end
+    // the black: down slowly from the house, up on her; a plain cut to him; down at the very end
     let black = 0;
     if (t < inAt) black = smooth(t / E.cut); else if (t < inAt + E.fadeIn) black = 1 - (t - inAt) / E.fadeIn;
     if (t > endAt - E.fadeOut) black = Math.min(1, (t - (endAt - E.fadeOut)) / E.fadeOut);
     this.fade.style.opacity = String(black);
     if (t < inAt) return; // (the house, as it was, going dark)
     this._at('room', inAt, () => this._stageRoom());
-    if (t < vacAt) { // her room
+    if (t < vacAt) { // her, at his outlet
       const k = smooth((t - inAt) / (pullAt - inAt + 0.3));
-      _a.fromArray(E.camFrom).lerp(_b.fromArray(E.camTo), k); _look.fromArray(E.lookFrom).lerp(_b.fromArray(E.lookTo), k);
-      cam.position.copy(S.group.localToWorld(_a)); cam.lookAt(S.group.localToWorld(_look)); cam.updateMatrixWorld();
+      cam.position.lerpVectors(this.camFrom, this.camTo, k); cam.lookAt(this.lookAt); cam.updateMatrixWorld();
       if (this.nan && t >= walkAt) {
         this._at('shuffle', walkAt, () => this._clip('shuffle', true));
         const k2 = Math.min(1, (t - walkAt) / this.walk);
         this.nan.position.set(this.from.x + (this.to.x - this.from.x) * k2, 0, this.from.y + (this.to.y - this.from.y) * k2);
-        const heading = Math.atan2(this.to.x - this.from.x, this.to.y - this.from.y);
-        this.nan.rotation.y = t < turnAt ? heading : heading + (0 - heading) * smooth((t - turnAt) / E.turn);
+        const walkHeading = Math.atan2(this.to.x - this.from.x, this.to.y - this.from.y), turn = this.heading - walkHeading, d = Math.atan2(Math.sin(turn), Math.cos(turn));
+        this.nan.rotation.y = t < turnAt ? walkHeading : walkHeading + d * smooth((t - turnAt) / E.turn);
       }
       this._at('stop', turnAt, () => this._clip('idle', true));
       this._at('bend', bendAt, () => this._clip('bendReach', false));
       this._at('yank', yankAt, () => this._clip('yankPlug', false));
-      this._at('grip', yankAt + E.grip, () => { if (this.hand) this.hand.attach(S.plug); }); // it comes away in her hand
-      this._at('pull', pullAt, () => audio.play('vac.unplug', { pos: S.group.localToWorld(_a.set(E.outlet[0], E.outlet[1], E.room[1])), gain: 1.4 }));
-      this._drop();
+      this._at('grip', yankAt + E.grip, () => { v.cord.plugHeld = true; v.cord.plug.visible = false; this.held.position.copy(v.cord.plug.position); this.held.quaternion.copy(v.cord.plug.quaternion); this.held.visible = true; this.hand?.attach(this.held); }); // it comes away in her hand
+      this._at('pull', pullAt, () => audio.play('vac.unplug', { pos: v.cord.plugPos, gain: 1.4 }));
+      if (t >= pullAt) v.cord.setTrim(smooth((t - pullAt) / E.whip)); // and the cord whips away across the floor after him
       return;
     }
     // him
-    this._at('vac', vacAt, () => { S.group.visible = false; S.lamp.intensity = 0; if (this.nan) this.nan.visible = false; this._placeVacCam(); this.dark0 = v.dark; v.caught = true; }); // (caught: his own hose code leaves the hose alone now)
+    this._at('vac', vacAt, () => { this.lamp.intensity = 0; if (this.nan) this.nan.visible = false; this.held.visible = false; v.cord.setTrim(1); this._placeVacCam(); this.dark0 = v.dark; v.caught = true; }); // (caught: his own hose code leaves the hose alone now)
     this._hoseAside(smooth((t - dieAt) / 0.5));
     const push = smooth((t - vacAt) / (endAt - vacAt)) * E.push;
     const sink = smooth((t - dieAt) / 0.9);
@@ -198,8 +179,9 @@ export class Ending {
   /** Back as it was, for a new run. */
   reset() {
     this.active = false; this.done = false; this.t = 0; this.fired = {};
-    this.fade.style.opacity = '0'; this.set.group.visible = false; this.set.lamp.intensity = 0;
+    this.fade.style.opacity = '0'; this.lamp.intensity = 0; this.held.visible = false; this.scene.attach(this.held);
     if (this.nan) this.nan.visible = false;
+    this.vac.cord.plugHeld = false;
     this.vac.model.slumped = false; this.vac.model.dead = false; this.vac.model.calm = false;
   }
 }

@@ -15,7 +15,7 @@ import { Player } from './player/player.js';
 import { audio } from './audio/audio.js';
 import { subtitles } from './ui/subtitles.js';
 import { HudLayer } from './ui/pixel-label.js';
-import { Menu } from './ui/menu.js';
+import { Menu, pixText } from './ui/menu.js';
 import { DevOverlay } from './ui/dev-overlay.js';
 import { buildHouse } from './world/house.js';
 import { Knockables } from './world/knockables.js';
@@ -36,9 +36,11 @@ import { Ending } from './world/ending.js';
 import { Tutorial } from './world/tutorial.js';
 import { Curb } from './world/curb.js';
 import { Tail } from './player/tail.js';
-import { tvParts } from './world/house.js';
+import { Closeup } from './vacuum/closeup.js';
+import { TodoList } from './ui/todo.js';
 
 const params = new URLSearchParams(location.search);
+{ const w = document.querySelector('#loading .ld-word'); if (w) w.replaceChildren(pixText('LOADING', '#f0dca8', { bold: true }), ...[0, 1, 2].map(() => { const d = pixText('.', '#f0dca8', { bold: true }); d.classList.add('ld-dot'); return d; })); } // (the LOADING screen, in the game's own font)
 const _portraitV = new THREE.Vector3(), _portraitP = new THREE.Vector3();
 const R = TUNING.render;
 
@@ -59,7 +61,7 @@ const input = new Input(canvas);
 const player = new Player(camera, world, input);
 const house = buildHouse({ scene, world });
 let updateScreens = null, tvTick = null, grandmaDoor = () => null, tv = null;
-import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); updateScreens = m.updateScreens; tvTick = m.tvTick; grandmaDoor = m.grandmaDoor; tv = m.tv; tv.plug = { pos: new THREE.Vector3(...LEVEL.tvOutlet.pos), pull(inWall) { if (tvParts.plug) tvParts.plug.visible = inWall; if (tvParts.plugged) tvParts.plugged.visible = inWall; if (tvParts.loose) tvParts.loose.visible = !inWall; } }; if (!params.has('play') && !tutorialRun) tv.set('off'); });
+import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); updateScreens = m.updateScreens; tvTick = m.tvTick; grandmaDoor = m.grandmaDoor; tv = m.tv; }); // (the set's left on all night: the lamp's plug is the one you pull)
 PS1.setLightZones(house.zones);
 PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
@@ -76,6 +78,9 @@ const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
 const blackout = new Blackout({ scene, env, house, knock, vac });
+const closeup = new Closeup({ scene, camera, vac, player, world });
+vac.onTurn = () => { if (!ended && !tutorial.active && !params.has('play')) closeup.play('turn'); }; // "...that's enough.": in close on his face
+vac.onSurge = () => { if (!ended && !tutorial.active && !params.has('play')) closeup.play('surge'); }; // the power, out of the wall and into him
 /** Looking at a portrait from nearby, its nameplate shows as a caption (it can't be read at this resolution). */
 function portraitWords() {
   const v = camera.getWorldDirection(_portraitV), e = camera.position;
@@ -114,6 +119,7 @@ const hudLayer = new HudLayer(canvas);
 const overlay = new DevOverlay();
 const staminaBar = new StaminaBar(hudLayer);
 const wakeIcon = TUNING.hud.wakeIcon ? new WakeIcon(hudLayer) : null;
+const todo = new TodoList(hudLayer);
 const roomLabel = hudLayer.label('hud-room').place('center', 0, 0.14);
 roomLabel.set([{ text: "Grandma's room" }], 'center');
 let roomShown = false;
@@ -121,31 +127,31 @@ const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
 /** A whole new run, without a reload. */
 function resetRun() {
   if (curb.active) curb.stop();
-  tutorial.reset(); tutorial.opened(); if (tv && tutorialRun) tv.set('off');
+  tutorial.reset(); tutorial.opened(); if (tv) tv.set('on'); // (the set's on, the lamp's lit: tutorial.opened puts it back)
   audio.stopOneShots(); // (nothing left over from the last run)
   blackout.reset(); ending.reset(); grandma.holdScreen = false;
   ended = false; runTime = 0; wakeIcon?.reset();
-  catchSeq.reset(); endScreen.hide();
+  catchSeq.reset(); endScreen.hide(); closeup.reset(); todo.reset(); todo.start(1.2);
   audio.resume(); startClock();
   knock.reset(); debris.reset(); grandma.reset(); vac.reset();
   player.frozen = false; player.noclip = false; player.resetMotion();
   player.teleport(S.x, S.y, S.z, S.yaw); player.pitch = 0;
   debug.thirdPerson = false;
 }
-let runTime = 0, ended = false, introT = -1, clockVoice = null, staticVoice = null;
+let tutWas = false, runTime = 0, ended = false, introT = -1, clockVoice = null, staticVoice = null;
 const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet. Make some noise.'], [7.8, "Knock things over. Wake Grandma. Don't let Mr. Tidy catch you."]];
 const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60); return [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`, `Times spotted  ${vac.spotted}`]; };
 const tvProxy = { get state() { return tv?.state; }, set: (st) => tv?.set(st), pokeRemote: (c) => tv?.pokeRemote(c), pokePlug: (c) => tv?.pokePlug(c) };
 var tutorialRun = false; // (the tutorial runs once, on the first run of a session)
 const tutorial = new Tutorial({ hud: hudLayer, player, camera, input, vac, tv: tvProxy, world, scene, knock, byId: house.byId });
 const curb = new Curb({ scene, camera, vac, env, knock });
-const ending = new Ending({ scene, camera, vac, onDone: () => {
+const ending = new Ending({ scene, camera, vac, world, onDone: () => {
   if (knock.bonus >= knock.bonusTotal && knock.bonusTotal > 0) { ending.clearFade(); curb.play(() => endScreen.show('Good Kitty', [...stats(), 'Secret ending: kicked to the kerb'])); } // all of his things: he's out
   else endScreen.show('Good Kitty', stats());
 } });
 knock.onBonus = (o) => { // one of his things: no help with Grandma, and he knows it was you
   knock.count += TUNING.bonus.anger; vac.bonusBroken(o);
-  subtitles.show(`You knocked down ${o.t.bonus} (${knock.bonus} of ${knock.bonusTotal}). Grandma slept through it. He didn't.`, 'bonus' + knock.bonus, 4.5, '', true);
+  subtitles.show(`You unravelled ${o.t.bonus} (${knock.bonus} of ${knock.bonusTotal}). Grandma slept through it. He didn't.`, 'bonus' + knock.bonus, 4.5, '', true);
 };
 ending.instant = params.has('play'); // (the headless checks go straight to the end screen)
 grandma.onWin = () => {
@@ -157,10 +163,10 @@ const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
   endScreen.show('Mr. Tidy keeps a clean house.', stats(), 'Try again', { small: true, mood: 'gone' });
 } });
 ending.vox = catchSeq.vox; // (free space, to put the camera in front of him)
-vac.onCatch = (how) => { ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
+vac.onCatch = (how) => { closeup.reset(); ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
 grandma.onScreen = () => endScreen.show('Good Kitty', stats());
 const menu = new Menu(() => input.requestLock()); // the click is a user gesture: lock + (first time) start audio
-input.on('firstClick', () => { audio.start(THREE.Vector3); if (!params.has('play') && !tutorialRun) { tutorialRun = true; tutorial.start(); } else introT = 0; });
+input.on('firstClick', () => { audio.start(THREE.Vector3); if (!params.has('play') && !tutorialRun) { tutorialRun = true; tutorial.start(); } else { introT = 0; todo.start(9.5); } });
 input.on('pause', () => { if (ended) return; menu.show(input.started); audio.suspend(); }); // (the end screen takes the mouse back itself)
 input.on('resume', () => { menu.hide(); audio.resume(); });
 input.on('lockFailed', () => { if (!ended && input.paused) { menu.show(input.started); audio.suspend(); } }); // (the browser said no to the mouse, e.g. a click too soon after letting it go: the menu, so one more click starts it)
@@ -185,7 +191,8 @@ function tick(dt) {
   if (introT >= 0 && input.live) { const b = introT; introT += dt; for (const [at, line] of INTRO) if (b < at && introT >= at) subtitles.show(line, line, 3.3, 'speech', true); if (introT > 9) introT = -1; } // (the words at the very start)
   if (input.live) {
     tutorial.tick(dt); tvTick?.(dt);
-    if (!catchSeq.active && !ending.active) player.tick(dt);
+    if (!catchSeq.active && !ending.active && !closeup.active) player.tick(dt);
+    if (tutWas && !tutorial.active) todo.start(); tutWas = tutorial.active; // (the tutorial's over: here's what to do now)
     knock.tick(dt);
     debris.tick(dt);
     if (clockVoice && knock.byId.get('wallClock')?.knocked) { clockVoice.stop(0.05); clockVoice = null; } // (the ticking stops when the clock's on the floor)
@@ -208,6 +215,7 @@ function frame(alpha, dt, frameMs) {
   else if (curb.active) { curb.update(dt); paws.hide(); tail.hide(); }
   else if (ending.active) { ending.update(dt); paws.hide(); tail.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (ending.done) { /* faded out, the Good Kitty screen is up */ }
+  else if (closeup.active) { closeup.update(dt); paws.hide(); tail.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (onTitle) { // the title: a slow, still view of the scene, and him doing his happy little laps
     vac.titleLap(wallTime, dt);
     camera.position.set(titleCam.x + Math.sin(wallTime * 0.31) * titleCam.sway, titleCam.y + Math.sin(wallTime * 0.23) * titleCam.sway * 0.5, titleCam.z);
@@ -234,7 +242,8 @@ function frame(alpha, dt, frameMs) {
   subtitles.update(dt);
   hudLayer.sync();
   wakeIcon?.frame(grandma.stage, grandma.wake, !onTitle && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.hud.wakeNear, onTitle || ended || catchSeq.active || ending.active || curb.active || tutorial.active, dt);
-  { const near = !onTitle && player.pos.z > -1.4 && player.pos.z < 0 && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.grandma.labelNear; if (near !== roomShown) { roomShown = near; roomLabel.show(near); } }
+  todo.frame(dt, knock.count, vac.anger, onTitle || ended || catchSeq.active || ending.active || curb.active || tutorial.active || closeup.active);
+  { const near = !onTitle && !ended && !ending.active && !catchSeq.active && !curb.active && !closeup.active && player.pos.z > -1.4 && player.pos.z < 0 && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.grandma.labelNear; if (near !== roomShown) { roomShown = near; roomLabel.show(near); } }
   ps1.render(scene, camera);
   overlay.frame(frameMs, dt);
   window.__kitReady = true;
@@ -265,7 +274,7 @@ async function reveal() {
 }
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, tail, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
+window.__kit = { closeup, todo, ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, tail, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

@@ -27,16 +27,17 @@ html, body {
 #loading .ld-paws { position: absolute; left: 0; top: -6px; width: 200px; height: 22px; animation: ld-follow 3.2s linear infinite; }
 #loading .ld-paw { position: absolute; width: 8px; height: 8px; transform: rotate(90deg); shape-rendering: crispEdges; }
 #loading .ld-paw path { fill: #b08a7c; }
-#loading .ld-word { color: #ecd3a8; font: bold 13px/1 'Courier New', Consolas, 'Lucida Console', ui-monospace, monospace; letter-spacing: .42em; text-shadow: 2px 2px 0 #3a1418; padding-left: .42em; }
-#loading .ld-word span { display: inline-block; letter-spacing: .1em; animation: ld-hop 1.2s ease-in-out infinite; }
-#loading .ld-word span:nth-child(2) { animation-delay: .15s; }
-#loading .ld-word span:nth-child(3) { animation-delay: .3s; }
+#loading .ld-word { display: flex; align-items: flex-end; gap: 1px; } /* the game's own pixel font (drawn by main.js) */
+#loading .ld-word .pix { width: calc(var(--w) * 2px); height: calc(var(--h) * 2px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+#loading .ld-word .ld-dot { animation: ld-hop 1.2s ease-in-out infinite; }
+#loading .ld-word .ld-dot:nth-child(3) { animation-delay: .15s; }
+#loading .ld-word .ld-dot:nth-child(4) { animation-delay: .3s; }
 @keyframes ld-roll { 0% { transform: translateX(0) rotate(0); } 82%, 100% { transform: translateX(208px) rotate(1000deg); } }
 @keyframes ld-unwind { 0% { clip-path: inset(-4px 208px -4px 0); } 82%, 100% { clip-path: inset(-4px 0 -4px 0); } }
 @keyframes ld-follow { 0%, 14% { clip-path: inset(0 200px 0 0); } 94%, 100% { clip-path: inset(0 0 0 0); } }
 @keyframes ld-fade { 0% { opacity: 0; } 6%, 88% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes ld-hop { 0%, 60%, 100% { transform: none; } 30% { transform: translateY(-5px); } }
-@media (prefers-reduced-motion: reduce) { #loading .ld-track, #loading .ld-ball, #loading .ld-thread, #loading .ld-paws, #loading .ld-word span { animation: none; } }
+@media (prefers-reduced-motion: reduce) { #loading .ld-track, #loading .ld-ball, #loading .ld-thread, #loading .ld-paws, #loading .ld-word .ld-dot { animation: none; } }
 #loading.gone { opacity: 0; pointer-events: none; }
 #loading[hidden] { display: none; }
 

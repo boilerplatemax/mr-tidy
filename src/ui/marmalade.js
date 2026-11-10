@@ -65,7 +65,7 @@ export function marmaladePortrait(w, mood = 'alive') {
   wrap.style.width = `calc(${w}px * var(--px))`;
   const art = draw(); art.className = 'art';
   wrap.append(art);
-  tryFile().then((img) => { if (img) { const g = art.getContext('2d'); g.imageSmoothingEnabled = true; g.clearRect(0, 0, W, H); g.drawImage(img, 0, 0, W, H); } });
+  tryFile().then((img) => { if (img) { art.width = img.naturalWidth; art.height = img.naturalHeight; const g = art.getContext('2d'); g.drawImage(img, 0, 0); } }); // (her own picture, at its own resolution)
   if (mood === 'gone') { const r = document.createElement('div'); r.className = 'ribbon'; wrap.append(r); }
   return wrap;
 }

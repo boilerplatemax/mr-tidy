@@ -14,6 +14,7 @@ import { audio } from '../audio/audio.js';
 import { subtitles } from '../ui/subtitles.js';
 import { LINES } from './voice.js';
 
+const LK = TUNING.lurk;
 const V = TUNING.vac, D = TUNING.drone, C = TUNING.cord, H = TUNING.hose, B = TUNING.blast, SU = TUNING.suck, A = TUNING.alert, RO = TUNING.roam, ST = TUNING.sting, CR = TUNING.creep, F = TUNING.fog, SG = TUNING.surge, FR = TUNING.friend, LU = TUNING.lunge;
 const between = ([a, b]) => a + Math.random() * (b - a);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -25,6 +26,10 @@ export class Vacuum {
     this.vox = new Voxels(world); this.hose = new Hose(scene, this.vox); this.blast = new Blast(scene, this.vox, knock); this.blast.onHit = (dx, dz) => player.dustHit(dx, dz); this.blasts = [this.blast, ...Array.from({ length: 4 }, () => { const b = new Blast(scene, this.vox, knock); b.onHit = this.blast.onHit; return b; })]; this.spotted = 0; this.volley = 0; this.volleyT = 0; this.sprayT = 0; this.coughI = 0; this.dark = 0; this.surgeT = 0; this.arcV = null; this.sweepBase = 0; this.sweepPh = 0; this.cloud = new DustCloud(scene); this.lob = false; this._v = new THREE.Vector3();
     this.fogPhase = null; this.fogT = 0; this.fogCd = 0; this.creepT = 0; this.creepCd = 0; this.creepV = null; this.alertT = 0; this.alertX = 0; this.alertZ = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseT = 0; this.pauseYaw = 0; this.pauseThen = null; this.time = 0; this.seenAt = new Map(); this.noises = []; this.lastStop = null; this.blastPhase = null; this.blastT = 0; this.blastCd = 0; this.suckT = 0; this.suckPhase = 0; this.suckY = 0; this.suckV = null; this.coughV = null; this._blastDir = new THREE.Vector3(); this._blastO = new THREE.Vector3(); this.cleanWait = 0; this._cmd = { mode: 'approach', goal: new THREE.Vector3(), speed: 0, turn: 0, hover: false }; this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
     this.greetCd = 0; this.chatCd = 0; this.lungeCd = 0; this.lungePhase = null; this.greetT = 0; this.lungeT = 0;
+    this.heat = 0; this.calms = 0; this.calmT = 0; // knock-overs since he last calmed down; how many times he has; how long he's been calming
+    this.rushed = false; this.rush = false; this.searchLeft = 0; this.pokeCd = 0; this.shhCd = 0; this.searchSayCd = 0; this.turnFaced = true; this.arcFade = 0;
+    this.lurkCd = LK.first; this.lurkPhase = null; this.lurkT = 0; this.lookT = 0;
+    this.onTurn = null; this.onSurge = null; // the cut-ins: "...that's enough." and the power surge (src/vacuum/closeup.js)
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
     this._dirv = { x: 0, y: 0, z: 0 }; this._under = null; this._notUnder = (c) => c.solid && c !== this._under; this.campT = 0; this.ignoreT = 0;
     this.seeT = 0; this.stunT = 0; this.stunCd = 0; this.foundT = 0; this.seesCat = false; this.lastX = 0; this.lastZ = 0; this.loseT = 0; this.replanT = 0; this.direct = false; this.directOK = false; this.chaseNode = null; this.sweep = false; this.sweepT = 0;
@@ -74,14 +79,16 @@ export class Vacuum {
     this.spin = 0; this.lastPaid = this._paid();
     this.hose.reset(); this.blast.reset(); this._endBlast(); this._endSuck(); this._endCreep(); this._endFog(); this.cloud.reset(); this.blastCd = 0;
     this.sayCd = 0; this.huffCd = 0; this.stalk = false; this.huffMess = null; this.model.dead = false; this.model.maw = false; this.model.calm = false; this.spotted = 0; this.dark = 0; this.arcV?.stop(0.05); this.arcV = null; this.surgeT = 0; this.volley = 0; for (const b of this.blasts) b.reset(); this.stunT = 0; this.stunCd = 0; this.foundT = 0; this.fogCd = 0; this.creepCd = 0; this.greetCd = 0; this.chatCd = 0; this.lungeCd = 0; this.lungePhase = null; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseThen = null; this.seenAt.clear(); this.noises.length = 0; this.lastStop = null; this.model.shriekT = 0; this.model.flick = 0;
+    this.lurkCd = LK.first; this.lurkPhase = null; this.lurkT = 0; this.lookT = 0;
+    this.heat = 0; this.calms = 0; this.calmT = 0; this.rushed = false; this.rush = false; this.searchLeft = 0; this.pokeCd = 0; this.shhCd = 0; this.searchSayCd = 0; this.turnFaced = true; this.arcFade = 0;
     this.model.face.visible = true;
     this.setAnger(1);
     this.anger = 1; this.model.setFace(1);
     this.startSound();
   }
 
-  /** Nothing has been broken yet: he's pleased to see you, and chats if you bat him. */
-  get friendly() { return this.knock.count === 0 && this.knock.bonus === 0 && this.anger === 1 && !this.off && this.plugState === 'in' && !this.dormant; }
+  /** Cheerful (stage 1: the first few knock-overs, and again whenever he has calmed down): pleased to see you, and chats if you bat him. */
+  get friendly() { return this.anger === 1 && !this.off && this.plugState === 'in' && !this.dormant; }
 
   /** He stops, turns to you, and says something nice (group: 'hi' when he spots you, 'chat' when you bat him). */
   _greet(group) {
@@ -113,6 +120,7 @@ export class Vacuum {
     this.model.giggle(0.5);
     if (this.friendly) { if (this.chatCd <= 0) { this.chatCd = FR.chatEvery; this._greet('chat'); } return true; }
     if (this.anger <= 2 && this.state !== 'CHASE' && !this._attacking() && this.huffCd <= 0) { this.huffCd = TUNING.voice.huffEvery; audio.play('vac.huff', { follow: this.model.hoseSocket, refDistance: 3, rolloff: 0.8 }); this.model.cough(); }
+    if (this.pokeCd <= 0) { this.pokeCd = TUNING.voice.pokeEvery; this._say(this.anger <= 2 ? 'poke2' : 'poke3', true); } // and he tells you what he thinks of it
     return true;
   }
 
@@ -122,11 +130,36 @@ export class Vacuum {
     const was = this.anger;
     this.anger = Math.max(1, Math.min(5, level));
     this.model.setFace(this.anger);
+    if (this.anger < was && this.anger === 1 && !this.dormant) { this._say('calm', true); this.model.giggle(0.5); audio.play('vac.calm', { follow: this.model.hoseSocket, refDistance: 6, rolloff: 0.25 }); } // and his little tune // calmed down: all smiles again
     if (this.anger > was) {
       if (this.anger === 4) { this._shriek(true); if (dramatic) this._say('turn4', true); }
       if (this.anger === 5) { this._startSurge(); if (dramatic) this._say('turn5', true); }
       if (this.anger === 3 && was < 3 && dramatic && !this.off && this.plugState === 'in') this._startTurn();
     }
+  }
+
+  /** The knock-overs (since he last calmed down) at which he reaches stages 2–5: fewer each time he has calmed down. */
+  _angerAt() {
+    let last = 0;
+    return V.angerAt.map((a) => (last = Math.max(last + 1, Math.round(a * V.calmEase ** this.calms))));
+  }
+
+  _stageFor(heat) { const A = this._angerAt(); return heat >= A[3] ? 5 : heat >= A[2] ? 4 : heat >= A[1] ? 3 : heat >= A[0] ? 2 : 1; }
+
+  /**
+   * Left alone long enough with every mess cleared up, he calms down and is cheerful again (never once the power's gone).
+   * Each time it's quicker to set him off and longer before he calms down again.
+   */
+  _tickCalm(dt) {
+    if (!V.calmFrom.includes(this.anger) || this.off || this.plugState !== 'in' || this.caught) { this.calmT = 0; return; }
+    if (this.state === 'CHASE' || this.state === 'TURN' || this._attacking() || this.seesCat) { this.calmT = 0; return; }
+    if (this.debris.messes.some((m) => !m.cleaned)) return; // (a mess still lying about: he can't settle)
+    this.calmT += dt;
+    if (this.calmT < V.calmTime * V.calmLonger ** this.calms) return;
+    this.heat = 0; this.calms++; this.calmT = 0; this.stalk = false; this.searchLeft = 0; this.sweep = false;
+    if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
+    this.setAnger(1);
+    this._resumePatrol();
   }
 
   /** A line from his repertoire, if he hasn't just spoken. Heard, and captioned, only near him. */
@@ -143,6 +176,8 @@ export class Vacuum {
   /** You broke one of his things: he's coming, whatever his mood, and he's angrier for it. */
   bonusBroken(o) {
     if (this.dormant || this.off) return;
+    this.heat += TUNING.bonus.anger; this.calmT = 0;
+    { const want = this._stageFor(this.heat); if (want > this.anger) this.setAnger(want, true); }
     this._say('mine', true, true); // (the caption for this one is the game's own, in one line)
     if (this.state !== 'CHASE' && !this._attacking()) { this.state = 'INVESTIGATE'; this.stalk = false; this.routeTo(this.nav.nearest(o.x, o.z)); }
   }
@@ -152,14 +187,16 @@ export class Vacuum {
     if (this.direct) this._rejoin();
     this._endReach(); this._endBlast(); this._endSuck(); this._endCreep();
     if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
-    this.state = 'TURN'; this.turnT = 0;
+    this.state = 'TURN'; this.turnT = 0; this.turnFaced = false;
+    this.model.setFace(2); // (still annoyed, for a moment, on camera: then it goes)
     if (this.voice) { this.voice.setRate(D.rate[1] * 0.6, 0.5); } // the motor groans down, and comes back angry
-    this._say('turn3', true);
+    this.onTurn?.();
   }
 
   _tickTurn(dt) {
     this.turnT += dt;
-    if (this.turnT >= TUNING.voice.turn) { this.dark = this.anger >= 5 ? 1 : 0; this._sting(); this._resumePatrol(); }
+    if (!this.turnFaced && this.turnT >= TUNING.voice.turnFace) { this.turnFaced = true; this.model.setFace(this.anger); this.stingCd = 0; this._sting(); this._say('turn3', true); }
+    if (this.turnT >= TUNING.voice.turn) { this.dark = this.anger >= 5 ? 1 : 0; this._say('warn', true); this._resumePatrol(); } // and a word about Grandma on his way
   }
 
   /** Harmless but put out: a huff through the nose and an angry shake of the hose, then he gets on with it. */
@@ -191,6 +228,7 @@ export class Vacuum {
     this.state = 'SURGE'; this.surgeT = 0;
     this._shriek(true);
     audio.play('vac.surgeBuzz');
+    this.onSurge?.();
   }
 
   _tickSurge(dt) {
@@ -198,7 +236,7 @@ export class Vacuum {
     this.surgeT += dt;
     { const u = Math.min(1, this.surgeT / SG.flickerUntil); this.dark = u * u * (3 - 2 * u); } // the lights sink, all the way down
     if (was < SG.flickerUntil && this.surgeT >= SG.flickerUntil) { audio.play('power.out'); this.arcV = audio.play('vac.arc', { follow: this.model.hoseSocket, refDistance: 1.2, rolloff: 1.1 }); }
-    if (this.surgeT >= SG.time) { this.state = this.surgeReturn; this.loseT = 0; if (this.state === 'CHASE') { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; } }
+    if (this.surgeT >= SG.time) { this.arcFade = SG.arcAfter; this.arcV?.stop(SG.arcAfter); this.arcV = null; this.state = this.surgeReturn; this.loseT = 0; if (this.state === 'CHASE') { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; } }
   }
 
   /** The stinger when he spots you. */
@@ -258,7 +296,7 @@ export class Vacuum {
 
   _updateDrone(dt) {
     // the motor falls away when he stops to listen, and nearly dies while the hose creeps
-    const dipTo = this.stunT > 0 ? 0.85 : this.stalk && (this.state === 'INVESTIGATE' || this.state === 'SEARCH') ? TUNING.stalk.dip : this.state === 'ALERT' ? A.dip : this.state === 'CREEP' ? 1 - CR.motor : this.state === 'PAUSE' ? A.dip * 0.45 : 0;
+    const dipTo = this.stunT > 0 ? 0.85 : this.stalk && (this.state === 'INVESTIGATE' || this.state === 'SEARCH') ? TUNING.stalk.dip : this.state === 'ALERT' ? A.dip : this.state === 'CREEP' ? 1 - CR.motor : this.state === 'PAUSE' ? A.dip * 0.45 : this.state === 'LURK' && this.lurkPhase === 'watch' ? LK.dip : 0;
     this.dip += (dipTo - this.dip) * (1 - Math.exp(-A.dipEase * dt));
     if (!this.voice || this.off || this.caught || this.plugState !== 'in') return;
     this.droneT -= dt;
@@ -397,6 +435,7 @@ export class Vacuum {
   _think() {
     this.thinkT = between(RO.think);
     const a = this.anger - 1, r = Math.random();
+    if (this.lurkCd <= 0 && Math.random() < LK.chance[a] && this._startLurk()) return;
     if (Math.random() < RO.hunchChance[a] && !this.player.noclip) {
       let best = null, bd = Infinity; const P = this.player;
       for (const n of this.route) { const d = Math.hypot(n.x - P.pos.x, n.z - P.pos.z); if (d < bd) { bd = d; best = n; } }
@@ -418,6 +457,65 @@ export class Vacuum {
     if (this.pauseThen === 'back' && this.lastStop) { const n = this.lastStop; this.lastStop = this.path[this.path.length - 1]; this.routeTo(n); }
     else if (this.pauseThen === 'hunch' && this.hunch) this.routeTo(this.hunch);
     this.pauseThen = null;
+  }
+
+  // ---- lurking: he goes and stands somewhere he can see you, and watches. Look away and he's nearer; look at him and he
+  // goes still; stare him out and he slips off round the corner.
+  _startLurk() {
+    const P = this.player;
+    if (P.noclip || this.anger < LK.minAnger || this.cloud.active) return false;
+    const a = this._a, b = this._b, picks = [];
+    b.x = P.pos.x; b.y = P.feetY + 0.15; b.z = P.pos.z;
+    for (const n of this.nav.nodes.values()) {
+      const d = Math.hypot(n.x - P.pos.x, n.z - P.pos.z);
+      if (d < LK.near[0] || d > LK.near[1]) continue;
+      a.x = n.x; a.y = 0.35; a.z = n.z;
+      if (this.world.countOccluders(a, b, 1, true)) continue; // he must be able to see you from there
+      picks.push(n);
+    }
+    while (picks.length) {
+      const n = picks.splice(Math.floor(Math.random() * picks.length), 1)[0], path = this.planTo(n);
+      if (path.length < 2) continue;
+      this.state = 'LURK'; this.lurkPhase = 'go'; this.lurkCd = LK.cooldown; this.lookT = 0; this.stalk = true;
+      this.path = path; this.pathI = 0;
+      return true;
+    }
+    this.lurkCd = 4; return false;
+  }
+
+  /** Is the cat looking straight at him, with nothing in the way? */
+  _watched() {
+    const c = this.camera; c.getWorldDirection(_s);
+    const y = this.model.faceCenterY(), dx = this.x - c.position.x, dy = y - c.position.y, dz = this.z - c.position.z, l = Math.hypot(dx, dy, dz) || 1;
+    if ((dx * _s.x + dy * _s.y + dz * _s.z) / l < LK.lookCos || l > LK.near[1] + 2) return false;
+    const a = this._a; a.x = this.x; a.y = y; a.z = this.z;
+    return this.world.countOccluders(c.position, a, 1, true) === 0;
+  }
+
+  _tickLurk(dt) {
+    const P = this.player, d = Math.hypot(P.pos.x - this.x, P.pos.z - this.z);
+    if (this.lurkPhase === 'go' || this.lurkPhase === 'leave') { this._followPath(dt, V.speed[this.anger - 1] * (this.lurkPhase === 'leave' ? LK.leaveSpeed : TUNING.stalk.speed)); return; }
+    // watching: he turns to you, slowly, and doesn't take his eyes off you
+    const want = Math.atan2(P.pos.x - this.x, P.pos.z - this.z), diff = wrap(want - this.heading), turn = V.turnRate * 0.35 * dt;
+    this.heading = wrap(this.heading + Math.max(-turn, Math.min(turn, diff)));
+    this.lurkT -= dt;
+    if (this._watched()) { // seen: dead still
+      this.lookT += dt;
+      if (this.lookT >= LK.stare) { // and away he goes, out of sight
+        if (Math.random() < LK.sayChance) this._say(this.anger >= 5 ? 'lurk5' : 'lurk', true);
+        this.lurkPhase = 'leave'; if (this.direct) this._rejoin();
+        let best = null, bd = -1;
+        for (const n of this.nav.nodes.values()) { const dn = Math.hypot(n.x - this.x, n.z - this.z), away = Math.hypot(n.x - P.pos.x, n.z - P.pos.z) - d; if (dn > 1 && dn < 4 && away > bd) { const path = this.planTo(n); if (path.length > 1) { bd = away; best = path; } } }
+        if (best) { this.path = best; this.pathI = 0; } else { this.lurkPhase = null; this._resumePatrol(); }
+      }
+      return;
+    }
+    if (this.lookT > 0) this.lookT = Math.max(0, this.lookT - dt * 0.5);
+    if (d > LK.close + 0.4 && Math.abs(diff) < 0.5 && this._paid() < C.length - 0.3) { // not looking? he's a little nearer
+      const tx = this.x + Math.sin(this.heading) * 0.3, tz = this.z + Math.cos(this.heading) * 0.3;
+      if (this._clear(tx, tz)) { this.x += Math.sin(this.heading) * LK.creep * dt; this.z += Math.cos(this.heading) * LK.creep * dt; this.world.resolve(this, V.radius - 0.02, 0.03, V.height, null, 2, 0.03); this._guardCord(); this.direct = true; }
+    }
+    if (this.lurkT <= 0) { this.lurkPhase = null; this.stalk = false; if (this.direct) this._rejoin(); this._resumePatrol(); }
   }
 
   // ---- he heard something: he stops dead, the motor falls away, the nozzle lifts toward it
@@ -556,19 +654,29 @@ export class Vacuum {
   /** Where the middle of the hole is, in the world. */
   _hole() {
     const h = this._h, M = V.model;
-    h.x = this.x + Math.sin(this.heading) * M.holeZ; h.y = this.model.holeY(); h.z = this.z + Math.cos(this.heading) * M.holeZ;
+    const hz = this.model.holeZ ? this.model.holeZ() : M.holeZ;
+    h.x = this.x + Math.sin(this.heading) * hz; h.y = this.model.holeY(); h.z = this.z + Math.cos(this.heading) * hz;
     return h;
   }
 
   _hear(ev) {
-    if (this.off || this.plugState !== 'in') return;
+    if (this.off || this.plugState !== 'in' || this.dormant) return; // (not here yet: the tutorial's breakages don't count against you)
     if (ev.kind === 'crash') { // every knock-over can raise his anger, whether he hears it or not
-      const c = this.knock.count, A = V.angerAt, want = c >= A[3] ? 5 : c >= A[2] ? 4 : c >= A[1] ? 3 : c >= A[0] ? 2 : 1;
+      this.heat++; this.calmT = 0;
+      const want = this._stageFor(this.heat);
       if (want > this.anger) this.setAnger(want, true);
     }
     if (ev.kind === 'crash') { this.noises.push({ x: ev.x, z: ev.z, t: this.time }); while (this.noises.length && this.time - this.noises[0].t > RO.noiseLasts) this.noises.shift(); }
     const d = Math.hypot(ev.x - this.x, ev.z - this.z);
-    const heard = ev.kind === 'crash' ? this.anger >= 3 || (this.anger === 2 && d <= V.hearNear)
+    if (ev.kind === 'crash' && !this.rushed && this.state !== 'CHASE' && !this._attacking()) { // the very first mess of the night: he's there in a flash
+      this.rushed = true; this.rush = true; this.stalk = false;
+      if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
+      const m = this.debris.messes.find((x) => x.id === ev.objectId); if (m) m.known = true;
+      this.state = 'INVESTIGATE'; this.routeTo(this.nav.nearest(ev.x, ev.z)); this._say('rush', true);
+      return;
+    }
+    if (ev.kind === 'crash' && this.anger <= 2 && this.shhCd <= 0 && d <= V.hearNear) { this.shhCd = TUNING.voice.shhEvery; this._say(this.anger === 1 ? 'shh1' : 'shh2', true); } // "Shh! You'll wake Granny!"
+    const heard = ev.kind === 'crash' ? this.anger >= 3 || d <= V.hearNear
       : ev.kind === 'thud' ? this.anger >= 2 && d <= (ev.radius ?? V.hearLand[0]) // a landing gives away where you are
         : this.anger >= 3 && d <= (ev.gait === 'walk' ? V.hearWalk : V.hearSteps);
     if (!heard) return;
@@ -596,7 +704,7 @@ export class Vacuum {
 
   /** Back to the patrol, at whichever stop of the loop is nearest. */
   _resumePatrol() {
-    this.state = 'PATROL';
+    this.state = 'PATROL'; this.rush = false;
     let best = 0, bd = Infinity;
     this.route.forEach((n, i) => { const d = (n.x - this.x) ** 2 + (n.z - this.z) ** 2; if (d < bd) { bd = d; best = i; } });
     this.routeI = best;
@@ -623,6 +731,7 @@ export class Vacuum {
   }
 
   _startClean(m, huffed = false) {
+    this.rush = false;
     if (!huffed && this.anger === 2 && this.huffCd <= 0) { this._startHuff(m); return; }
     if (!m.obj) this._say(m.id === 'urn' ? 'urn' : this.anger <= 1 ? 'mess1' : this.anger === 2 ? 'mess2' : 'mess3', m.id === 'urn');
     m.known = true;
@@ -636,7 +745,12 @@ export class Vacuum {
     const want = Math.atan2(this.mess.x - this.x, this.mess.z - this.z), diff = wrap(want - this.heading), maxTurn = V.turnRate * dt;
     this.heading = wrap(this.heading + Math.max(-maxTurn, Math.min(maxTurn, diff)));
     this.cleanFacing = Math.abs(diff) < 0.3; // the nozzle only comes out once he's facing it: straight out of the front
-    if (!this.cleanFacing || (!this.hose.arrived && this.cleanWait < H.cleanTimeout)) { this.cleanWait += dt; return; }
+    const tip = this.hose.tip, touching = Math.hypot(tip.x - this.mess.x, tip.z - this.mess.z) < V.cleanTouch && tip.y < 0.3;
+    if (!this.cleanFacing || (!touching && this.cleanT <= 0)) { // nothing goes until the tip of the nozzle is on it
+      this.cleanWait += dt;
+      if (this.cleanFacing && this.cleanWait > H.cleanTimeout && Math.hypot(this.mess.x - this.x, this.mess.z - this.z) > V.radius + 0.3) this._steer(dt, this.mess.x, this.mess.z, V.speed[this.anger - 1] * 0.7); // the hose can't get there from here: he goes closer
+      if (this.cleanWait < H.cleanTimeout * 3) return; // (and if it still can't, he gets on with it anyway rather than stand there)
+    }
     this.cleanT += dt / V.cleanTime;
     const u = Math.min(1, this.cleanT), h = this.hose.tip; // the debris flies into the nozzle
     this.debris.cleanStep(this.mess, u, h.x, h.y, h.z);
@@ -681,6 +795,7 @@ export class Vacuum {
   _perceive(dt) {
     this.seesCat = this._canSee();
     if (this.seesCat) { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; }
+    else if (this.state === 'CHASE' && this.loseT < V.trackGrace && !this.player.noclip) { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; } // (just round the corner: he knows which way you went)
     if (this.seesCat && this.anger >= 3 && this.stingCd <= 0 && !this._attacking()) { // eye contact: you're looking at him, and he's looking at you
       const c = this.camera; c.getWorldDirection(_s);
       const dx = this.x - c.position.x, dy = 0.2 - c.position.y, dz = this.z - c.position.z, l = Math.hypot(dx, dy, dz) || 1;
@@ -693,6 +808,7 @@ export class Vacuum {
       return;
     }
     if (this.ignoreT > 0) { this.ignoreT -= dt; this.seeT = 0; return; } // recently gave up on this cat
+    if (this.state === 'LURK' && this.lurkPhase !== 'go' && Math.hypot(this.player.pos.x - this.x, this.player.pos.z - this.z) > LK.close) { this.seeT = 0; return; } // (watching: he only comes for you if you come too close)
     this.seeT = this.seesCat ? this.seeT + dt : Math.max(0, this.seeT - dt);
     if (this.seeT >= V.noticeTime[this.anger - 1] * (this.player.slink > 0.5 ? V.slinkNotice : 1)) this._startChase();
   }
@@ -701,7 +817,7 @@ export class Vacuum {
     if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
     this.spotted++; this.stalk = false;
     if (this.anger >= 3 && Math.random() < 0.5) this._say(this.anger >= 5 ? 'hunt5' : this.anger === 4 ? 'hunt4' : 'hunt3');
-    this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
+    this.rush = false; this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
     audio.play('vac.surge', { follow: this.model.hoseSocket, rolloff: 0 });
     this._sting();
     if (this.anger === 4) this._shriek();
@@ -726,8 +842,10 @@ export class Vacuum {
 
   /** Stuck? If he's been trying to move and hasn't, he finds another way; failing that he's put somewhere he can go from. */
   _stuckCheck(dt) {
-    const S = TUNING.stuck, moving = ['PATROL', 'INVESTIGATE', 'SEARCH', 'CHASE'].includes(this.state) && !this.sweep && !this.direct;
-    if (!moving) { this.stuckT = 0; this.stuckX = this.x; this.stuckZ = this.z; return; }
+    const S = TUNING.stuck, moving = (['PATROL', 'INVESTIGATE', 'SEARCH', 'CHASE'].includes(this.state) || (this.state === 'LURK' && this.lurkPhase !== 'watch')) && !this.sweep && !this.direct;
+    // (parked on purpose in a chase: under a perched cat, at the end of his route, or at the end of his cord. That's not stuck)
+    const end = this.path[this.pathI], parked = this.state === 'CHASE' && (this._paid() >= C.length - 0.1 || (this.direct ? Math.hypot(this.directX - this.x, this.directZ - this.z) <= V.arrive + 0.05 : this.pathI >= this.path.length - 1 && end && Math.hypot(end.x - this.x, end.z - this.z) < V.arrive + 0.05));
+    if (!moving || parked) { this.stuckT = 0; this.stuckX = this.x; this.stuckZ = this.z; return; }
     if (Math.hypot(this.x - this.stuckX, this.z - this.stuckZ) > S.move) { this.stuckT = 0; this.stuckTries = 0; this.stuckX = this.x; this.stuckZ = this.z; return; }
     this.stuckT += dt;
     if (this.stuckT < S.after) return;
@@ -808,6 +926,8 @@ export class Vacuum {
       if (this.lungeT < LU.coil) return;
       this.lungePhase = 'thrust'; this.lungeT = 0; this.direct = true;
       audio.play('vac.fwoomp', { follow: this.model.hoseSocket, rolloff: 0.6, gain: 0.8 });
+      audio.play('vac.shriek', { follow: this.model.hoseSocket, refDistance: 4, rolloff: 0.35, rate: 1.15 }); // screaming as he comes
+      if (Math.hypot(P.pos.x - this.x, P.pos.z - this.z) < 3) P.landDip = Math.max(P.landDip, 0.04); // (the floor jolts)
       return;
     }
     if (this.lungePhase === 'thrust') { // flat out, dead straight
@@ -947,10 +1067,10 @@ export class Vacuum {
   _hoseCommand() {
     const c = this._cmd, P = this.player;
     c.hover = false; c.maxLen = undefined; c.replan = undefined; c.straight = false; c.wobble = null;
-    if (this.state === 'GREET') { // a little wave of the nozzle, up toward the cat
-      const h = this._hole(), g = c.goal, dx = P.pos.x - h.x, dz = P.pos.z - h.z, l = Math.hypot(dx, dz) || 1, w = Math.sin(this.time * 7) * 0.08;
-      g.set(h.x + (dx / l) * A.sniffOut - (dz / l) * w, h.y + A.sniffUp * 1.6 + Math.abs(w), h.z + (dz / l) * A.sniffOut + (dx / l) * w);
-      c.mode = 'approach'; c.speed = A.sniffSpeed * 1.5; c.hover = true;
+    if (this.state === 'GREET') { // a little wave of the nozzle: up in front of him like a trunk, turning with him as he turns to you
+      const h = this._hole(), g = c.goal, fx = Math.sin(this.heading), fz = Math.cos(this.heading), w = Math.sin(this.time * 7) * 0.07;
+      g.set(h.x + fx * FR.trunkOut - fz * w, h.y + FR.trunkUp + Math.abs(w) * 0.6, h.z + fz * FR.trunkOut + fx * w);
+      c.mode = 'sweep'; c.speed = A.sniffSpeed * 1.6; // (sweep: straight from the hole, never left hanging where it was)
       return c;
     }
     if (this.state === 'LUNGE') { // reared back and up, then rammed out straight at chest height
@@ -993,6 +1113,11 @@ export class Vacuum {
       c.mode = 'sweep'; c.speed = F.swaySpeed; c.wobble = F.wobble; // (sweep: the hose is always the way back to the hole, so it never runs out of length and locks up)
       return c;
     }
+    if (this.state === 'LURK' && this.lurkPhase === 'watch') { // up, straight, quite still: watching you
+      const h = this._hole(), fx = Math.sin(this.heading), fz = Math.cos(this.heading), sway = Math.sin(this.time * 0.9) * 0.02;
+      c.goal.set(h.x + fx * 0.14 - fz * sway, h.y + LK.hoseUp, h.z + fz * 0.14 + fx * sway); c.mode = 'sweep'; c.speed = 1.2;
+      return c;
+    }
     if (this.state === 'CREEP') { // the long way, slowly
       this._catChest(c.goal); c.mode = 'approach'; c.speed = CR.speed * Math.min(CR.maxBoost, 1 + CR.perKnock * this.knock.count); c.maxLen = CR.length; c.replan = CR.replan; c.straight = true;
       return c;
@@ -1006,7 +1131,10 @@ export class Vacuum {
       return c;
     }
     if (this.reachPhase === 'charge') { c.mode = 'home'; this._catChest(c.goal); c.speed = H.homeSpeed; c.turn = H.homeTurn; return c; }
-    if (this.state === 'CLEAN' && this.mess && this.cleanFacing) { c.mode = 'approach'; c.goal.set(this.mess.x, 0.09, this.mess.z); c.speed = H.cleanSpeed; return c; } // the nozzle goes to the mess
+    if (this.state === 'CLEAN' && this.mess && this.cleanFacing) { // the nozzle goes to the mess, and circles over it as it sucks
+      const k = this.cleanT > 0 ? V.cleanCircle : 0, a = this.time * 6;
+      c.mode = 'approach'; c.goal.set(this.mess.x + Math.cos(a) * k, 0.07, this.mess.z + Math.sin(a) * k); c.speed = H.cleanSpeed; return c;
+    }
     void P;
     return null;
   }
@@ -1069,17 +1197,28 @@ export class Vacuum {
   /** From angry on, now and then (and always in his own dust) he comes for you slowly and almost silently. */
   _maybeStalk() { const K = TUNING.stalk; this.stalk = this.anger >= 3 && (this.cloud.active || Math.random() < K.chance); }
 
-  _startSearch() {
+  /** more: another place to look (a hunch where you went), after the first. */
+  _startSearch(more = false) {
     if (this.direct) this._rejoin();
+    if (!more) this.searchLeft = V.searchRounds[this.anger - 1];
     this.state = 'SEARCH'; this.sweep = false; this.seeT = 0; this._maybeStalk();
     this.routeTo(this.nav.nearest(this.lastX, this.lastZ));
+    if (this.searchSayCd <= 0 && Math.random() < 0.7) { this.searchSayCd = TUNING.voice.searchEvery; this._say(this.anger >= 5 ? 'search5' : 'search'); } // "Come out, kitty kitty."
   }
 
   _tickSweep(dt) { // at the spot: he turns on the spot, looking
     this.sweepPh += V.searchTurn * dt;
     this.heading = wrap(this.sweepBase + Math.sin(this.sweepPh) * V.searchArc); // side to side, the way something looks around
     this.sweepT -= dt;
-    if (this.sweepT <= 0) { this.sweep = false; this._resumePatrol(); }
+    if (this.searchSayCd <= 0 && Math.random() < dt * 0.6) { this.searchSayCd = TUNING.voice.searchEvery; this._say(this.anger >= 5 ? 'search5' : 'search'); }
+    if (this.sweepT > 0) return;
+    this.sweep = false;
+    if (this.searchLeft > 0 && !this.player.noclip) { // not there: he tries somewhere near where you really are
+      this.searchLeft--;
+      const P = this.player, a = Math.random() * Math.PI * 2, g = V.searchGuess * Math.random();
+      this.lastX = P.pos.x + Math.cos(a) * g; this.lastZ = P.pos.z + Math.sin(a) * g;
+      this._startSearch(true);
+    } else this._resumePatrol();
   }
 
   /** His body touching a cat on the floor. */
@@ -1123,9 +1262,15 @@ export class Vacuum {
 
   /** The end of the route he was on. */
   _routeEnd() {
-    if (this.state === 'CHASE') return; // waits there: the replanning decides what's next
+    if (this.state === 'CHASE') return;
+    if (this.state === 'LURK') { // there: watch. Gone: back to work
+      if (this.lurkPhase === 'go') { this.lurkPhase = 'watch'; this.lurkT = between(LK.watch); this.lookT = 0; }
+      else { this.lurkPhase = null; this.stalk = false; this._resumePatrol(); }
+      return;
+    } // waits there: the replanning decides what's next
     if (this.state === 'SEARCH') { this.sweep = true; this.sweepT = V.searchTime; this.sweepBase = this.heading; this.sweepPh = 0; this._checkHides(); return; }
     if (this.state === 'INVESTIGATE') {
+      this.rush = false;
       if (this._checkHides()) return;
       const m = this._nearestMess(V.cleanReach, false);
       if (m) this._startClean(m); else this._resumePatrol();
@@ -1147,7 +1292,7 @@ export class Vacuum {
     if (this.dormant) return;
     this.time += dt;
     this.px = this.x; this.pz = this.z; this.prevHeading = this.heading;
-    for (const k of ['alertCd', 'heardCd', 'stingCd', 'shriekCd', 'creepCd', 'stunCd', 'foundT', 'sayCd', 'huffCd', 'greetCd', 'chatCd', 'lungeCd']) if (this[k] > 0) this[k] -= dt;
+    for (const k of ['alertCd', 'heardCd', 'stingCd', 'shriekCd', 'creepCd', 'stunCd', 'foundT', 'sayCd', 'huffCd', 'greetCd', 'chatCd', 'lungeCd', 'pokeCd', 'shhCd', 'searchSayCd', 'arcFade', 'lurkCd']) if (this[k] > 0) this[k] -= dt;
     if (this.fogCd > 0 && !this.cloud.active) this.fogCd -= dt;
     this.cloud.tick(dt);
     if (!this.frozen) this._bump();
@@ -1157,10 +1302,11 @@ export class Vacuum {
     if (this.blastCd > 0) this.blastCd -= dt;
     if (!this.caught) for (const b of this.blasts) b.tick(dt, this.player);
     if (this.plugLock > 0) this.plugLock -= dt;
-    if (this.plugState !== 'in' && !this.off) { this._tickPlug(dt); return; }
+    if (this.plugState !== 'in' && !this.off && !this.frozen) { this._tickPlug(dt); return; }
     if (this.frozen || this.off || this.caught) return;
     if (this.stunT > 0) { this.stunT -= dt; return; } // reeling
     this._perceive(dt);
+    this._tickCalm(dt);
     if (this._touching()) { this._catch('snap'); return; }
     if (this.freezeT > 0 && !this._attacking()) { // caught your eye: dead still for a moment, staring back
       this.freezeT -= dt;
@@ -1171,6 +1317,7 @@ export class Vacuum {
     this._stuckCheck(dt);
     if (this.state === 'SURGE') { this._tickSurge(dt); return; }
     if (this.state === 'GREET') { this._tickGreet(dt); return; }
+    if (this.state === 'LURK') { this._tickLurk(dt); return; }
     if (this.state === 'LUNGE') { this._tickLunge(dt); return; }
     if (this.state === 'TURN') { this._tickTurn(dt); return; }
     if (this.state === 'HUFF') { this._tickHuff(dt); return; }
@@ -1191,14 +1338,15 @@ export class Vacuum {
       if (m) { this._startClean(m); return; }
     }
     if (this.state === 'PATROL') { this.thinkT -= dt; if (this.thinkT <= 0) { this._think(); if (this.state !== 'PATROL') return; } }
-    this._followPath(dt, V.speed[this.anger - 1] * (this.state === 'PATROL' ? 1 : V.investigateMul) * (this.stalk && this.state !== 'PATROL' ? TUNING.stalk.speed : 1));
+    this._followPath(dt, this.rush && this.state === 'INVESTIGATE' ? V.rushSpeed : V.speed[this.anger - 1] * (this.state === 'PATROL' ? 1 : V.investigateMul) * (this.stalk && this.state !== 'PATROL' ? TUNING.stalk.speed : 1));
   }
 
   /** Per rendered frame. */
   frame(alpha, dt = 1 / 60) {
     const r = this.model.root;
     this.model.animate(dt, this.state === 'ALERT' || this.freezeT > 0);
-    this.model.arcsOn(0); // (no sparks crawling over him: the colours and the flicker read badly)
+    // electricity crawls over him only in the surge's cut, and a moment after: in the dark it's his eyes that do it
+    this.model.arcsOn(this.state === 'SURGE' && this.surgeT >= SG.cutOutlet ? 1 : this.arcFade > 0 ? this.arcFade / SG.arcAfter : 0);
     this.cloud.frame(dt, this.camera.position);
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;

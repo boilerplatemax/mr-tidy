@@ -29,7 +29,7 @@ Open <http://localhost:8080> and click **Begin**.
 | Space while climbing | Kick off, the way you're looking or with A / D to the side |
 | C while climbing | Let go |
 | Left click | Swipe: bats whatever is in front of you. Hit the outlet Mr. Tidy is plugged into to knock him out for a few seconds. Bat him before anything is broken and he chats |
-| P | Try the different ways of showing your paws while you walk (peek, low, full, off) |
+| P | Walking paws on or off |
 | Esc | Pause and settings |
 
 Debug: **F1** overlay · **F2** third-person camera · **F3** noclip (WASD, Space, C, Shift) · **F4** anger +1 · **F5** wake +20 · **F6** trigger the catch · **F7** dust cloud · **F10** the secret ending · **F8** freeze the vac · **F9** key list.
@@ -46,7 +46,11 @@ Everything that affects feel is in `src/data/tuning.js`. The numbers that matter
 | `stamina.climbDrain`, `hangDrain`, `regen` | How long you can stay on a wall or ledge |
 | `vac.speed`, `vac.chaseSpeed` | How fast he patrols and hunts, per anger level |
 | `vac.sightRange`, `vac.noticeTime`, `vac.loseTime` | How easily he spots you and gives up |
-| `vac.angerAt`, `vac.hearNear`, `vac.hearSteps` | When he gets angrier and what he hears |
+| `vac.angerAt`, `vac.hearNear`, `vac.hearSteps` | When he gets angrier (knock-overs since he last calmed down) and what he hears |
+| `vac.calmTime`, `vac.calmEase`, `vac.calmLonger` | How long he has to be left alone, every mess cleared, to cheer up again; how much quicker to anger and slower to calm he gets each time |
+| `vac.loseTime`, `vac.trackGrace`, `vac.searchRounds` | How hard he hangs on to a chase and how many places he looks |
+| `closeup.*`, `surge.cutOutlet`, `surge.cutVac` | The close-up on "...that's enough." and the power-surge cut |
+| `todo.*` | Marmalade's to-do list |
 | `hose.windup`, `hose.reachH`, `hose.reachTop`, `hose.cooldown` | How fair and how threatening the hose is |
 | `cord.length`, `cord.off`, `cord.lock` | How far he can go, and how good unplugging him is |
 | `drone.closeness`, `drone.floor` | How well you can place him by ear |
