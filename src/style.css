@@ -117,9 +117,7 @@ html, body {
 #pause button.small:hover { background: rgba(196, 48, 42, .12); border-color: #a05a50; }
 #pause .tabs { display: flex; flex-direction: column; gap: calc(3px * var(--px)); }
 #pause:not(.title) .main + .note + .tabs { margin-top: calc(2px * var(--px)); padding-top: calc(4px * var(--px)); background: linear-gradient(90deg, transparent, rgba(184, 140, 74, .5), transparent) top / 100% 1px no-repeat; }
-#pause .tabs button { justify-content: flex-start; padding-left: calc(10px * var(--px)); }
-#pause .tabs button::after { content: ''; position: absolute; right: calc(5px * var(--px)); color: transparent; width: calc(3px * var(--px)); height: calc(5px * var(--px));
-  background: linear-gradient(45deg, transparent 45%, var(--rose-hi) 45% 60%, transparent 60%) top / 100% 50% no-repeat, linear-gradient(-45deg, transparent 45%, var(--rose-hi) 45% 60%, transparent 60%) bottom / 100% 50% no-repeat; }
+#pause .tabs button { justify-content: center; } /* (centred, no arrow) */
 #pause .body { display: flex; flex-direction: column; gap: calc(3px * var(--px)); padding: calc(4px * var(--px)) 0; min-height: calc(110px * var(--px)); } /* categories never jump in height */
 #pause .body.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 calc(16px * var(--px)); align-items: start; }
 #pause .col { display: flex; flex-direction: column; gap: calc(3px * var(--px)); min-width: 0; }

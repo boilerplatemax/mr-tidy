@@ -13,16 +13,18 @@ import { tv as set, lamp } from './dress.js';
 import { flicker } from './debris.js';
 
 const T = TUNING.tutorial;
-// [step, words, where the arrow points: a solid's id, 'remote', 'plug' or null]
+// [step, words, where the arrow points: a solid's id, 'remote', 'plug' or null]. Words: one tip, or a list of short tips
+// shown one at a time, taking turns (a long block of text ran off the screen and nobody read it).
 const STEPS = [
-  ['move', 'Walk with W A S D. Look around with the mouse.', null],
-  ['jump', 'Hold SPACE to crouch, let go to jump. Hop up onto something.', 'book1'],
-  ['up', 'The TV remote is up on the high shelf by the window.\nFind a way up: shelves, the cat tree, the curtains.\nHold SPACE longer for a bigger jump. Tap SHIFT in mid-air to dash.', 'remote'],
-  ['remote', 'Left click to swipe. Bat the remote.', 'remote'],
+  ['move', 'W A S D to walk. Mouse to look.', null],
+  ['jump', ['Hold SPACE, let go to jump.', 'Hop up onto something.'], 'book1'],
+  ['up', ['The TV remote is on the high shelf.', 'Climb shelves, the cat tree, curtains.', 'Hold SPACE longer: bigger jump.', 'SHIFT in mid-air: dash.'], 'remote'],
+  ['remote', 'Left click to swipe the remote.', 'remote'],
   ['show', '', null],
-  ['plug', 'Looks like Grandma forgot to turn her lamp off.\nGet down and swipe its plug out of the wall.\nUnplugging things stops them: remember that.', 'plug'],
-  ['go', 'Now knock things over until Grandma wakes up.\nCareful... something is coming.', null],
+  ['plug', ['Grandma left her lamp on.', 'Swipe its plug out of the wall.', 'Unplugging things stops them.'], 'plug'],
+  ['go', ['Knock things over till Grandma wakes.', 'Careful... something is coming.'], null],
 ];
+const TIP_EVERY = 3.5; // s each tip stays up before the next one
 const _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _up = new THREE.Vector3(0, 1, 0), _t = new THREE.Vector3(), _p = new THREE.Vector3();
 
 function arrowSprite() {
@@ -85,9 +87,20 @@ export class Tutorial {
 
   _show() {
     const s = STEPS[this.i];
+    this.tipAt = -1;
     if (!s || !s[1]) { this.tip.show(false); return; }
-    this.tip.set([...s[1].split('\n').map((text) => ({ text })), { text: 'ENTER: skip the tutorial', dim: true }], 'center'); // (one short line per sentence: a long one ran off the screen)
+    this._tip();
     this.tip.show(true);
+  }
+
+  /** The tip for this moment of the step (a step with several takes them in turn, round and round). */
+  _tip() {
+    const words = [].concat(STEPS[this.i]?.[1] || []);
+    if (!words.length) return;
+    const k = Math.floor(this.t / TIP_EVERY) % words.length;
+    if (k === this.tipAt) return;
+    this.tipAt = k;
+    this.tip.set([{ text: words[k] }, { text: 'ENTER: skip the tutorial', dim: true }], 'center');
   }
 
   _next() { this._goTo(this.i + 1); }
@@ -144,6 +157,7 @@ export class Tutorial {
     if (!this.active) return;
     if (this.input.pressed('Enter')) { this.skip(); return; }
     this.t += dt;
+    this._tip();
     const P = this.player, on = P.grounded ? P.groundCollider?.id : null;
     // the climb: each step is passed by doing it, however it's done, and doing a later one passes all the ones before it (it
     // goes by where the cat has got to, not by the order the lessons come in or the way it went)
