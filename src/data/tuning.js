@@ -149,8 +149,9 @@ export const TUNING = {
   curb: { x: 40, z: 0, camY: 0.32, from: 3.2, to: 1.05, push: 7.5, eyes: [[8.6, 8.85], [9.2, 9.6]], length: 10.4, lamp: 14 }, // the secret ending, out the front: where; the camera's height and how it creeps in (m, s); when his eyes come on (s); how long it lasts; the streetlamp
   bonus: { anger: 1 }, // each of his spare parts you break: knock-overs added toward his anger (they never wake Grandma)
   tail: { scale: 1.9, tilt: -1.0, x: 0.24, z: -0.24, hidden: -0.6, shown: -0.2, lean: 0.6, from: 1.2, full: 3.5, rise: 9, fall: 5 }, // the tail-peek experiment: size; how it's tipped toward the view; m out to the side and ahead; how far below the view it hides and how high it comes; rad it leans in; rad/s of turning where it starts showing and where it's all there; 1/s in and out
-  tutorial: { gateHeight: 1.25, zoomFov: 21, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch)
-    arriveAfter: 3, show: 17 }, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
+  tutorial: { gateHeight: 1.25, zoomFov: 30, tvDist: 1.0, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch, from tvDist m square in front of the screen)
+    arriveAfter: 3, show: 17, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
+    gates: { fall: 0.6, lie: 1.4, fade: 1.6, sink: 0.05 } }, // once they're over: s to fall; s lying there; s sinking away as they fade; m they sink
   // ---------------------------------------------------------------- the ending (src/world/ending.js)
   ending: {
     cut: 1.1, fadeIn: 0.6, idle: 0.7, turn: 0.5, pull: 0.15, grip: 0.02, toVac: 0.6, die: 0.45, after: 4.6, fadeOut: 1.2, // s: the fade from the house; up into her room; she stands a moment; turns to the wall; into the yank when the plug comes out, and when it's in her hand; then the cut to him; how long he keeps going on screen; from then until it's over; the fade at the end

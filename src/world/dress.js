@@ -61,7 +61,7 @@ function drawShow(u) {
   drawWrong(g, Math.random() < 0.15);
 }
 /** The last frame, and what the set shows by itself in the dark: him, close, wrong. */
-function drawWrong(g, flick, text = 'SWEET DREAMS.') {
+function drawWrong(g, flick, text = 'KEEP CLEAN.') {
   const W = 128, H = 96; g.fillStyle = flick ? '#1a0808' : '#000'; g.fillRect(0, 0, W, H);
   vacPic(g, 64, 50, 3.1, 'wrong');
   g.textAlign = 'center'; g.font = 'bold 10px monospace'; g.fillStyle = '#f4efd8'; g.fillText(text, 64, 92);

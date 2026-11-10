@@ -95,8 +95,9 @@ const tail = new Tail(camera);
 audio.world = world;
 audio.indoorBoxes = house.indoor;
 subtitles.isIndoor = (p) => audio.isIndoor(p);
-const CAPTIONED = /^(grandma\.|vac\.say|tv\.)/; // only speech and a few of Grandma's sounds are captioned: noises speak for themselves
-audio.onCaption = (label, pos, slot) => { if (CAPTIONED.test(slot)) subtitles.sound(label, pos, audio.listenerPos, player.yaw); };
+// Only speech is captioned (a subtitle in quotes), and plainly: no "[the bed creaks, to your left]". Noises speak for
+// themselves; his lines, the programme and the portraits put up their own words.
+audio.onCaption = (label) => { if (label.startsWith('"')) subtitles.line(null, label, TUNING.subtitles.seconds); };
 audio.onStart.push(() => {
   house.startSound(); grandma.startSound(); vac.startSound();
   staticVoice = null;
