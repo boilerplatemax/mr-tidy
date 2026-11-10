@@ -17,11 +17,11 @@ const T = TUNING.tutorial;
 const STEPS = [
   ['move', 'Walk with W A S D. Look around with the mouse.', null],
   ['jump', 'Hold SPACE to crouch, let go to jump. Hop up onto something.', 'book1'],
-  ['up', 'The TV remote is up on the high shelf by the window. Find a way up: shelves, the cat tree, the curtains. Hold SPACE longer for a bigger jump; tap SHIFT in mid-air to dash.', 'remote'],
+  ['up', 'The TV remote is up on the high shelf by the window.\nFind a way up: shelves, the cat tree, the curtains.\nHold SPACE longer for a bigger jump. Tap SHIFT in mid-air to dash.', 'remote'],
   ['remote', 'Left click to swipe. Bat the remote.', 'remote'],
   ['show', '', null],
-  ['plug', "The lamp's still on. Get down and swipe its plug out of the wall. Unplugging things stops them: remember that.", 'plug'],
-  ['go', 'Now knock things over until Grandma wakes up. Careful... something is coming.', null],
+  ['plug', 'Looks like Grandma forgot to turn her lamp off.\nGet down and swipe its plug out of the wall.\nUnplugging things stops them: remember that.', 'plug'],
+  ['go', 'Now knock things over until Grandma wakes up.\nCareful... something is coming.', null],
 ];
 const _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _up = new THREE.Vector3(0, 1, 0), _t = new THREE.Vector3(), _p = new THREE.Vector3();
 
@@ -86,7 +86,7 @@ export class Tutorial {
   _show() {
     const s = STEPS[this.i];
     if (!s || !s[1]) { this.tip.show(false); return; }
-    this.tip.set([{ text: s[1] }, { text: 'ENTER: skip the tutorial', dim: true }], 'center');
+    this.tip.set([...s[1].split('\n').map((text) => ({ text })), { text: 'ENTER: skip the tutorial', dim: true }], 'center'); // (one short line per sentence: a long one ran off the screen)
     this.tip.show(true);
   }
 

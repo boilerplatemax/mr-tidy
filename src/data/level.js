@@ -215,7 +215,7 @@ export const LEVEL = {
     { model: 'cattree_post_80', fit: ['tree1post'] }, { model: 'cattree_post_80', fit: ['tree2post'] }, { model: 'cattree_post_80', fit: ['tree3post'] }, { model: 'cattree_post_80', fit: ['tree4post'] },
     { model: 'psx_nightstand_oak', fit: ['book1'], rot: 180 }, { model: 'bookcase', fit: ['book2'], rot: 180 }, { model: 'bookcase', fit: ['book3'], rot: 180 }, { model: 'bookcase', fit: ['book4'], rot: 180 }, { model: 'bookcase', fit: ['scratchPanel'], rot: 180 },
     { model: 'tv_console', fit: ['tvUnit'], rot: -90, h: 0.8, tv: true }, // (scaled so its top is the collider's top)
-    { model: 'psx_rug_braided', at: [3.0, 0.002, 1.6] }, { model: 'psx_floor_lamp', at: [0.35, 0, 4.55], rot: 180 }, { model: 'ceiling_light', at: [3, 0.6, 2.7] },
+    { model: 'psx_rug_braided', at: [3.0, 0.002, 1.6] }, { model: 'psx_floor_lamp', at: [0.35, 0, 4.55], rot: 180, noFlex: [0.25, 0.06] }, { model: 'ceiling_light', at: [3, 0.6, 2.7] },
     // kitchen
     { model: 'counter_module', fit: ['c1'], h: 0.9 }, { model: 'counter_module', fit: ['c2a'], h: 0.9 }, { model: 'counter_module', fit: ['c2b'], rot: -90, h: 0.9 }, { model: 'counter_module', fit: ['c3'], rot: -90, h: 0.9 },
     { model: 'fridge', fit: ['fridge'], rot: -90 }, { model: 'dining_chair', fit: ['chair'], h: 0.46 },

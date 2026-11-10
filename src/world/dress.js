@@ -6,7 +6,6 @@ import { LEVEL } from '../data/level.js';
 import { loadGLB } from '../render/geometry.js';
 import { makePS1, pixelTexture } from '../render/ps1-material.js';
 import { audio } from '../audio/audio.js';
-import { subtitles } from '../ui/subtitles.js';
 import { SHOW } from '../vacuum/voice.js';
 import { TUNING } from '../data/tuning.js';
 import { lampParts } from './house.js';
@@ -177,7 +176,7 @@ export function tvTick(dt) {
   if (tv.state !== 'show') return;
   show.t -= dt;
   const u = SHOW_LEN - show.t;
-  while (show.said < SHOW.length && u >= SHOW[show.said][0]) { audio.play(`tv.say.${show.said}`, { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2.5 }); subtitles.line(null, SHOW[show.said][1], 3.4); show.said++; }
+  while (show.said < SHOW.length && u >= SHOW[show.said][0]) { audio.play(`tv.say.${show.said}`, { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2.5 }); show.said++; } // (no captions: the programme puts its own words on the screen)
   if (show.t <= 0) tv.set('on');
 }
 
@@ -224,6 +223,12 @@ export function dressHouse(scene, byId) {
       if (o.isMesh && o.material?.name === 'lace') { plainCloth = plainCloth || makePS1(new THREE.MeshLambertMaterial({ color: 0xe4dcc8, side: THREE.DoubleSide })); o.material = plainCloth; }
     });
     if (e.hide) e.hide.forEach((n) => { const o = m.getObjectByName(n); if (o) o.visible = false; });
+    if (e.noFlex) m.traverse((o) => { // (the model's own flex: a stub of cord along the floor. The working one is drawn in src/world/house.js, from the base)
+      if (!o.isMesh || !o.geometry.index) return;
+      const P = o.geometry.attributes.position, I = o.geometry.index.array, keep = [];
+      for (let t = 0; t < I.length; t += 3) { let cord = false; for (let k = 0; k < 3; k++) { const v = I[t + k], x = P.getX(v), y = P.getY(v), z = P.getZ(v); if (y < e.noFlex[1] && Math.hypot(x, z) > e.noFlex[0]) cord = true; } if (!cord) keep.push(I[t], I[t + 1], I[t + 2]); }
+      o.geometry = o.geometry.clone(); o.geometry.setIndex(keep);
+    });
     const holder = new THREE.Group();
     holder.rotation.y = ((e.rot || 0) * Math.PI) / 180;
     holder.add(m);
