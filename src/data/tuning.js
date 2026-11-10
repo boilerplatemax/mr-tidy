@@ -231,6 +231,7 @@ export const TUNING = {
         lift: 0.006, arc: 3.6, y0: 0.02, y1: 0.36, pxPerM: 358, centerY: 0.15, // m off his surface; rad round him; the height range the canvas covers; canvas px per m; where the camera looks at him
       },
       stretch: [1, 1, 1.08, 1.22, 1.3], holeRs: [0.036, 0.036, 0.036, 0.036, 0.036], tone: [1, 0.92, 0.72, 0.5, 0.34], // by stage: how tall he stands; the intake's radius; how dark his body has gone
+      tiltEase: 10, // 1/s he eases into each new lean (a gesture, listening, a shriek) and out of it again
       twitch: 0.09, listenTilt: 0.14, flickTime: 0.45, // rad of twitching at the end; rad he leans back when he stops to listen; s his face flickers when he changes
       mawNose: { lift: 0.03, r: 0.028, ease: 14 }, // stage 5's toothed maw: m the nose hole (and the hose with it) rises above its usual height, its radius, 1/s it eases there
       bodyR: 0.24, // m: the drum's radius, which no part of his hose is ever drawn inside
@@ -353,6 +354,7 @@ export const TUNING = {
     cell: 0.12, clearance: 0.03, searchLimit: 20000, // the 3D grid: m per cell, m kept clear of surfaces, the most cells one search may look at
     replan: 0.2, arch: 0.3, arcPoints: 8, // s between re-thinking its route; how far under the tip it comes up from; points on that curve
     retractSpeed: 7, // m/s reeling back in
+    blendBelow: 1.2, restSettle: 0.7, restEase: 7, // a hose shorter than this (m) just eases back into its rest shape when it is done; s it takes to settle into it; 1/s how fast
     reachH: 2.2, reachTop: 1.8, // m: how far out from the hole, and how high a cat it will go for. Above reachTop is safe
     minPerch: 0.3, // m: a cat higher than this counts as perched: harder to spot, and he parks near it
     standoff: 1.1, // m: how close to a perched cat he tries to park

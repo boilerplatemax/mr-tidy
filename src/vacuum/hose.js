@@ -266,11 +266,16 @@ export class Hose {
     if (!cmd && !this.active) { // at rest: a short trunk, out of the intake and curving down to the floor in front of him. Part of him: it never lags
       this._restTarget(base, s, c, _b);
       _a.set(base.x + (_b.x - base.x) * 0.55, base.y + 0.02, base.z + (_b.z - base.z) * 0.55);
-      for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; P[i].set(u * u * base.x + 2 * u * t * _a.x + t * t * _b.x, u * u * base.y + 2 * u * t * _a.y + t * t * _b.y, u * u * base.z + 2 * u * t * _a.z + t * t * _b.z); this.old[i].copy(P[i]); }
+      const settle = this.settle > 0 ? 1 - Math.exp(-H.restEase * dt) : 1; // (just back from something: it eases into the rest shape, it doesn't jump to it)
+      if (this.settle > 0) this.settle -= dt;
+      for (let i = 0; i <= n; i++) { const t = i / n, u = 1 - t; _d.set(u * u * base.x + 2 * u * t * _a.x + t * t * _b.x, u * u * base.y + 2 * u * t * _a.y + t * t * _b.y, u * u * base.z + 2 * u * t * _a.z + t * t * _b.z); if (i === 0) P[i].copy(_d); else P[i].lerp(_d, settle); this.old[i].copy(P[i]); }
       return;
     }
     this.trail[0].set(base.x, base.y, base.z);
-    if (!cmd) { this._retract(dt); if (!this.active) return; } // (fully back in: it lies at rest from next tick)
+    if (!cmd) { // done: a short gesture just eases back into the rest shape; a long reach reels in, then settles
+      if ((this.len ?? 0) < H.blendBelow) { this.active = false; this.arrived = this.maxed = this.stuck = false; } else this._retract(dt);
+      if (!this.active) { this.settle = H.restSettle; return; }
+    }
     else if (cmd.mode === 'home') this._home(dt, cmd);
     else if (cmd.mode === 'sweep') this._sweep(dt, cmd);
     else this._approach(dt, cmd);

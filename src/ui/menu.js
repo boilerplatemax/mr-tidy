@@ -59,12 +59,9 @@ export const TABS = {
   Display: [
     ['Brightness', 'brightness', 'range', [0.7, 1.6, 0.05, (v) => v.toFixed(2)]],
     ['Framing', 'framing', 'cycle', [['fill', 'Fill screen'], ['4:3', '4:3 (pillarboxed)']]],
-    ['Vertex jitter', 'jitter', 'check'], ['   amount', 'jitterAmount', 'range', [0.25, 3, 0.25, (v) => v.toFixed(2)]],
-    ['Texture warp', 'warp', 'check'], ['   amount', 'warpAmount', 'range', [0.1, 1.8, 0.1, (v) => v.toFixed(1)]],
     ['Dither', 'dither', 'check'], ['   amount', 'ditherAmount', 'range', [0.25, 2, 0.25, (v) => v.toFixed(2)]],
     ['Colour bits', 'colorBits', 'range', [4, 8, 1, (v) => String(v)]],
-    ['Lines (resolution)', 'lines', 'range', [180, 720, 20, (v) => String(v)]],
-    ['Stable thin details', 'supersample', 'cycle', [[2, 'On (2x supersample)'], [1, 'Off (raw pixels)']]],
+    ['Lines (resolution)', 'lines', 'range', [180, 360, 20, (v) => String(v)]],
   ],
 };
 // Controls: two columns of [group title, [[key, action], ...]]. (The debug keys still work; F9 and the README list them, not here.)

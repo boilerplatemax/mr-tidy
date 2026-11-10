@@ -228,8 +228,9 @@ export function buildVacuum() {
     } else if (out.flick > 0 && false) { // (no flickering between faces: it read badly)
       out.flick -= dt; show(out.flick > 0 && Math.floor(out.flick * 22) % 2 ? Math.max(1, out.stage - 1) : out.stage);
     }
-    if (out.giggleT > 0) { out.giggleT -= dt; tz += Math.sin(out.giggleT * 34) * 0.1 * Math.min(1, out.giggleT * 3); tx -= 0.03; }
-    root.rotation.z += (tz - root.rotation.z) * Math.min(1, 26 * dt); root.rotation.x += (tx - root.rotation.x) * Math.min(1, 26 * dt);
+    if (out.giggleT > 0) { out.giggleT -= dt; const f = Math.min(1, out.giggleT * 3); tz += Math.sin(out.giggleT * 34) * 0.1 * f; tx -= 0.03 * f; } // (it dies away: no snapping back upright)
+    const lean = Math.min(1, (out.stage >= 4 && !out.still ? 26 : M.tiltEase) * dt); /* (from furious on he twitches: that stays sudden) */ // he eases from one pose into the next: a gesture never cuts to the pose after it
+    root.rotation.z += (tz - root.rotation.z) * lean; root.rotation.x += (tx - root.rotation.x) * lean;
   };
 
   loadGLB(TUNING.assets.vacuum).then((gltf) => { gltf.scene.traverse((o) => { if (o.isMesh) out.bodyMats.push(o.material); }); body.add(gltf.scene); }).catch((e) => {
