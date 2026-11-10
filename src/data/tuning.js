@@ -211,6 +211,7 @@ export const TUNING = {
       },
       stretch: [1, 1, 1.08, 1.22, 1.3], holeRs: [0.036, 0.036, 0.036, 0.036, 0.036], tone: [1, 0.92, 0.72, 0.5, 0.34], // by stage: how tall he stands; the intake's radius; how dark his body has gone
       twitch: 0.09, listenTilt: 0.14, flickTime: 0.45, // rad of twitching at the end; rad he leans back when he stops to listen; s his face flickers when he changes
+      mawNose: { lift: 0.03, r: 0.028, ease: 14 }, // stage 5's toothed maw: m the nose hole (and the hose with it) rises above its usual height, its radius, 1/s it eases there
       catchDist: 0.42, // m in front of the hole where the camera ends up: close, but you see the whole of his face
       reelY: 0.2, reelZ: 0.275, // the cord reel on his back (m): height, how far behind him
       reelMax: 0.095, reelMin: 0.045, reelFlange: 0.105, // m: the coil's radius when full and when nearly paid out; the plate behind it
@@ -466,9 +467,20 @@ export const TUNING = {
   paws: {
     plantScale: 0.72, pawScale: 0.92, glow: 0x2a241e, legLen: 0.15, // planted paws: the forearm's scale, the pad's size on top of that, its length in the model
     shoulder: [0.065, -0.22, 0.03], // in camera space: where the forearms go to, just behind the eye. They run back to the body however you look
-    gait: { centre: 0.17, side: 0.055, reach: [0.06, 0.11], lift: [0.03, 0.05], stance: 0.62, raised: [0.07, 0.05] }, // walking: m ahead of the cat the paws work about; m apart; m they swing (walk, run); m they lift; share of the step on the ground; how much higher and nearer the 'raised' mode puts them
-    order: ['natural', 'raised', 'off'], // experiment (P cycles): where the walking paws sit, m below their pose [standing, moving]
-    linger: 0.16, offDrop: 0.14, // s a swiping paw lingers as it drops away; m it drops
+    // walking (src/player/paws.js _gait): each paw is planted in the world and steps when it's too far from where it belongs.
+    // centre: m ahead of the cat it belongs; side: m out from the middle; reach: m ahead it's put down [walk, run]; lift: m
+    // it comes up; swing: s a step takes; trigger / settle: m out of place before it steps, moving / standing (turning on
+    // the spot); overlap: share of one paw's step done before the other may lift; stepUp / stepDown: m a surface can be
+    // above / below the cat's and still take a paw (else it's an edge: the paw stays on); padY: m the pad sits up;
+    // shoulder: [m out, m ahead, m up] where the forearm goes back to, on the body
+    gait: { centre: 0.12, side: 0.05, reach: [0.06, 0.09], lift: [0.025, 0.04], swing: [0.13, 0.09], trigger: 0.05, settle: 0.045, overlap: 0.5, stepUp: 0.06, stepDown: 0.04, padY: 0.006, shoulder: [0.05, -0.06, 0.11] },
+    order: ['natural', 'off'], // P cycles: walking paws on the floor, or none
+    // the swipe, done by the right paw (camera space, m): path = rest below, up on the right, across to the left, back down;
+    // up / across: share of the swipe each part ends at; arc: m the sweep bows up; pitch, yaw [from, to], roll [from, to]:
+    // rad the paw is turned (toes up, toes swinging left, pad turning to face the way it bats); blendIn / blendOut: share
+    // of the swipe spent leaving / going back to the planted paw; below: m under the view it rises from in the air
+    swipe: { path: [[0.07, -0.13, -0.14], [0.085, -0.035, -0.15], [-0.06, -0.05, -0.17], [-0.02, -0.14, -0.13]], up: 0.3, across: 0.62, arc: 0.025, pitch: 0.55, yaw: [-0.2, 0.6], roll: [-0.5, -1.0], blendIn: 0.28, blendOut: 0.72, below: 0.14 },
+    darkGlow: 0x6e6252, // the paws' own light in the blackout (glow eases to this as the power goes), so they aren't black
      // a little light of their own, so an underside isn't black; m: the forearm's length in the model
     hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end
     keepEdge: 0.9, keepNear: 0.07, // if one paw leaves the frame the pair moves back in: screen edge share, least distance in front of the eye (m)

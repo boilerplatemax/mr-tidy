@@ -89,6 +89,7 @@ function portraitWords() {
 const marker = new LandingMarker(camera);
 const shimmer = new LandingShimmer(scene);
 const paws = new Paws(camera);
+paws.world = world; // (the walking paws keep to whatever surface the cat is on)
 const tail = new Tail(camera);
 
 // ---------------------------------------------------------------- audio + captions
@@ -220,7 +221,7 @@ function frame(alpha, dt, frameMs) {
     shimmer.update(player.aim, wallTime, dt);
     tutorial.frame(dt, wallTime);
     tail.frame(player, dt, debug.thirdPerson || tutorial.watching);
-    paws.frame(player, dt, input.live ? alpha : 1, debug.thirdPerson || tutorial.watching);
+    paws.dark = vac.dark; paws.frame(player, dt, input.live ? alpha : 1, debug.thirdPerson || tutorial.watching);
     knock.frame(input.live ? alpha : 1);
     debris.frame(input.live ? alpha : 1);
     staminaBar.frame(player, dt);

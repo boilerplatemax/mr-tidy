@@ -1,6 +1,6 @@
 // The first-person paws (cat_forelegs.glb), on the viewmodel layer (drawn after the world with depth cleared, never
-// vertex-snapped). They only exist while hanging, climbing or swiping. Hanging and climbing plant them on the real surface
-// in world space, so they stay put as you look around; a swipe plays the rig's own clip.
+// vertex-snapped). Walking, hanging and climbing plant them on the real surface in world space, so they stay put as you
+// move and look around; the swipe is done by the right paw itself.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { loadGLB } from '../render/geometry.js';
@@ -32,6 +32,7 @@ function fillPaw(paw, lib, side) {
 const _p = new THREE.Vector3(), _q = new THREE.Quaternion(), _cq = new THREE.Quaternion(), _m = new THREE.Matrix4(), _r = new THREE.Quaternion();
 const _a = new THREE.Vector3(), _zAxis = new THREE.Vector3(0, 0, 1), _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3(), UP = new THREE.Vector3(0, 1, 0);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+const _col = new THREE.Color(), _h = new THREE.Vector3(), _t = new THREE.Vector3(), _s = new THREE.Vector3(), _sq = new THREE.Quaternion(), _e = new THREE.Euler();
 
 export class Paws {
   constructor(camera) {
@@ -40,7 +41,7 @@ export class Paws {
     this.rig = null; this.mixer = null; this.swipeClip = null; // the whole rig, for the swipe's own animation
     camera.add(this.left, this.right);
     loadGLB(TUNING.assets.forelegs).then((g) => {
-      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive.setHex(V.glow); o.material.fog = false; o.layers.set(LAYER_VIEWMODEL); } o.frustumCulled = false; }); // (a little light of their own, so an underside isn't black)
+      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive.setHex(V.glow); if (!this.mats.includes(o.material)) this.mats.push(o.material); o.material.fog = false; o.layers.set(LAYER_VIEWMODEL); } o.frustumCulled = false; }); // (a little light of their own, so an underside isn't black)
       fillPaw(this.left, g.scene, 'L'); fillPaw(this.right, g.scene, 'R');
       this.rig = g.scene; this.rig.visible = false;
       camera.add(this.rig);
@@ -53,6 +54,8 @@ export class Paws {
     this.grip = 0; // 0 hidden .. 1 on the surface
     this.side = 0; // 0 .. 1: how much the climb is going sideways
     this.acts = {}; this.move = 0; this.drop = 0; this.linger = 0; this._w = new Map();
+    this.world = null; this._g = { y: 0, surface: '', collider: null }; this.nextPaw = 1; this.swipeU = -1; this.walkVisible = false;
+    this.dark = 0; this.mats = []; this._glow = new THREE.Color(V.glow); this._darkGlow = new THREE.Color(V.darkGlow); // in the blackout they keep a little light of their own, or they'd be black shapes
   }
 
   /** Put a paw at a world position and orientation (from its basis), in the camera's space. */
@@ -78,30 +81,95 @@ export class Paws {
     const l = _a.length();
     _a.applyQuaternion(_r.copy(paw.quaternion).invert()).normalize();
     paw.userData.leg.quaternion.setFromUnitVectors(_zAxis, _a);
-    paw.userData.leg.scale.set(1, 1, l / (V.legLen * V.plantScale));
+    const k = l / (V.legLen * V.plantScale), fat = 1;
+    paw.userData.leg.scale.set(fat, fat, k); // (fills out a little as it stretches, rather than going thin)
+  }
+
+  /** Highest surface under a paw at (x, z), if it's about level with the cat's own (null: off the edge, or a wall). */
+  _surface(x, z, feet) {
+    if (!this.world) return feet;
+    const g = this.world.ground(x, z, 0.012, feet + V.gait.stepUp, this._g);
+    return g.y >= feet - V.gait.stepDown ? g.y : null;
   }
 
   /**
-   * Walking: each front paw steps the way a cat's does, planted on the floor ahead and swinging forward again, out of
-   * sight below the view unless you look down ('natural'), or a little higher and nearer so they're in view ('raised').
+   * Where a paw wants to be: ahead of the shoulder on its own side, kept on whatever the cat is standing on. Off the edge
+   * of a table or shelf it's pulled back in toward the body until it's on the surface again (never over thin air).
    */
-  _gait(player, alpha, dt, raised) {
-    const G = V.gait, cam = this.camera.position, yaw = player.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
-    const speed = Math.hypot(player.vel.x, player.vel.z), run = player.gait === 'run' ? 1 : 0, stride = run ? 0.42 : 0.26;
-    this.gaitDist = (this.gaitDist || 0) + speed * dt;
-    this.gaitAmt = (this.gaitAmt || 0) + ((speed > 0.2 ? 1 : 0) - (this.gaitAmt || 0)) * (1 - Math.exp(-8 * dt));
-    const feet = player.prevEyeFeet + (player.eyeFeet - player.prevEyeFeet) * alpha, up = raised ? G.raised[0] : 0, near = raised ? G.raised[1] : 0;
-    const reach = G.reach[run] * this.gaitAmt, lift = G.lift[run] * this.gaitAmt;
-    for (const [paw, side] of [[this.left, -1], [this.right, 1]]) {
-      const ph = ((this.gaitDist / (stride * 2)) + (side > 0 ? 0.5 : 0)) % 1;
-      let f, y;
-      if (ph < G.stance) { f = reach * (1 - 2 * ph / G.stance); y = 0; } // on the floor, sliding back under the cat
-      else { const u = (ph - G.stance) / (1 - G.stance); f = reach * (-1 + 2 * u); y = Math.sin(u * Math.PI) * lift; } // up and forward
-      const ahead = G.centre - near + f;
-      _x.set(rx, 0, rz); _y.set(0, 1, 0); _z.set(-fx, 0, -fz);
-      this._place(paw, player.prev.x + (player.pos.x - player.prev.x) * alpha + fx * ahead + rx * side * G.side, feet + 0.012 + y + up, player.prev.z + (player.pos.z - player.prev.z) * alpha + fz * ahead + rz * side * G.side);
-      this._aimArmWorld(paw, cam.x + rx * side * 0.06 - fx * 0.02, cam.y - 0.13, cam.z + rz * side * 0.06 - fz * 0.02);
+  _target(out, bx, bz, fx, fz, rx, rz, side, ahead, feet) {
+    const G = V.gait;
+    for (let k = 0; k <= 5; k++) {
+      const a = ahead * (1 - k / 5), w = G.side * (1 - k * 0.12);
+      out.x = bx + fx * a + rx * side * w; out.z = bz + fz * a + rz * side * w;
+      const y = this._surface(out.x, out.z, feet);
+      if (y !== null) { out.y = y; return out; }
     }
+    out.y = feet; return out; // (nothing under it at all: tucked in under the cat)
+  }
+
+  /**
+   * Walking: each front paw is planted in the world and stays exactly where it was put while the cat moves (or turns)
+   * over it, until it's too far from where it belongs; then it lifts and steps, the two paws taking turns. Turning on
+   * the spot shuffles them round, and they never stand on air past a table's edge.
+   */
+  _gait(player, alpha, dt) {
+    const G = V.gait, yaw = player.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    const bx = player.prev.x + (player.pos.x - player.prev.x) * alpha, bz = player.prev.z + (player.pos.z - player.prev.z) * alpha;
+    const feet = player.prevEyeFeet + (player.eyeFeet - player.prevEyeFeet) * alpha;
+    const vx = player.vel.x, vz = player.vel.z, speed = Math.hypot(vx, vz), run = player.gait === 'run' ? 1 : 0;
+    const moving = Math.min(1, speed / TUNING.player.walkSpeed), reach = G.reach[run] * moving, swing = G.swing[run];
+    for (const [paw, side] of [[this.left, -1], [this.right, 1]]) {
+      const st = paw.userData.step || (paw.userData.step = { x: 0, y: 0, z: 0, fx: 0, fy: 0, fz: 0, tx: 0, ty: 0, tz: 0, t: 1, fresh: true });
+      const home = this._target(_h, bx, bz, fx, fz, rx, rz, side, G.centre, feet);
+      if (st.fresh || Math.abs(st.ty - feet) > 0.12 || Math.hypot(st.x - home.x, st.z - home.z) > 0.6) { // (just landed, or teleported): straight down where it belongs
+        st.x = st.tx = home.x; st.y = st.ty = home.y; st.z = st.tz = home.z; st.t = 1; st.fresh = false;
+      }
+      if (st.t < 1) { // in the air, on its way
+        st.t = Math.min(1, st.t + dt / swing);
+        const u = ease(st.t), lift = Math.sin(st.t * Math.PI) * G.lift[run];
+        st.x = st.fx + (st.tx - st.fx) * u; st.z = st.fz + (st.tz - st.fz) * u; st.y = st.fy + (st.ty - st.fy) * u + lift;
+        if (st.t >= 1) st.y = st.ty;
+      } else if (this.nextPaw === side) {
+        const err = Math.hypot(st.x - home.x, st.z - home.z), other = (side < 0 ? this.right : this.left).userData.step;
+        const need = speed > 0.2 ? Math.max(G.trigger, reach) : G.settle;
+        if (err > need && (!other || other.t >= G.overlap)) { // its turn: lift and put it down a little ahead of where it belongs
+          const to = this._target(_t, bx + vx * swing, bz + vz * swing, fx, fz, rx, rz, side, G.centre + reach, feet);
+          st.fx = st.x; st.fy = st.y; st.fz = st.z; st.tx = to.x; st.ty = to.y; st.tz = to.z; st.t = 0;
+          this.nextPaw = -side;
+        } else if (other && other.t >= 1) {
+          const oh = this._target(_t, bx, bz, fx, fz, rx, rz, -side, G.centre, feet);
+          if (Math.hypot(other.x - oh.x, other.z - oh.z) > err + 0.01) this.nextPaw = -side; // (the other one is further out: it goes first)
+        }
+      }
+      // pad flat on the surface, toes the way the cat faces
+      _x.set(rx, 0, rz); _y.set(0, 1, 0); _z.set(-fx, 0, -fz);
+      this._place(paw, st.x, st.y + G.padY, st.z);
+      this._aimArmWorld(paw, bx + fx * G.shoulder[1] + rx * side * G.shoulder[0], feet + G.shoulder[2], bz + fz * G.shoulder[1] + rz * side * G.shoulder[0]);
+    }
+  }
+
+  /**
+   * The swipe, done by the same paw that was walking (no swapping in another pair): the right paw comes up off the floor
+   * into view, bats across from right to left, and goes back down to the floor. The left one stays planted. In the air
+   * the right paw comes up from below the view instead.
+   */
+  _swipePaw(player, alpha) {
+    const S = V.swipe, paw = this.right;
+    const a = player.swipeT >= 0 ? (player.prevSwipeT >= 0 ? player.prevSwipeT + (player.swipeT - player.prevSwipeT) * alpha : player.swipeT) : -1;
+    if (a < 0) { if (this.swipeU >= 0 && paw.userData.step) paw.userData.step.fresh = true; this.swipeU = -1; return false; } // (back down on the floor where it belongs)
+    const u = this.swipeU = Math.min(1, a / SW.time);
+    // the path in the camera's space: up on the right, across, and back down
+    const P = S.path, k = u < S.up ? 0 : u < S.across ? 1 : 2, t = k === 0 ? u / S.up : k === 1 ? (u - S.up) / (S.across - S.up) : (u - S.across) / (1 - S.across);
+    const A = P[k], B = P[k + 1], e = ease(t);
+    _s.set(A[0] + (B[0] - A[0]) * e, A[1] + (B[1] - A[1]) * e + (k === 1 ? Math.sin(t * Math.PI) * S.arc : 0), A[2] + (B[2] - A[2]) * e);
+    const sweep = k === 0 ? 0 : k === 1 ? e : 1;
+    _sq.setFromEuler(_e.set(S.pitch, S.yaw[0] + (S.yaw[1] - S.yaw[0]) * sweep, S.roll[0] + (S.roll[1] - S.roll[0]) * sweep, 'YXZ'));
+    // how much of the pose is the swipe (vs. the planted paw it rises from and goes back to)
+    const w = u < S.blendIn ? ease(u / S.blendIn) : u > S.blendOut ? ease((1 - u) / (1 - S.blendOut)) : 1;
+    if (this.walkVisible) { paw.position.lerp(_s, w); paw.quaternion.slerp(_sq, w); }
+    else { paw.position.set(_s.x, _s.y - (1 - w) * S.below, _s.z); paw.quaternion.copy(_sq); } // (in the air: up from below the view)
+    paw.visible = true;
+    return true;
   }
 
   /** The forearm runs from the wrist back to the shoulder, just behind the eye: however you look, there's no end to see. */
@@ -179,40 +247,33 @@ export class Paws {
     return next;
   }
 
-  /** The swipe: the rig's own clip, rising into view, and lingering a moment as it drops away. */
-  _driveRig(player, alpha, dt, swiping, hidden) {
-    if (!this.rig) return;
-    this.linger = swiping ? V.linger : Math.max(0, this.linger - dt);
-    const showing = (swiping || this.linger > 0) && !hidden;
-    this.rig.visible = showing;
-    if (!showing) return;
-    this.drop += ((swiping ? 0 : -V.offDrop * (1 - this.linger / V.linger)) - this.drop) * (1 - Math.exp(-(swiping ? 30 : 12) * dt));
-    this.rig.position.y = this.drop;
-    for (const a of Object.values(this.acts)) a.setEffectiveWeight(0);
-    if (swiping) {
-      const a = player.prevSwipeT >= 0 ? player.prevSwipeT + (player.swipeT - player.prevSwipeT) * alpha : player.swipeT;
-      this.swipeClip.setEffectiveWeight(1); this.swipeClip.time = Math.min(1, a / SW.time) * this.swipeClip.getClip().duration;
-    }
-    this.mixer.update(0);
-  }
-
   /** Per rendered frame, after the camera is placed. hidden: third-person debug view. */
   frame(player, dt, alpha, hidden = false) {
+    if (this.mats.length) { _col.copy(this._glow).lerp(this._darkGlow, Math.min(1, this.dark)); for (const m of this.mats) m.emissive.copy(_col); }
+    if (this.rig) this.rig.visible = false; // (the rig's own swipe clip is retired: the walking paw does the swipe itself)
     const gripping = (player.mode === 'hang' || player.mode === 'mantle') && !!player.hang.col;
     const climbing = !gripping && (player.mode === 'climb' || player.mode === 'slide') && !!player.climb.col;
-    const swiping = !gripping && !climbing && player.swipeT >= 0;
     this.grip += ((gripping || climbing ? 1 : 0) - this.grip) * (1 - Math.exp(-V.ease * dt));
-    this.left.visible = (gripping || climbing) && !hidden;
-    this.right.visible = (gripping || climbing) && !hidden;
-    if (gripping || climbing) { if (this.rig) this.rig.visible = false; } else {
-      this._driveRig(player, alpha, dt, swiping, hidden);
-      const mode = settings.pawMode === 'off' ? 'off' : settings.pawMode === 'raised' || settings.pawMode === 'full' ? 'raised' : 'natural';
-      const walk = mode !== 'off' && player.grounded && !swiping && this.linger <= 0 && !hidden && player.mode === 'move';
-      this.left.visible = this.right.visible = walk;
-      if (walk) this._gait(player, alpha, dt, mode === 'raised');
+    if (hidden) { this.left.visible = this.right.visible = false; this.swipeU = -1; return; }
+    if (gripping || climbing) {
+      this.left.visible = this.right.visible = true; this.swipeU = -1; this.walkVisible = false;
+      for (const p of [this.left, this.right]) if (p.userData.step) p.userData.step.fresh = true;
+      if (gripping) this._plantHang(player, alpha, dt); else this._plantClimb(player, alpha, dt);
+      this._keepBoth(); this._aimArm(this.left, -1); this._aimArm(this.right, 1);
+      return;
     }
-    if (hidden) return;
-    if (gripping) { this._plantHang(player, alpha, dt); this._keepBoth(); this._aimArm(this.left, -1); this._aimArm(this.right, 1); }
-    else if (climbing) { this._plantClimb(player, alpha, dt); this._keepBoth(); this._aimArm(this.left, -1); this._aimArm(this.right, 1); }
+    const walk = settings.pawMode !== 'off' && player.grounded && player.mode === 'move';
+    if (walk) { if (!this.walkVisible) for (const p of [this.left, this.right]) if (p.userData.step) p.userData.step.fresh = true; this._gait(player, alpha, dt); }
+    this.walkVisible = walk;
+    this.left.visible = this.right.visible = walk;
+    if (this._swipePaw(player, alpha)) this._aimArmWorld(this.right, ...this._shoulderR(player, alpha));
+  }
+
+  /** The right shoulder, in the world (the swiping forearm runs back to it, the same as walking). */
+  _shoulderR(player, alpha) {
+    const G = V.gait, yaw = player.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    const bx = player.prev.x + (player.pos.x - player.prev.x) * alpha, bz = player.prev.z + (player.pos.z - player.prev.z) * alpha;
+    const feet = player.prevEyeFeet + (player.eyeFeet - player.prevEyeFeet) * alpha;
+    return [bx + fx * G.shoulder[1] + rx * G.shoulder[0], feet + G.shoulder[2], bz + fz * G.shoulder[1] + rz * G.shoulder[0]];
   }
 }
