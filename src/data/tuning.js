@@ -148,7 +148,8 @@ export const TUNING = {
 
   curb: { x: 40, z: 0, camY: 0.32, from: 3.2, to: 1.05, push: 7.5, eyes: [[8.6, 8.85], [9.2, 9.6]], length: 10.4, lamp: 14 }, // the secret ending, out the front: where; the camera's height and how it creeps in (m, s); when his eyes come on (s); how long it lasts; the streetlamp
   bonus: { anger: 1 }, // each of his spare parts you break: knock-overs added toward his anger (they never wake Grandma)
-  tutorial: { zoomFov: 21, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch)
+  tail: { scale: 1.9, tilt: -1.0, x: 0.24, z: -0.24, hidden: -0.6, shown: -0.2, lean: 0.6, from: 1.2, full: 3.5, rise: 9, fall: 5 }, // the tail-peek experiment: size; how it's tipped toward the view; m out to the side and ahead; how far below the view it hides and how high it comes; rad it leans in; rad/s of turning where it starts showing and where it's all there; 1/s in and out
+  tutorial: { gateHeight: 1.25, zoomFov: 21, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch)
     arriveAfter: 3, show: 17 }, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
   // ---------------------------------------------------------------- the ending (src/world/ending.js)
   ending: {
@@ -160,7 +161,7 @@ export const TUNING = {
     doorSwing: 1.3, // rad: into her room
     light: 5, lightColor: 0xffc27a, // the warm light from her room
   },
-  assets: { grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in
+  assets: { tail: 'game-assets/models/cat_tail.glb', grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in
 
   // ---------------------------------------------------------------- Mr. Tidy (src/vacuum/)
   vac: {

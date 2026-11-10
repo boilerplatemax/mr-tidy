@@ -35,6 +35,7 @@ import { Blackout } from './world/blackout.js';
 import { Ending } from './world/ending.js';
 import { Tutorial } from './world/tutorial.js';
 import { Curb } from './world/curb.js';
+import { Tail } from './player/tail.js';
 import { tvParts } from './world/house.js';
 
 const params = new URLSearchParams(location.search);
@@ -88,6 +89,7 @@ function portraitWords() {
 const marker = new LandingMarker(camera);
 const shimmer = new LandingShimmer(scene);
 const paws = new Paws(camera);
+const tail = new Tail(camera);
 
 // ---------------------------------------------------------------- audio + captions
 audio.world = world;
@@ -114,7 +116,7 @@ const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
 /** A whole new run, without a reload. */
 function resetRun() {
   if (curb.active) curb.stop();
-  tutorial.reset(); if (tv && tutorialRun) tv.set('off');
+  tutorial.reset(); tutorial.opened(); if (tv && tutorialRun) tv.set('off');
   audio.stopOneShots(); // (nothing left over from the last run)
   blackout.reset(); ending.reset(); grandma.holdScreen = false;
   ended = false; runTime = 0;
@@ -130,7 +132,7 @@ const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet.
 const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60); return [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`, `Times spotted  ${vac.spotted}`]; };
 const tvProxy = { get state() { return tv?.state; }, set: (st) => tv?.set(st), pokeRemote: (c) => tv?.pokeRemote(c), pokePlug: (c) => tv?.pokePlug(c) };
 var tutorialRun = false; // (the tutorial runs once, on the first run of a session)
-const tutorial = new Tutorial({ hud: hudLayer, player, camera, input, vac, tv: tvProxy });
+const tutorial = new Tutorial({ hud: hudLayer, player, camera, input, vac, tv: tvProxy, world, scene, knock, byId: house.byId });
 const curb = new Curb({ scene, camera, vac, env });
 const ending = new Ending({ scene, camera, vac, getDoor: () => grandmaDoor(), strip: house.doorStrip, onDone: () => {
   if (knock.bonus >= knock.bonusTotal && knock.bonusTotal > 0) curb.play(() => endScreen.show('Good Kitty', [...stats(), 'Secret ending: kicked to the kerb'])); // all of his things: he's out
@@ -194,10 +196,10 @@ function frame(alpha, dt, frameMs) {
   if (staticVoice) staticVoice.fadeTo(tv?.state === 'on' || (tv?.state === 'off' && vac.dark > 0.5) ? 1 : 0, 0.15); // (the hiss is the set being on)
   house.frame(wallTime);
   const onTitle = !menu.el.hidden && !menu.started;
-  if (catchSeq.active) { catchSeq.update(dt); paws.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
+  if (catchSeq.active) { catchSeq.update(dt); paws.hide(); tail.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (catchSeq.phase === 'done') { /* black, the restart screen is up: hold the view */ }
-  else if (curb.active) { curb.update(dt); paws.hide(); }
-  else if (ending.active) { ending.update(dt); paws.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
+  else if (curb.active) { curb.update(dt); paws.hide(); tail.hide(); }
+  else if (ending.active) { ending.update(dt); paws.hide(); tail.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (ending.done) { /* faded out, the Good Kitty screen is up */ }
   else if (onTitle) { // the title: a slow, still view of the scene, and him doing his happy little laps
     vac.titleLap(wallTime, dt);
@@ -210,7 +212,8 @@ function frame(alpha, dt, frameMs) {
     debug.frame();
     marker.update(player.aim, dt, player);
     shimmer.update(player.aim, wallTime, dt);
-    tutorial.frame(dt);
+    tutorial.frame(dt, wallTime);
+    tail.frame(player, dt, debug.thirdPerson || tutorial.watching);
     paws.frame(player, dt, input.live ? alpha : 1, debug.thirdPerson || tutorial.watching);
     knock.frame(input.live ? alpha : 1);
     debris.frame(input.live ? alpha : 1);
@@ -235,7 +238,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, tail, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

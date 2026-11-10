@@ -1037,11 +1037,11 @@ async function tutorialChecks(kit) {
   await kit.house.dressed; kit.resetRun(); P.noclip = false; v.frozen = false;
   T.start();
   report('he is not here at the start', v.dormant && !v.model.root.visible);
+  report('you are shut in the living room, and nothing can be knocked over', T.walls.every((b) => b.enabled) && kit.knock.locked);
   P.teleport(2.5, 0.001, 1.6, 0); I.keys.add('KeyW'); for (let i = 0; i < 60; i++) kit.tick(dt); I.keys.clear();
   report('walking moves it on', T.step === 'jump', T.step);
-  P.teleport(3.4, 0.421, 2.6, 0); for (let i = 0; i < 6; i++) kit.tick(dt);
-  report('getting on the coffee table moves it on', T.step === 'remote', T.step);
-  cam.position.set(3.5, 0.66, 2.75); cam.lookAt(3.5, 0.43, 2.32); cam.updateMatrixWorld(true); T.onSwipe(cam);
+  for (const [id, want] of [['book1', 'climb'], ['book4', 'leap'], ['rodW', 'remote']]) { const b = kit.house.byId.get(id); P.teleport((b.min[0] + b.max[0]) / 2, b.max[1] + 0.001, (b.min[2] + b.max[2]) / 2 - 0.02, 0); for (let i = 0; i < 6; i++) kit.tick(dt); report(`up on ${id} moves it on`, T.step === want, T.step); }
+  const R = LEVEL.remote; cam.position.set(R[0] - 0.25, R[1] + 0.25, R[2] - 0.15); cam.lookAt(R[0], R[1] + 0.02, R[2]); cam.updateMatrixWorld(true); T.onSwipe(cam);
   report('batting the remote puts the programme on, and holds you still', T.step === 'show' && P.frozen && T.tv.state === 'show', T.tv.state);
   for (let i = 0; i < 60 * (TUNING.tutorial.show + 2); i++) { kit.tick(dt); kit.frame?.(1, dt, 16); }
   report('when it ends you can move again', T.step === 'plug' && !P.frozen, T.step);
@@ -1049,6 +1049,7 @@ async function tutorialChecks(kit) {
   report('swiping the plug turns it off', T.tv.state === 'off' && T.step === 'go', T.tv.state);
   for (let i = 0; i < 60 * (TUNING.tutorial.arriveAfter + 0.5); i++) kit.tick(dt);
   report('and then he arrives, by her door', !T.active && !v.dormant && v.model.root.visible && Math.hypot(v.x - 16.8, v.z + 0.45) < 0.5);
+  report('and you are let out', T.walls.every((b) => !b.enabled) && !kit.knock.locked);
   kit.resetRun(); v.frozen = true;
   return rows;
 }

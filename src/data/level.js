@@ -266,7 +266,7 @@ export const LEVEL = {
   // ends up in whichever is nearest. pos is on the wall face, n the way the plate faces, node the waypoint the cord runs from.
   tvOutlet: { pos: [6 - IN, 0.3, 1.45], n: [-1, 0, 0] }, // the television's plug (the tutorial's last lesson)
   tvScreen: [5.24, 0.62, 2.3], // the middle of the screen, for the camera to turn to
-  remote: [3.5, 0.42, 2.32], // on the coffee table
+  remote: [3.05, 2.05, 5.2], // up on the high shelf by the window: the tutorial's climb
   lampOutlet: { pos: [IN, 0.3, 4.81], n: [1, 0, 0], from: [0.05, 0.004, 4.8] }, // the floor lamp's own outlet: taken, so he never uses it
   outlets: [
     { id: 'grandma', room: 'hall', pos: [16.8, 0.3, -IN], n: [0, 0, -1], node: 'H4' },

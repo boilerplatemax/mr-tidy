@@ -203,6 +203,7 @@ export class Knockables {
 
   /** The bat of a paw: everything in a short cone in front of the eye gets a shove. Returns how many it hit. */
   swipe(player, camera) {
+    if (this.locked) return 0; // (the tutorial: nothing gets broken yet)
     camera.getWorldDirection(_v);
     const eye = camera.position, right = { x: Math.cos(player.yaw), z: -Math.sin(player.yaw) };
     let dx = player.fx - right.x * S.sideBias, dz = player.fz - right.z * S.sideBias; // the paw sweeps right to left
