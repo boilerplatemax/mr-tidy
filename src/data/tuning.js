@@ -185,9 +185,9 @@ export const TUNING = {
     calmTime: 45, calmEase: 0.7, calmLonger: 1.6, calmFrom: [2, 3], // (rare, and never once he is furious)
     rushSpeed: 3.0, // m/s he hurries to the very first mess of the night
     streakWindow: 14, streakBoost: 0.3, streakMax: 2.2, // knock-overs this many s apart are a rampage: each one after the first sends him that much faster to it (share of his speed), up to this many times as fast, and from 3 in a row he hears them from anywhere
-    trackGrace: 1.1, // s after losing sight of you in a chase he still knows where you went
+    trackGrace: 1.6, // s after losing sight of you in a chase he still knows where you went
     searchRounds: [0, 0, 1, 2, 2], searchGuess: 1.6, // by stage: how many more places he tries after the first look round; m his guess at where you went is off by
-    hearNear: 7, // m: cheerful or annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
+    hearNear: 10, // m: cheerful or annoyed, he only investigates crashes this close. Angry or worse, he hears them anywhere
     hearSteps: 5.5, hearWalk: 2.6, // m: angry or worse, he hears a cat running or walking on the floor this close. Slinking is silent
     hearLand: [3.5, 8], quietLand: 0.25, // m he hears a landing from (soft, heavy), from the annoyed stage up; share of that if you land holding C
     sightRange: [0, 0, 6.5, 10, 11], // m he can see the cat. Neutral and annoyed he doesn't hunt
@@ -211,7 +211,9 @@ export const TUNING = {
     catchReach: 0.26, // m past his body at which he catches the cat
     solidShare: 0.85, // how much of the cat's radius his body keeps out: it can brush him, not go through him
     catchHeight: 0.42, // m: a cat with its feet above this is out of reach of his body
-    investigateMul: 1.25, // he goes to a noise this much faster than he patrols
+    messBoost: 0.25, messMax: 2.0, // every other mess still lying about sends him that much faster (share of his speed) to the next, up to this many times as fast
+    crumbs: 0.12, crumbMax: 40, // s between the points he keeps of where you've been in a chase (he follows them round corners); how many
+    investigateMul: 1.5, // he goes to a noise this much faster than he patrols
     cleanTime: 2.2, // s to suck up a mess: the player's window to get away or set up the next crash
     cleanTouch: 0.12, cleanCircle: 0.06, // m: the nozzle's tip must be this close to the mess before any of it goes; m it circles over it while it sucks
     vanishAt: 0.13, // m: a piece bigger than this doesn't go up the hose: it flickers twice and is gone (src/world/debris.js)
@@ -244,7 +246,7 @@ export const TUNING = {
   },
   // ---------------------------------------------------------------- how he thinks and what gives him away
   alert: { // he heard something: he stops dead, the motor drops, the nozzle lifts toward it
-    time: [1.0, 0.9, 0.65, 0.5, 0.4], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
+    time: [0.6, 0.5, 0.4, 0.3, 0.25], cooldown: 1.8, // s he listens, by stage; s before another noise can stop him again
     dip: 0.72, rateDip: 0.22, dipEase: 9, // how far the motor falls away (share of volume, share of pitch), 1/s
     sniffOut: 0.55, sniffUp: 0.5, sniffSpeed: 2.5, // m the nozzle lifts toward the sound
     stingEvery: 16, // s between heard-you stingers
@@ -289,6 +291,7 @@ export const TUNING = {
   ambush: { // he knows where you're hiding: he goes quietly to just outside your room, out of sight, and sends the hose in (then, dodge it, a chase)
     minAnger: 3, chance: [0, 0, 0.3, 0.4, 0.45], first: 30, cooldown: 45, near: [2.5, 7], time: 16, // by stage, odds on a second thought; s before the first; s between; m from you he waits; s the hose keeps coming
   },
+  uncanny: { minAnger: 3, every: [14, 28], jump: 2.2, near: [4, 14], outView: 0.2 }, // looking for you, out of your sight and you out of his: now and then he's suddenly a bit nearer. s between; m he skips along his way; m from you it can happen; how far out of your view he must be (cos)
   lurk: { // from angry, now and then he goes and stands where he can see you, and watches (src/vacuum/vacuum.js _startLurk)
     minAnger: 3, chance: [0, 0, 0.35, 0.45, 0.5], first: 25, cooldown: 40, // by stage, odds on a second thought; s before the first; s between
     near: [3, 8], watch: [6, 11], // m from you he picks a spot (one with a clear view of you); s he stays
@@ -379,7 +382,7 @@ export const TUNING = {
     closeness: 2.2, // m: at this distance the drone is at half volume. Smaller: it rises more steeply as he nears
     floor: 0.05, // the quietest it ever gets, anywhere in the house, so he can always be heard
     gain: 1, // overall level
-    stageLevel: [0.28, 0.4, 0.72, 1, 1.15], hunting: 1.5, // how loud he is by stage (quiet to begin with), and how much louder when he's after you
+    stageLevel: [0.28, 0.4, 0.72, 0.88, 0.96], hunting: 1.5, // how loud he is by stage (quiet to begin with), and how much louder when he's after you
     rate: [0.9, 0.98, 1.12, 1.32, 1.42], // pitch by anger stage
     nearRate: 0.08, // extra pitch right next to you
     update: 0.08, // s between adjustments

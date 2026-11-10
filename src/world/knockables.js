@@ -50,6 +50,7 @@ function buildType(id) {
 export class Knockables {
   constructor({ scene, world, byId, noise, debris }) {
     this.world = world; this.noise = noise; this.debris = debris; this.scene = scene;
+    this.broken = []; // what's been knocked over this run, by kind (the win screen lists it)
     this.bonus = 0; this.bonusTotal = LEVEL.knockables.filter((d) => PROPS[d.type]?.bonus).length; // his spare parts broken, and how many there are
     this.count = 0; // knock-overs so far (the vac's anger and the win screen read this)
     this.list = [];
@@ -209,7 +210,7 @@ export class Knockables {
 
   /** Back as it was, for a new run. */
   reset() {
-    this.count = 0; this.bonus = 0;
+    this.count = 0; this.bonus = 0; this.broken = [];
     for (const o of this.list) {
       o.x = o.px = o.start.x; o.y = o.py = o.start.y; o.z = o.pz = o.start.z;
       o.vx = o.vy = o.vz = 0; o.wx = o.wy = o.wz = 0; o.startQ ? (o.q.copy(o.startQ), o.pq.copy(o.startQ)) : (o.q.identity(), o.pq.identity());
@@ -296,7 +297,7 @@ export class Knockables {
 
   /** It hit the floor for the first time: that's a knock-over. Counts once, makes the noise and the mess, and breaks if it can. */
   _knockOver(o) {
-    o.knocked = true; if (!this.practice) this.count++; // (the tutorial: practice. It breaks, but nobody's counting and nobody hears)
+    o.knocked = true; if (!this.practice) { this.count++; this.broken.push(o.t.name || o.t.id); } // (the tutorial: practice. It breaks, but nobody's counting and nobody hears)
     const t = o.t, room = roomAt(o.x, o.z), D = this.debris, chunks = t.landing === 'break';
     if (t.breakable && this.lib) { o.mesh.remove(o.node); o.swapped = true; }
     const bits = this._fx(o);

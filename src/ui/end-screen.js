@@ -5,6 +5,20 @@ import { pixText } from './menu.js';
 import { marmaladePortrait } from './marmalade.js';
 
 
+/** A thing's name, the way you'd say it: 'cat_figurine' is 'cat figurine', one of his wools is 'red wool'. */
+const say = (id) => id.startsWith('wool_') ? id.slice(5) + ' wool' : id.replace(/_/g, ' ').replace(/ pot$/, '');
+
+/** Every broken thing's name, falling slowly through the background at its own pace. */
+function fallen(list) {
+  const box = document.createElement('div'); box.className = 'fall';
+  list.slice(0, 60).forEach((id, i) => {
+    const t = pixText(say(id), i % 3 ? '#b89a78' : '#e0c49a'); t.classList.add('fallen');
+    t.style.left = ((i * 37) % 92 + Math.random() * 4) + '%'; t.style.animationDuration = (9 + Math.random() * 7) + 's'; t.style.animationDelay = -(Math.random() * 16) + 's';
+    box.append(t);
+  });
+  return box;
+}
+
 export class EndScreen {
   /** onAgain(): the button was clicked (a user gesture: it can take the mouse back). */
   constructor(onAgain) {
@@ -43,6 +57,7 @@ export class EndScreen {
     const card = document.createElement('div'); card.className = 'card';
     card.append(hang, words);
     this.el.replaceChildren(card);
+    if (opts.broken?.length) this.el.prepend(fallen(opts.broken)); // (behind the card: everything you knocked over, drifting down)
     this.el.hidden = false;
     document.exitPointerLock?.(); // hand the mouse back so the button can be clicked
   }

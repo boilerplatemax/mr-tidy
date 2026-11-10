@@ -14,7 +14,7 @@ import { audio } from '../audio/audio.js';
 import { subtitles } from '../ui/subtitles.js';
 import { LINES } from './voice.js';
 
-const LK = TUNING.lurk, PK = TUNING.peek, BU = TUNING.burst, AM = TUNING.ambush;
+const UN = TUNING.uncanny, LK = TUNING.lurk, PK = TUNING.peek, BU = TUNING.burst, AM = TUNING.ambush;
 const V = TUNING.vac, D = TUNING.drone, C = TUNING.cord, H = TUNING.hose, B = TUNING.blast, SU = TUNING.suck, A = TUNING.alert, RO = TUNING.roam, ST = TUNING.sting, CR = TUNING.creep, F = TUNING.fog, SG = TUNING.surge, FR = TUNING.friend, LU = TUNING.lunge;
 const between = ([a, b]) => a + Math.random() * (b - a);
 const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
@@ -30,6 +30,8 @@ export class Vacuum {
     this.rushed = false; this.rush = false; this.searchLeft = 0; this.pokeCd = 0; this.shhCd = 0; this.searchSayCd = 0; this.turnFaced = true; this.arcFade = 0;
     this.lurkCd = LK.first; this.lurkPhase = null; this.lurkT = 0; this.lookT = 0;
     this.streak = []; this.burstT = 0; this.burstCd = 0; this.lostFor = 0; this.peekT = 0; this.peekCd = 0; this.peekSide = 1; this.ambush = false; this.ambushCd = AM.first;
+    this.crumbs = []; this.crumbT = 0; this.uncannyCd = between(UN.every);
+    this.crumbs = []; this.crumbT = 0; this.uncannyCd = between(UN.every);
     this.onTurn = null; this.onSurge = null; // the cut-ins: "...that's enough." and the power surge (src/vacuum/closeup.js)
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
     this._dirv = { x: 0, y: 0, z: 0 }; this._under = null; this._notUnder = (c) => c.solid && c !== this._under; this.campT = 0; this.ignoreT = 0;
@@ -516,6 +518,21 @@ export class Vacuum {
     this.ambushCd = 6; return false;
   }
 
+  /** Hunting for you, both out of sight of each other: now and then he skips a stretch of his way toward you, all at once. */
+  _tickUncanny(dt) {
+    if ((this.uncannyCd -= dt) > 0) return;
+    const P = this.player, d = Math.hypot(P.pos.x - this.x, P.pos.z - this.z);
+    if (this.anger < UN.minAnger || this.direct || this.sweep || P.noclip || d < UN.near[0] || d > UN.near[1] || !['PATROL', 'INVESTIGATE', 'SEARCH'].includes(this.state)) { this.uncannyCd = 2; return; }
+    const c = this.camera, f = c.getWorldDirection(_s), dx = this.x - c.position.x, dz = this.z - c.position.z, l = Math.hypot(dx, dz) || 1, a = this._a;
+    a.x = this.x; a.y = 0.3; a.z = this.z;
+    if ((dx * f.x + dz * f.z) / l > UN.outView || !this.world.countOccluders(c.position, a, 1, true)) { this.uncannyCd = 1.5; return; } // (only ever where you can't see it happen)
+    const n = this.path[this.pathI]; if (!n || Math.hypot(P.pos.x - n.x, P.pos.z - n.z) > d) { this.uncannyCd = 3; return; } // (only if his way takes him toward you)
+    const state = this.state, sp = 1.2, steps = Math.round(UN.jump / (sp / 60));
+    for (let i = 0; i < steps && this.state === state && !this.sweep; i++) this._followPath(1 / 60, sp);
+    this.px = this.x; this.pz = this.z; this.prevHeading = this.heading; this.lastPaid = this._paid(); this.hose.reset();
+    this.uncannyCd = between(UN.every);
+  }
+
   /** Is the cat looking straight at him, with nothing in the way? */
   _watched() {
     const c = this.camera; c.getWorldDirection(_s);
@@ -845,6 +862,7 @@ export class Vacuum {
     this.seesCat = this._canSee();
     if (this.seesCat) { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; }
     else if (this.state === 'CHASE' && this.loseT < V.trackGrace && !this.player.noclip) { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; } // (just round the corner: he knows which way you went)
+    if (this.state === 'CHASE' && (this.seesCat || this.loseT < V.trackGrace) && (this.crumbT -= dt) <= 0) { this.crumbT = V.crumbs; this.crumbs.push({ x: this.player.pos.x, z: this.player.pos.z }); if (this.crumbs.length > V.crumbMax) this.crumbs.shift(); }
     if (this.seesCat && this.anger >= 3 && this.stingCd <= 0 && !this._attacking()) { // eye contact: you're looking at him, and he's looking at you
       const c = this.camera; c.getWorldDirection(_s);
       const dx = this.x - c.position.x, dy = 0.2 - c.position.y, dz = this.z - c.position.z, l = Math.hypot(dx, dy, dz) || 1;
@@ -866,7 +884,7 @@ export class Vacuum {
     if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
     this.spotted++; this.stalk = false;
     if (this.anger >= 3 && Math.random() < 0.5) this._say(this.anger >= 5 ? 'hunt5' : this.anger === 4 ? 'hunt4' : 'hunt3');
-    this.rush = false; this.ambush = false; this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.lostFor = 0; this.peekT = 0; this.peekCd = PK.every[this.anger - 1] * 0.5; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
+    this.rush = false; this.ambush = false; this.crumbs.length = 0; this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.lostFor = 0; this.peekT = 0; this.peekCd = PK.every[this.anger - 1] * 0.5; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
     audio.play('vac.surge', { follow: this.model.hoseSocket, rolloff: 0 });
     this._sting();
     if (this.anger === 4) this._shriek();
@@ -1244,6 +1262,7 @@ export class Vacuum {
       this.directX = perched ? this.lastX + (dx / d) * H.standoff : this.lastX;
       this.directZ = perched ? this.lastZ + (dz / d) * H.standoff : this.lastZ;
       this.directOK = this.seesCat && this._clear(this.directX, this.directZ);
+      if (!this.directOK && !perched) for (let i = this.crumbs.length - 1; i >= 0; i--) { const c = this.crumbs[i]; if (Math.hypot(c.x - this.x, c.z - this.z) > V.arrive && this._clear(c.x, c.z)) { this.directX = c.x; this.directZ = c.z; this.directOK = true; break; } } // (hugging the corner doesn't shake him off: he goes the way you went)
       if (this.directOK) { this.direct = true; this._guardCord(); }
       else {
         if (this.direct) this._rejoin();
@@ -1383,6 +1402,7 @@ export class Vacuum {
     if (this.stunT > 0) { this.stunT -= dt; return; } // reeling
     this._perceive(dt);
     this._tickCalm(dt);
+    this._tickUncanny(dt);
     if (this._touching()) { this._catch('snap'); return; }
     if (this.freezeT > 0 && !this._attacking()) { // caught your eye: dead still for a moment, staring back
       this.freezeT -= dt;
@@ -1414,7 +1434,8 @@ export class Vacuum {
       if (m) { this._startClean(m); return; }
     }
     if (this.state === 'PATROL') { this.thinkT -= dt; if (this.thinkT <= 0) { this._think(); if (this.state !== 'PATROL') return; } }
-    const rampage = this.state === 'INVESTIGATE' ? Math.min(V.streakMax, 1 + V.streakBoost * Math.max(0, this.streak.filter((t) => this.time - t < V.streakWindow).length - 1)) : 1; // (break things one after another and he comes running)
+    const pile = this.state === 'INVESTIGATE' || this.state === 'PATROL' ? Math.min(V.messMax, 1 + V.messBoost * Math.max(0, this.debris.messes.filter((m) => !m.cleaned).length - 1)) : 1;
+    const rampage = Math.max(pile, this.state !== 'INVESTIGATE' ? 1 : Math.min(V.streakMax, 1 + V.streakBoost * Math.max(0, this.streak.filter((t) => this.time - t < V.streakWindow).length - 1))); // (break things one after another, or leave a pile of them, and he comes running)
     this._followPath(dt, this.rush && this.state === 'INVESTIGATE' ? V.rushSpeed * Math.max(1, rampage * 0.8) : rampage * V.speed[this.anger - 1] * (this.state === 'PATROL' ? 1 : V.investigateMul) * (this.stalk && this.state !== 'PATROL' ? TUNING.stalk.speed : 1));
   }
 

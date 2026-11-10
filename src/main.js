@@ -170,8 +170,8 @@ var tutorialRun = false; // (the tutorial runs once, on the first run of a sessi
 const tutorial = new Tutorial({ hud: hudLayer, player, camera, input, vac, tv: tvProxy, world, scene, knock, byId: house.byId });
 const curb = new Curb({ scene, camera, vac, env, knock });
 const ending = new Ending({ scene, camera, vac, world, onDone: () => {
-  if (knock.bonus >= knock.bonusTotal && knock.bonusTotal > 0) { ending.clearFade(); curb.play(() => endScreen.show('Good Kitty', [...stats(), 'Secret ending: kicked to the kerb'])); } // all of his things: he's out
-  else endScreen.show('Good Kitty', stats());
+  if (knock.bonus >= knock.bonusTotal && knock.bonusTotal > 0) { ending.clearFade(); curb.play(() => endScreen.show('Good Kitty', [...stats(), 'Secret ending: kicked to the kerb'], 'Play again', { broken: knock.broken })); } // all of his things: he's out
+  else endScreen.show('Good Kitty', stats(), 'Play again', { broken: knock.broken });
 } });
 knock.onBonus = (o) => { // one of his things: no help with Grandma, and he knows it was you
   vac.bonusBroken(o);
@@ -188,7 +188,7 @@ const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
 } });
 ending.vox = catchSeq.vox; // (free space, to put the camera in front of him)
 vac.onCatch = (how) => { closeup.reset(); ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
-grandma.onScreen = () => endScreen.show('Good Kitty', stats());
+grandma.onScreen = () => endScreen.show('Good Kitty', stats(), 'Play again', { broken: knock.broken });
 const menu = new Menu(() => input.requestLock()); // the click is a user gesture: lock + (first time) start audio
 input.on('firstClick', () => { audio.start(THREE.Vector3); if (!params.has('play') && !tutorialRun) { tutorialRun = true; tutorial.start(); } else { introT = 0; todo.start(9.5); } });
 input.on('pause', () => { if (ended) return; menu.show(input.started); audio.suspend(); }); // (the end screen takes the mouse back itself)

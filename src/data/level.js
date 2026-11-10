@@ -410,7 +410,7 @@ export const LEVEL = {
     { id: 'duck', type: 'rubber_duck', on: 'tubS', x: 6.9, z: -4.15 },
     { id: 'roll', type: 'toilet_roll', on: 'bRadiator', x: 6.75, z: -1.55 },
     { id: 'fern', type: 'fern_pot', on: 'bRadiator', x: 7.02, z: -1.55 },
-    { id: 'toothbrush', type: 'toothbrush_cup', on: 'bSink', x: 9.0, z: -4.5 },
+    { id: 'toothbrush', type: 'toothbrush_cup', on: 'bSink', x: 9.4, z: -4.8 }, // (at the back corner, beside the taps: not in the basin)
     { id: 'bostonFern', type: 'boston_fern', on: 'bCabinet', x: 9.02, z: -4.85 },
     // sewing room
     { id: 'buttons', type: 'button_jar', on: 'sDesk', x: 13.9, z: -3.5 },

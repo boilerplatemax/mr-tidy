@@ -245,3 +245,10 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
 #end .words { justify-content: space-between; gap: calc(2px * var(--px)); }
 #end .words .rule { margin: 0; }
 #end button { margin-top: 0; align-self: flex-start; }
+
+/* the win screen: the things you broke, drifting down behind the card */
+#end .fall { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+#end .fallen { position: absolute; top: -6%; width: calc(var(--w) * var(--px) * 1px); height: calc(var(--h) * var(--px) * 1px); image-rendering: pixelated; opacity: .4; animation: end-fall linear infinite; }
+@keyframes end-fall { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(115vh) rotate(6deg); } }
+#end .card { z-index: 1; }
+@media (prefers-reduced-motion: reduce) { #end .fallen { animation: none; display: none; } }
