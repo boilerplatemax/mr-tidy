@@ -102,6 +102,14 @@ const SCREAMS = [
   (sr) => { const len = 1.1, top = rand(1400, 1700); return scream(sr, { len, bright: 700, wobble: [17, 0.05], amp: edges(len, 0.02, 0.22), pitch: (u) => top * (1 - 0.2 * u) }); }, // short, right at the top of his range
   (sr) => { const len = 2.3, a = rand(900, 1100); return scream(sr, { len, voices: [[1, 1], [0.97, 0.6]], amp: edges(len, 0.08, 0.6), pitch: (u) => a * (1 + 0.42 * Math.sin(u * 2.2)) * (1 + 0.06 * Math.sin(u * 41)) }); }, // two notes sliding through each other, off-key
 ];
+/** Talking in her sleep: a few soft syllables, mostly vowel. */
+function mumble(sr) {
+  const n = 1.3, x = S.buffer(n, sr);
+  S.mix(x, S.saw(S.buffer(n, sr), sr, (t) => 150 + 30 * Math.sin(t * 8)), 1);
+  S.biquad(x, sr, 'bp', (t) => 500 + 350 * Math.sin(t * 19), 3);
+  for (let i = 0; i < x.length; i++) { const t = i / x.length; x[i] *= Math.abs(Math.sin(t * 14)) * Math.sin(Math.PI * t); }
+  return S.declick(S.normalise(x, 0.7), sr);
+}
 /** A soft padded landing: a low pat, nothing jarring. */
 function catLand(sr) {
   const x = S.buffer(0.16, sr);
@@ -199,6 +207,10 @@ export const SOUNDS = {
   'power.out': { gen: (sr) => { const x = thud(sr, 48, 0.7, 0.8); S.mix(x, S.env(S.saw(S.buffer(0.9, sr), sr, (t) => 120 - 100 * t), sr, 0.004, 0.3), 0.5); return S.normalise(x, 0.95); }, gain: 1.2, subtitle: 'the power goes out' },
   'vac.arc': { gen: (sr) => { const x = S.buffer(1.3, sr); S.grains(x, sr, 44, 0.006, 1.25, 0); S.biquad(x, sr, 'hp', 1800); S.mix(x, S.saw(S.buffer(1.3, sr), sr, 100), 0.05); return S.normalise(S.loopable(x, sr, 0.2), 0.6); }, loop: true, gain: 0.3 },
   'tv.show': { gen: (sr) => { const x = S.buffer(3.2, sr), notes = [523, 659, 784, 659, 880, 784, 659, 523]; notes.forEach((f, i) => { const v = S.env(S.saw(S.buffer(0.34, sr), sr, f), sr, 0.005, 0.12); S.mix(x, S.biquad(v, sr, 'lp', 1400), 0.8, Math.round(i * 0.38 * sr)); }); return S.declick(S.normalise(x, 0.5), sr); }, gain: 0.5, subtitle: 'a cheerful little jingle' },
+  'grandma.mumble1': { gen: (sr) => mumble(sr), gain: 0.5, subtitle: '"...Biscuit?..."' },
+  'grandma.mumble2': { gen: (sr) => mumble(sr), gain: 0.5, subtitle: '"...who\'s there..."' },
+  'amb.clock': { gen: (sr) => { const x = S.buffer(2, sr); for (const [at, f] of [[0.02, 2600], [1.02, 2100]]) S.mix(x, S.env(S.biquad(S.noise(S.buffer(0.04, sr)), sr, 'bp', f, 7), sr, 0.0005, 0.008), 1, Math.round(at * sr)); return S.normalise(x, 0.6); }, loop: true, gain: 0.32 },
+  'amb.static': { gen: (sr) => S.normalise(S.loopable(S.biquad(S.noise(S.buffer(1.5, sr)), sr, 'hp', 2200), sr, 0.25), 0.5), loop: true, gain: 0.16 },
   'vac.creep': { gen: (sr) => { const x = S.buffer(1.6, sr); S.grains(x, sr, 30, 0.02, 1.5, 0); S.biquad(x, sr, 'bp', 900, 1.2); S.mix(x, S.biquad(S.noise(S.buffer(1.6, sr)), sr, 'bp', 420, 3), 0.3); return S.normalise(S.loopable(x, sr, 0.25), 0.5); }, loop: true, gain: 0.5, subtitle: 'something sliding, slowly' },
   'vac.exhale': { gen: (sr) => S.declick(S.normalise(S.env(S.biquad(S.noise(S.buffer(1.8, sr)), sr, 'bp', (t) => 300 + 1500 * (1 - t), 0.7), sr, 0.04, 0.8), 0.95), sr), gain: 1.1, subtitle: 'a great gust of dust' },
   'vac.unplug': { gen: v((sr) => { // a crackling pop as the plug comes out

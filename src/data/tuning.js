@@ -146,7 +146,15 @@ export const TUNING = {
     shimmer: { color: 0xffc890, base: 0.035, amp: 0.05, freq: 2.2, speed: 1.3, fade: 7, pad: 0.006 }, // the soft glow over the target perch: strength, slow broad wave (size, speed), 1/s fade-in, m past its faces
   },
 
-  assets: { forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in
+  // ---------------------------------------------------------------- the ending (src/world/ending.js)
+  ending: {
+    cut: 0.5, doorAt: 0.9, turn: 0.5, pull: 0.45, after: 4.4, fadeOut: 1.1, // s: the cut to black; the door starts; she turns to the wall; into the yank when the plug comes out; from then until it's over; the fade
+    walkSpeed: 0.5, startX: 17.55, handSide: 0.12, handReach: 0.45, // m/s she shuffles at; m in front of the door she starts; where she stands so that her hand is at the outlet
+    camX: 15.55, camY: 0.2, camZ: -0.35, lookX: 16.7, lookY: 0.1, lookZ: -0.6, // cat height, a little way off: slippers, the hem and the stick, not her face
+    vacX: 16.1, vacZ: -1.0, vacHeading: -0.7, // where he's standing when it happens
+    light: 5, lightColor: 0xffc27a, // the warm light from her room
+  },
+  assets: { grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in
 
   // ---------------------------------------------------------------- Mr. Tidy (src/vacuum/)
   vac: {

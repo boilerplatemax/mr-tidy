@@ -80,7 +80,7 @@ export const LEVEL = {
     { axis: 'z', at: 10.8, from: IN, to: 5.4 - IN, openings: [{ from: 1.85, to: 2.75, top: 2.05 }] }, // kitchen | pantry
     { axis: 'z', at: 12, from: IN, to: 3.8 - IN, openings: [{ from: 3.0, to: 3.65, top: 2.05 }] }, // pantry | storage
     { axis: 'z', at: 15.4, from: IN, to: 3.8 - IN }, // storage, east
-    { axis: 'z', at: 18, from: -1.4 + IN, to: -IN }, // the end of the hallway (Grandma's door is on this wall)
+    { axis: 'z', at: 18, from: -1.4 + IN, to: -IN, openings: [{ from: -1.1, to: -0.3, top: 2.05 }] }, // the end of the hallway (Grandma's door is in this wall)
   ],
 
   solids: [
@@ -112,6 +112,7 @@ export const LEVEL = {
     // Curtains under the rod: climb the fabric, pull up onto the rod. Everything climbable is the same teal stripes.
     ...wallCurtain('lwin', 'living', 'z', 2.35, 3.65, IN, 1, 2.3),
     box('lampPost', 'living', IN, 0.45, 4.45, 4.65, 0, 1.5, { noVisual: true, land: false, occludes: false }),
+    box('gDoor', 'hall', 18 - IN, 18 + IN, -1.1, -0.3, 0, 2.05, { noVisual: true, land: false, occludes: true }), // (her door: always shut as far as anything but the ending is concerned)
     box('tvUnit', 'living', 5.465, 6 - IN, 1.82, 2.78, 0, 0.8, { noVisual: true }),
     // A scratching panel beside the rod: a second, climbed way onto the route (and a kick-off wall).
     box('scratchPanel', 'living', 5.3, 5.8, 5.0, 5.4 - IN, 0, 1.95, { stripes: ['n'], tex: 'fabric_carpet' }),
@@ -205,7 +206,7 @@ export const LEVEL = {
     { model: 'shelf_floating_120', fit: ['k1'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['k2'], rot: 180, top: true }, { model: 'shelf_floating_120', fit: ['shelfD2'], top: true },
     { model: 'ceiling_light', at: [8.4, 0.6, 2.7] },
     // hallway
-    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'grandma_door', at: [18 - IN, 0, -0.7], rot: -90 },
+    { model: 'side_table', fit: ['sideTable'], h: 0.78 }, { model: 'grandma_door', at: [18, 0, -0.7], rot: -90, door: true },
     { model: 'ceiling_light', at: [5, 0.6, -0.7] }, { model: 'ceiling_light', at: [13, 0.6, -0.7] },
     // storage
     { model: 'psx_wardrobe_oak', fit: ['w2'], rot: 90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['e2'], rot: -90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['s2'], rot: 180, h: 2.07 },

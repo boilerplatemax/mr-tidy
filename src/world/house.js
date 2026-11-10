@@ -156,6 +156,12 @@ export function buildHouse({ scene, world }) {
 
   scene.add(bathtub(LEVEL.tub));
 
+  // ---- Grandma's room, what you can see of it past the door: warm, and that's all
+  { const warm = new THREE.MeshBasicMaterial({ color: 0x8a5a2a, fog: false }), dim = new THREE.MeshBasicMaterial({ color: 0x3a2412, fog: false });
+    const back = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), warm); back.position.set(19.6, 1.5, -0.7); back.rotation.y = -Math.PI / 2; scene.add(back);
+    const flr = new THREE.Mesh(new THREE.PlaneGeometry(2, 3).rotateX(-Math.PI / 2), dim); flr.position.set(19, 0, -0.7); scene.add(flr);
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1), dim); bed.position.set(19.1, 0.25, -0.4); scene.add(bed); }
+
   // ---- windows: real holes, with a frame in them and the night outside, seen in the gap between the curtains
   const nightMat = (() => {
     const c = document.createElement('canvas'); c.width = 128; c.height = 72; const g = c.getContext('2d');
@@ -202,7 +208,7 @@ export function buildHouse({ scene, world }) {
 
   const zones = LEVEL.rooms.map((r) => new THREE.Box3(new THREE.Vector3(r.min[0], -0.1, r.min[1]), new THREE.Vector3(r.max[0], LEVEL.ceiling + 0.1, r.max[1])));
   const XS = LEVEL.rooms.flatMap((r) => [r.min[0], r.max[0]]), ZS = LEVEL.rooms.flatMap((r) => [r.min[1], r.max[1]]);
-  const shell = new THREE.Box3(new THREE.Vector3(Math.min(...XS) - 1, -1, Math.min(...ZS) - 1), new THREE.Vector3(Math.max(...XS) + 1, LEVEL.ceiling + 0.2, Math.max(...ZS) + 1));
+  const shell = new THREE.Box3(new THREE.Vector3(Math.min(...XS) - 1, -1, Math.min(...ZS) - 1), new THREE.Vector3(Math.max(...XS) + 2.5, LEVEL.ceiling + 0.2, Math.max(...ZS) + 1));
 
   const ceiling0 = C.ceilingGlow, ceilingMat = mats.ceiling;
   return { zones, indoor: [shell], spawn: H.spawn, byId, doorStrip: mats.strip, portraits: LEVEL.portraits.map(([x, , plate]) => ({ x, y: 1.25, z: -T / 2, text: PLATES[plate] })), tick() {}, startSound() {}, frame(time) { clouds.offset.x = time * 0.006; }, setDark(k) { ceilingMat.emissiveIntensity = ceiling0 * (1 - k); } };

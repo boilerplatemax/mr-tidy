@@ -14,12 +14,13 @@ export class EndScreen {
   hide() { this.el.hidden = true; }
 
   /** title: big line. lines: smaller lines under it. */
-  show(title, lines, button = 'Play again') {
+  show(title, lines, button = 'Play again', opts = {}) {
     const px = Math.max(2, Math.min(4, Math.floor(Math.min(window.innerHeight / 300, window.innerWidth / 470))));
     this.el.style.setProperty('--px', px);
-    const big = pixText(title, '#cfc4a6'); big.classList.add('big');
+    const big = pixText(title, '#cfc4a6'); if (!opts.small) big.classList.add('big');
+    const pics = (opts.images || []).map(([src, w]) => { const i = new Image(); i.src = src; i.style.width = `calc(${w}px * var(--px))`; i.style.imageRendering = 'pixelated'; return i; });
     const box = document.createElement('div'); box.className = 'box';
-    box.append(big, ...lines.map((l) => pixText(l, '#8a826e')));
+    box.append(...pics, big, ...lines.map((l) => pixText(l, '#8a826e')));
     const again = document.createElement('button'); again.type = 'button';
     again.append(pixText(button));
     again.onclick = () => this.onAgain?.();

@@ -177,7 +177,7 @@ export function buildVacuum() {
     for (const m of out.bodyMats) { const c = m.color.r + (M.tone[s] - m.color.r) * ease; m.color.setRGB(c, c * (1 - (1 - M.tone[s]) * 0.2), c * (1 - (1 - M.tone[s]) * 0.2)); }
     out.alert += ((listening ? 1 : 0) - out.alert) * (1 - Math.exp(-14 * dt));
     out.kick *= Math.exp(-7 * dt);
-    let tz = 0, tx = -M.listenTilt * out.alert - out.kick;
+    let tz = 0, tx = (out.slumped ? 0.26 : 0) - M.listenTilt * out.alert - out.kick;
     if (out.stage >= 4 && !out.still) { // he can't hold still any more
       out.twitchT -= dt;
       if (out.twitchT <= 0) { out.twitchT = 0.12 + Math.random() * 0.9; out.tiltZ = (Math.random() - 0.5) * M.twitch; out.tiltX = (Math.random() - 0.5) * M.twitch * 0.5; }

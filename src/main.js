@@ -31,6 +31,7 @@ import { Paws } from './player/paws.js';
 import { LandingShimmer } from './player/landing-shimmer.js';
 import { StaminaBar } from './ui/stamina-bar.js';
 import { Blackout } from './world/blackout.js';
+import { Ending } from './world/ending.js';
 
 const params = new URLSearchParams(location.search);
 const _portraitV = new THREE.Vector3();
@@ -52,8 +53,8 @@ const world = new CollisionWorld();
 const input = new Input(canvas);
 const player = new Player(camera, world, input);
 const house = buildHouse({ scene, world });
-let updateScreens = null, pokeAerial = null;
-import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); updateScreens = m.updateScreens; pokeAerial = m.pokeAerial; });
+let updateScreens = null, pokeAerial = null, grandmaDoor = () => null;
+import('./world/dress.js').then((m) => { house.dressed = m.dressHouse(scene, house.byId); updateScreens = m.updateScreens; pokeAerial = m.pokeAerial; grandmaDoor = m.grandmaDoor; });
 PS1.setLightZones(house.zones);
 PS1.setIndoorBoxes(house.indoor);
 const noise = new Noise();
@@ -88,7 +89,11 @@ audio.world = world;
 audio.indoorBoxes = house.indoor;
 subtitles.isIndoor = (p) => audio.isIndoor(p);
 audio.onCaption = (label, pos) => subtitles.sound(label, pos, audio.listenerPos, player.yaw);
-audio.onStart.push(() => { house.startSound(); grandma.startSound(); vac.startSound(); });
+audio.onStart.push(() => {
+  house.startSound(); grandma.startSound(); vac.startSound();
+  audio.play('amb.clock', { pos: { x: 5.9, y: 1.8, z: -4.5 }, refDistance: 3, rolloff: 0.7 }); // somewhere, never quite placeable
+  audio.play('amb.static', { pos: { x: 5.55, y: 0.5, z: 2.3 }, refDistance: 1.4, rolloff: 1.4 }); // the television, left on
+});
 
 // ---------------------------------------------------------------- UI
 const hudLayer = new HudLayer(canvas);
@@ -101,7 +106,7 @@ let roomShown = false;
 const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
 /** A whole new run, without a reload. */
 function resetRun() {
-  blackout.reset();
+  blackout.reset(); ending.reset(); grandma.holdScreen = false;
   ended = false; runTime = 0;
   catchSeq.reset(); endScreen.hide();
   audio.resume();
@@ -110,18 +115,23 @@ function resetRun() {
   player.teleport(S.x, S.y, S.z, S.yaw); player.pitch = 0;
   debug.thirdPerson = false;
 }
-let runTime = 0, ended = false;
-grandma.onWin = () => { ended = true; player.frozen = true; vac.powerDown(); };
+let runTime = 0, ended = false, introT = -1;
+const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet. Make some noise.'], [7.8, "Knock things over. Wake Grandma. Don't let Mr. Tidy catch you."]];
+const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60); return [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`, `Times spotted  ${vac.spotted}`]; };
+const ending = new Ending({ scene, camera, vac, getDoor: () => grandmaDoor(), onDone: () => endScreen.show('Good Kitty', stats()) });
+ending.instant = params.has('play'); // (the headless checks go straight to the end screen)
+grandma.onWin = () => {
+  ended = true; player.frozen = true;
+  if (ending.instant) { vac.powerDown(); return; }
+  grandma.holdScreen = true; player.resetMotion(); ending.start();
+};
 const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
-  endScreen.show('Try again', [`Time  ${Math.floor(runTime / 60)}:${String(Math.floor(runTime % 60)).padStart(2, '0')}`, `Objects broken  ${knock.count}`], 'Restart');
+  endScreen.show('Mr. Tidy keeps a clean house.', stats(), 'Try again', { small: true, images: [['game-assets/textures/portraits/portrait_09_empty.png', 64], ['game-assets/textures/portraits/nameplate_player_dead.png', 64]] });
 } });
 vac.onCatch = (how) => { ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
-grandma.onScreen = () => {
-  const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60);
-  endScreen.show('Good Kitty', [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`]);
-};
+grandma.onScreen = () => endScreen.show('Good Kitty', stats());
 const menu = new Menu(() => input.requestLock()); // the click is a user gesture: lock + (first time) start audio
-input.on('firstClick', () => audio.start(THREE.Vector3));
+input.on('firstClick', () => { audio.start(THREE.Vector3); introT = 0; });
 input.on('pause', () => { if (ended) return; menu.show(input.started); audio.suspend(); }); // (the end screen takes the mouse back itself)
 input.on('resume', () => { menu.hide(); audio.resume(); });
 menu.show(false);
@@ -141,8 +151,9 @@ function tick(dt) {
   player.snapView(); // last tick's view offsets, so the frame can interpolate them (see src/core/loop.js)
   debug.tick();
   if (input.pressed('KeyP')) subtitles.show('paws: ' + paws.cycleMode(), 'pawmode', 1.6, '', true); // (the walking-paws experiment)
+  if (introT >= 0 && input.live) { const b = introT; introT += dt; for (const [at, line] of INTRO) if (b < at && introT >= at) subtitles.show(line, line, 3.3, 'speech', true); if (introT > 9) introT = -1; } // (the words at the very start)
   if (input.live) {
-    if (!catchSeq.active) player.tick(dt);
+    if (!catchSeq.active && !ending.active) player.tick(dt);
     knock.tick(dt);
     debris.tick(dt);
     grandma.tick(dt, player.pos.x, player.pos.z);
@@ -160,6 +171,8 @@ function frame(alpha, dt, frameMs) {
   const onTitle = !menu.el.hidden && !menu.started;
   if (catchSeq.active) { catchSeq.update(dt); paws.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
   else if (catchSeq.phase === 'done') { /* black, the restart screen is up: hold the view */ }
+  else if (ending.active) { ending.update(dt); paws.hide(); marker.update(player.aim, dt, player); shimmer.update(player.aim, wallTime, dt); staminaBar.frame(player, dt); }
+  else if (ending.done) { /* faded out, the Good Kitty screen is up */ }
   else if (onTitle) { // the title: a slow, still view of the scene
     camera.position.set(titleCam.x + Math.sin(wallTime * 0.31) * titleCam.sway, titleCam.y + Math.sin(wallTime * 0.23) * titleCam.sway * 0.5, titleCam.z);
     camera.rotation.set(titleCam.pitch, titleCam.yaw + Math.sin(wallTime * 0.17) * titleCam.sway * 0.3, 0, 'YXZ');
@@ -194,7 +207,7 @@ loop.start();
 document.getElementById('loading').hidden = true;
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
+window.__kit = { ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
 window.__menuFit = () => menu.fitReport();

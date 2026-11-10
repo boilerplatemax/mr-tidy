@@ -1063,6 +1063,23 @@ function propChecks(kit) {
   return rows;
 }
 
+/** The whole ending, by hand: door, Grandma, plug, the screen. */
+async function endingChecks(kit) {
+  const E = kit.ending, G = kit.grandma, v = kit.vac, dt = 1 / 60, rows = [];
+  const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} ENDING ${name}${note ? ' (' + note + ')' : ''}`);
+  await E.ready; await kit.house.dressed;
+  kit.resetRun(); E.instant = false; kit.player.noclip = false;
+  G.add(200);
+  report('waking her starts the scene', E.active && kit.ended);
+  let t = 0, near = 9, offAt = -1, doorMax = 0; const o = LEVEL.outlets[0];
+  while (E.active && t < 25) { E.update(dt); v.frame(1, dt); t += dt; if (E.nan?.visible) near = Math.min(near, Math.hypot(E.nan.position.x - o.pos[0], E.nan.position.z - o.pos[2])); if (v.off && offAt < 0) offAt = t; doorMax = Math.max(doorMax, Math.abs(E.getDoor()?.rotation.y ?? 0)); }
+  report('her door opens, she walks to the outlet and pulls the plug', doorMax > 1 && near < 0.7 && offAt > 3 && E.nan?.visible, `${t.toFixed(1)} s, she gets within ${near.toFixed(2)} m, power off at ${offAt.toFixed(1)} s`);
+  report('then Good Kitty', E.done && !kit.endScreen.el.hidden);
+  kit.resetRun(); E.instant = true;
+  report('and a new run puts it all back', !E.active && !E.nan?.visible && (E.getDoor()?.rotation.y ?? 0) === 0 && !v.off);
+  return rows;
+}
+
 export async function runRouteBot(kit) {
   await kit.knock.ready;
   kit.vac.frozen = true; // keep him out of the jump tests
@@ -1100,6 +1117,7 @@ export async function runRouteBot(kit) {
   rows.push(...catchChecks(kit));
   rows.push(...grandmaChecks(kit));
   rows.push(...restartChecks(kit));
+  rows.push(...await endingChecks(kit));
   const failed = rows.filter((r) => r.startsWith('FAIL'));
   return { total: rows.length, failed: failed.length, failures: failed, rows };
 }

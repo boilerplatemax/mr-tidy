@@ -19,6 +19,8 @@ function boundsOf(ids, byId) {
   return b;
 }
 
+let doorNode = null;
+export const grandmaDoor = () => doorNode;
 const screens = [];
 let plainCloth = null;
 
@@ -75,6 +77,7 @@ export function dressHouse(scene, byId) {
       const scr = m.getObjectByName('screen');
       if (scr) { scr.material = scr.material.clone(); scr.material.userData = {}; makePS1(scr.material); const t = scr.material.map || scr.material.emissiveMap; if (t) { const c = t.clone(); c.needsUpdate = true; c.wrapS = THREE.RepeatWrapping; if (scr.material.map) scr.material.map = c; if (scr.material.emissiveMap) scr.material.emissiveMap = c; screens.push({ tex: c, mat: scr.material }); makeShow(); e.aerial = true; } }
     }
+    if (e.door) doorNode = m.getObjectByName('door');
     if (e.legs) m.traverse((o) => { // taller legs: everything above their tops moves up, and the legs stretch to match
       if (!o.isMesh) return;
       const [top, add] = e.legs, g = o.geometry.clone(), p = g.attributes.position;

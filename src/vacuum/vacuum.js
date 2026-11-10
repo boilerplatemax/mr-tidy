@@ -20,7 +20,7 @@ const _s = new THREE.Vector3();
 export class Vacuum {
   constructor({ scene, world, camera, noise, knock, debris, player }) {
     this.world = world; this.knock = knock; this.debris = debris; this.camera = camera; this.player = player;
-    this.vox = new Voxels(world); this.hose = new Hose(scene, this.vox); this.blast = new Blast(scene, this.vox, knock); this.blast.onHit = (dx, dz) => player.dustHit(dx, dz); this.blasts = [this.blast, ...Array.from({ length: 4 }, () => { const b = new Blast(scene, this.vox, knock); b.onHit = this.blast.onHit; return b; })]; this.volley = 0; this.volleyT = 0; this.sprayT = 0; this.coughI = 0; this.dark = 0; this.surgeT = 0; this.arcV = null; this.sweepBase = 0; this.sweepPh = 0; this.cloud = new DustCloud(scene); this.lob = false; this._v = new THREE.Vector3();
+    this.vox = new Voxels(world); this.hose = new Hose(scene, this.vox); this.blast = new Blast(scene, this.vox, knock); this.blast.onHit = (dx, dz) => player.dustHit(dx, dz); this.blasts = [this.blast, ...Array.from({ length: 4 }, () => { const b = new Blast(scene, this.vox, knock); b.onHit = this.blast.onHit; return b; })]; this.spotted = 0; this.volley = 0; this.volleyT = 0; this.sprayT = 0; this.coughI = 0; this.dark = 0; this.surgeT = 0; this.arcV = null; this.sweepBase = 0; this.sweepPh = 0; this.cloud = new DustCloud(scene); this.lob = false; this._v = new THREE.Vector3();
     this.fogPhase = null; this.fogT = 0; this.fogCd = 0; this.creepT = 0; this.creepCd = 0; this.creepV = null; this.alertT = 0; this.alertX = 0; this.alertZ = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseT = 0; this.pauseYaw = 0; this.pauseThen = null; this.time = 0; this.seenAt = new Map(); this.noises = []; this.lastStop = null; this.blastPhase = null; this.blastT = 0; this.blastCd = 0; this.suckT = 0; this.suckPhase = 0; this.suckY = 0; this.suckV = null; this.coughV = null; this._blastDir = new THREE.Vector3(); this._blastO = new THREE.Vector3(); this.cleanWait = 0; this._cmd = { mode: 'approach', goal: new THREE.Vector3(), speed: 0, turn: 0, hover: false }; this.reachPhase = null; this.reachT = 0; this.reachCd = 0; this.rattle = null; this._snap = new THREE.Vector3(); this._goal = new THREE.Vector3(); this.directX = 0; this.directZ = 0;
     this.onCatch = null; this.caught = false; // onCatch(how): 'body' or 'hose'
     this._dirv = { x: 0, y: 0, z: 0 }; this._under = null; this._notUnder = (c) => c.solid && c !== this._under; this.campT = 0; this.ignoreT = 0;
@@ -70,7 +70,7 @@ export class Vacuum {
     this.routeI = 0; this.path = [start]; this.pathI = 0;
     this.spin = 0; this.lastPaid = this._paid();
     this.hose.reset(); this.blast.reset(); this._endBlast(); this._endSuck(); this._endCreep(); this._endFog(); this.cloud.reset(); this.blastCd = 0;
-    this.dark = 0; this.arcV?.stop(0.05); this.arcV = null; this.surgeT = 0; this.volley = 0; for (const b of this.blasts) b.reset(); this.stunT = 0; this.stunCd = 0; this.foundT = 0; this.fogCd = 0; this.creepCd = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseThen = null; this.seenAt.clear(); this.noises.length = 0; this.lastStop = null; this.model.shriekT = 0; this.model.flick = 0;
+    this.spotted = 0; this.dark = 0; this.arcV?.stop(0.05); this.arcV = null; this.surgeT = 0; this.volley = 0; for (const b of this.blasts) b.reset(); this.stunT = 0; this.stunCd = 0; this.foundT = 0; this.fogCd = 0; this.creepCd = 0; this.alertCd = 0; this.heardCd = 0; this.stingCd = 0; this.shriekCd = 0; this.freezeT = 0; this.dip = 0; this.thinkT = between(RO.think); this.pauseThen = null; this.seenAt.clear(); this.noises.length = 0; this.lastStop = null; this.model.shriekT = 0; this.model.flick = 0;
     this.model.face.visible = true;
     this.setAnger(1);
     this.anger = 1; this.model.setFace(1);
@@ -155,6 +155,7 @@ export class Vacuum {
 
   /** Everything stops: the motor winds down and the face goes dark. */
   powerDown() {
+    this.arcV?.stop(0.2); this.arcV = null;
     this._endReach(); this._endBlast(); this._endSuck(); this._endCreep(); this._endFog(); this.cloud.thin();
     this.off = true; this.state = 'OFF'; this.model.face.visible = false;
     if (this.voice) { this.voice.setRate(0.2, D.windDown); this.voice.stop(D.windDown); this.voice = null; }
@@ -555,6 +556,7 @@ export class Vacuum {
 
   _startChase() {
     if (this.state === 'CLEAN') { this.slurp?.stop(0.1); this.slurp = null; this.mess = null; }
+    this.spotted++;
     this.pending = null; this.state = 'CHASE'; this.loseT = 0; this.replanT = 0; this.chaseNode = null; this.seeT = 0; this.sweep = false;
     audio.play('vac.surge', { follow: this.model.hoseSocket, rolloff: 0 });
     this._sting();
