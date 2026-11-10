@@ -401,7 +401,6 @@ export const TUNING = {
   grandma: {
     gain: 0.5, // scales every crash. The main "how long is a run" number: about 30 knock-overs on average, counting the free ones (he reaches the blackout at about 21)
     freeKnocks: 5, // the first knock-overs of a run she sleeps right through
-    piano: 4, pianoMax: 3, pianoEvery: 6, // a landing on the piano keys: wake points; how many times a night it can count; s between
     farScale: 0.6, nearScale: 1.5, // what a crash is worth far from her door / right at it
     range: 17, // m from the door at which a crash counts as far
     thresholds: [25, 50, 75], // wake values where the snoring lightens and a cue plays

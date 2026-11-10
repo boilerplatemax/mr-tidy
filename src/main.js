@@ -69,7 +69,7 @@ const debris = new Debris(scene, world);
 const knock = new Knockables({ scene, world, byId: house.byId, noise, debris });
 player.onStep = (gait) => { if (pianoNote(gait === 'run' ? 0.9 : 0.6)) noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: TUNING.vac.hearPiano[0] }); if (!player.groundCollider) noise.emit({ kind: 'step', gait, x: player.pos.x, y: player.feetY, z: player.pos.z }); }; // only on the floor: furniture is quiet, and slinking makes no steps at all
 player.onSneeze = () => noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: TUNING.vac.hearSneeze }); // a sneeze gives you away
-player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; if (pianoNote(quiet ? 0.6 : 1.2, quiet ? 1 : 3)) { noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearPiano[1] }); if (!quiet && !tutorial.active) grandma.piano(); } /* (a cat landing on a piano: loud enough to stir her) */ noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
+player.onLand = (impact, heavy, quiet) => { const L = TUNING.vac; if (pianoNote(quiet ? 0.6 : 1.2, quiet ? 1 : 3)) { noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearPiano[1] }); } /* (he hears it; she sleeps right through it) */ noise.emit({ kind: 'thud', x: player.pos.x, y: player.feetY, z: player.pos.z, radius: L.hearLand[heavy ? 1 : 0] * (quiet ? L.quietLand : 1) }); };
 const grandma = new Grandma({ noise, house });
 /** On the piano's keys? Then a note for where you are along them: low at the left end, high at the right (as you face it). */
 const KEYS = LEVEL.solids.find((b) => b.id === 'pKeys');
@@ -77,8 +77,10 @@ function pianoNote(gain, n = 1) {
   if (!KEYS || player.pos.x < KEYS.min[0] - 0.05 || player.pos.x > KEYS.max[0] + 0.05 || player.pos.z < KEYS.min[2] || player.pos.z > KEYS.max[2] || Math.abs(player.feetY - KEYS.max[1]) > 0.04) return false;
   const u = (player.pos.z - KEYS.min[2]) / (KEYS.max[2] - KEYS.min[2]), key = Math.round(u * 36);
   for (let i = 0; i < n; i++) audio.play('piano.note', { pos: { x: player.pos.x, y: KEYS.max[1], z: player.pos.z }, rate: 2 ** ((key + (i ? (Math.random() * 5 | 0) - 2 : 0) - 12) / 12), gain: gain * (i ? 0.7 : 1), refDistance: 2.5 });
+  if (!pianoSaid && !tutorial.active) { pianoSaid = true; subtitles.show("Grandma finds the piano soothing. It isn't working.", 'piano', 3.6, '', true); } // (once a run: it won't wake her)
   return true;
 }
+let pianoSaid = false;
 const vac = new Vacuum({ scene, world, camera, noise, knock, debris, player });
 knock.vac = vac; // (something dropped on him stuns him)
 player.onSwipe = () => { knock.swipe(player, camera); if (!vac.swipeOutlet(camera)) vac.swipeBody(camera); tutorial?.onSwipe(camera); }; // the paw bats objects, and the outlet he's plugged into
@@ -143,6 +145,7 @@ function resetRun() {
   ended = false; runTime = 0; wakeIcon?.reset();
   catchSeq.reset(); endScreen.hide(); closeup.reset(); todo.reset(); todo.start(1.2);
   audio.resume(); startClock();
+  pianoSaid = false;
   const start = params.has('play') ? null : pickStart(); // (the headless checks keep to the old start)
   knock.reset(); debris.reset(); grandma.reset(); vac.reset(start?.outlet ?? null);
   player.frozen = false; player.noclip = false; player.resetMotion();
