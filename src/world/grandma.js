@@ -72,9 +72,7 @@ export class Grandma {
 
   /** Per fixed tick. (px, pz): where the cat is. */
   tick(dt, px, pz) {
-    if (!this.awake && this.stage >= 2) { // she's coming up: mumbling, and at the last the lamp in there flickers
-      this.mumbleT = (this.mumbleT ?? 6) - dt;
-      if (this.mumbleT <= 0) { this.mumbleT = 9 + Math.random() * 8; if (this.distanceTo(px, pz) < G.snoreFar + 3) audio.play(Math.random() < 0.5 ? 'grandma.mumble1' : 'grandma.mumble2', { pos: this.soundPos, refDistance: G.refDistance, rolloff: G.rolloff }); }
+    if (!this.awake && this.stage >= 2) { // she's coming up: at the last the lamp in there flickers
       if (this.stage === 3) this.house.doorStrip.color.setHex(Math.random() < 0.09 ? 0x5a4326 : TUNING.house.colors.doorStrip);
     }
     // DESIGN NOTE: the snoring is only heard near her door, so it marks the room rather than droning through the house.

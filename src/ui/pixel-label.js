@@ -73,15 +73,19 @@ export class PixelLabel {
     this.key = key;
     const BOX = 8;
     const BAR = 5; // a bar row's height
-    const PAW = ['.#.#.#.', '.#.#.#.', '.......', '..###..', '.#####.', '.#####.', '..#.#..'];
-    if (rows[0]?.paws != null) { // the stamina bar: a row of paw prints, each filling from the heel up
-      const n = rows[0].count, w2 = n * 9 + 1, h2 = 9, v = Math.max(0, Math.min(1, rows[0].paws)) * n, low = rows[0].paws < 0.25;
-      this.cv.width = w2; this.cv.height = h2;
-      const g2 = this.g; g2.clearRect(0, 0, w2, h2);
-      for (let i = 0; i < n; i++) {
-        const f = Math.max(0, Math.min(1, v - i)), lit = Math.ceil(f * 7);
-        PAW.forEach((row, y) => { for (let x = 0; x < 7; x++) if (row[x] === '#') { g2.fillStyle = '#000'; g2.fillRect(1 + i * 9 + x + 1, y + 2, 1, 1); g2.fillStyle = 7 - y <= lit ? (low ? '#c8582c' : '#e8a858') : '#4a3a2a'; g2.fillRect(1 + i * 9 + x, y + 1, 1, 1); } });
+    if (rows[0]?.moon != null) { // the stamina meter: a moon that wanes as you tire, and fills again as you rest
+      const R = 6, D = R * 2 + 3, v = Math.max(0, Math.min(1, rows[0].moon)), low = v < 0.25;
+      this.cv.width = D; this.cv.height = D;
+      const g2 = this.g; g2.clearRect(0, 0, D, D);
+      const shadowX = R + 1 - (1 - v) * 0 + (v * 2 - 2) * R; // the dark disc slides across: lit = in the moon, not in the shadow
+      for (let y = 0; y < D; y++) for (let x = 0; x < D; x++) {
+        const dx = x - R - 1, dy = y - R - 1, inMoon = dx * dx + dy * dy <= R * R + 1;
+        if (!inMoon) continue;
+        const sx = x - (R + 1 + v * 2 * R + 0.5), lit = sx * sx + dy * dy > R * R + 1 || v >= 0.999;
+        g2.fillStyle = '#000'; g2.fillRect(x + 1, y + 1, 1, 1);
+        g2.fillStyle = lit && v > 0.001 ? (low ? '#d89058' : '#e8dfc6') : '#2c2a30'; g2.fillRect(x, y, 1, 1);
       }
+      void shadowX;
       this._size();
       return;
     }

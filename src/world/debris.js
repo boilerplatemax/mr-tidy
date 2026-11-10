@@ -124,6 +124,12 @@ export class Debris {
       this.cubes.setMatrixAt(i, _m.compose(_p, _q, _s));
     }
     this.cubes.instanceMatrix.needsUpdate = true;
+    if (mess.obj) { // a whole object going up the hose
+      const o = mess.obj;
+      if (!mess.from) mess.from = new THREE.Vector3(o.x, o.y + o.h / 2, o.z);
+      o.mesh.position.copy(mess.from).lerp(_p.set(hx, hy, hz), e); o.mesh.scale.setScalar(Math.max(0.01, 1 - e));
+      if (u >= 1) { o.state = 'gone'; o.mesh.visible = false; o.mesh.scale.setScalar(1); }
+    }
     for (const b of mess.bits || []) {
       if (b.ribbon) { const g = b.mesh.geometry; if (!b.total) b.total = g.drawRange.count; g.setDrawRange(0, Math.floor(b.total * (1 - u) / 6) * 6); continue; } // the paper goes up from the far end
       if (!b.from) { b.from = new THREE.Vector3(b.x, b.y, b.z); b.settled = true; b.link = null; }

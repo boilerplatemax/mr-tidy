@@ -27,6 +27,7 @@ const SURVIVOR = { dentures_glass__teeth: 'hop', soap_dish__soap: 'roll', cookie
 // The shakers come joined together in the pack: each is cut out of the one mesh and knocked about on its own.
 const SPLIT = { salt_shaker: -1, pepper_shaker: 1 };
 const SHAKER = (side, tint) => ({ mass: 0.1, swipes: 1, noise: 1, landing: 'bounce', tint, size: [0.04, 0.075, 0.04], nodes: { intact: side } });
+PROPS.wall_clock = { mass: 0.9, swipes: 1, noise: 5, landing: 'break', tint: '#6a4628', size: [0.324, 0.324, 0.06], nodes: { intact: 'wall_clock' } };
 PROPS.salt_shaker = SHAKER('salt_shaker', '#f4f1ea'); PROPS.pepper_shaker = SHAKER('pepper_shaker', '#2a2a2a');
 
 function buildType(id) {
@@ -60,7 +61,7 @@ export class Knockables {
       this.list.push(o); this.byId.set(o.id, o);
     }
     this.frame(1);
-    this.ready = loadGLB(TUNING.assets.knockables).then((g) => this._dress(g)).catch((e) => console.warn('knockables failed to load:', e?.message || e));
+    this.ready = loadGLB('game-assets/models/house/psx_wall_clock.glb').then((g) => { this.clockLib = g.scene; }).catch(() => {}).then(() => loadGLB(TUNING.assets.knockables)).then((g) => this._dress(g)).catch((e) => console.warn('knockables failed to load:', e?.message || e));
   }
 
   /** A fresh copy of a node from the pack, at the origin. */
@@ -68,6 +69,7 @@ export class Knockables {
     if (name === 'picture_frame') return this._frame();
     if (SPLIT[name]) return this._shaker(name);
     if (name === 'button_jar') return this._jarFill();
+    if (name === 'wall_clock' && this.clockLib) { const c = this.clockLib.clone(true); c.position.y = -1.638; return c; } // (modelled hanging at its height on the wall)
     const n = this.lib?.getObjectByName(name);
     if (!n) { console.warn(`knockables: no node ${name}`); return new THREE.Group(); }
     const c = n.clone(true); c.position.set(0, 0, 0); c.rotation.set(0, 0, 0); c.scale.set(1, 1, 1);
@@ -164,12 +166,13 @@ export class Knockables {
       const cx = o.x - eye.x, cy = o.y + o.h / 2 - eye.y, cz = o.z - eye.z, d = Math.hypot(cx, cy, cz);
       if (d > S.reach + o.r || d < 1e-3 || (cx * _v.x + cy * _v.y + cz * _v.z) / d < S.cone) continue;
       // heavy things take a few hits: the early ones only rock them
-      o.hits++;
+      o.hits++; if (o.t.id === 'yarn_ball') this._softHit = true;
       const free = o.hits >= o.t.swipes, speed = free ? Math.max(S.minSpeed, Math.min(S.maxSpeed, S.impulse / o.mass)) : S.nudge;
       this.shove(o, dx, dz, speed);
       hits++;
     }
-    if (hits) audio.play('knock.clink', { pos: eye, rate: 0.9 + Math.random() * 0.3 });
+    if (hits) audio.play(this._softHit ? 'knock.soft' : 'knock.clink', { pos: eye, rate: 0.9 + Math.random() * 0.3 });
+    this._softHit = false;
     return hits;
   }
 
@@ -238,7 +241,8 @@ export class Knockables {
     if (t.breakable) {
       o.state = 'gone'; o.mesh.visible = false; o.vx = o.vy = o.vz = 0;
       audio.play('knock.break', { pos: o, rate: (chunks ? 0.7 : 0.9) + Math.random() * 0.25 });
-    } else if (t.id === 'rubber_duck') audio.play('knock.squeak', { pos: o, rate: 0.9 + Math.random() * 0.25 });
+    } else if (t.id === 'yarn_ball') audio.play('knock.soft', { pos: o });
+    else if (t.id === 'rubber_duck') audio.play('knock.squeak', { pos: o, rate: 0.9 + Math.random() * 0.25 });
     else audio.play('knock.thud', { pos: o, gain: 0.6 });
     this.noise.emit({ kind: 'crash', x: o.x, y: 0, z: o.z, loud: t.points, room, objectId: o.id });
     if (X.rollers[t.id]) this._startRoll(o, bits);
@@ -281,9 +285,14 @@ export class Knockables {
     if (o.node) { const s0 = r / R.r0; o.node.scale.set(s0, R.uniform ? s0 : 1, s0); if (R.uniform) o.node.position.y = (-o.h / 2) * s0; }
     if (!u.spent && u.L >= R.len) { // nothing left on it
       u.spent = true;
+      if (R.vanish) { o.state = 'gone'; o.mesh.visible = false; return; } // (the last of the wool)
       if (this.lib && o.t.nodes.variants?.unrolled) { o.mesh.remove(o.node); const g = new THREE.Group(); g.position.y = -o.h / 2; g.add(this._clone(o.t.nodes.variants.unrolled)); o.node = g; o.mesh.add(g); o.swapped = true; }
     }
-    if (u.v <= X.rollStop) { o.state = 'rest'; o.dirty = true; }
+    if (u.v <= X.rollStop) {
+      o.state = 'rest'; o.dirty = true;
+      if (u.spent && !u.tubeMess) { u.tubeMess = { id: o.id + ':tube', x: o.x, z: o.z, room: null, decal: -1, cubes: [], bits: [], obj: o, cleaned: false }; this.debris.messes.push(u.tubeMess); } // an empty tube: he'll come and suck it up
+      else if (u.tubeMess && !u.tubeMess.cleaned) { u.tubeMess.x = o.x; u.tubeMess.z = o.z; }
+    }
   }
 
   /** Something falling on him: it bounces off, and he reels for a moment. */
@@ -379,7 +388,7 @@ export class Knockables {
       o.vy = impact * K.bounce * (o.t.landing === 'bounce' ? X.bounceMul : 1);
       o.vx *= K.bounceKeep; o.vz *= K.bounceKeep; o.wx *= 0.5; o.wy *= 0.5; o.wz *= 0.5;
       o.state = 'fall';
-      audio.play(floor ? 'knock.thud' : 'knock.clink', { pos: o, gain: Math.min(1, impact / 5) });
+      audio.play(o.t.id === 'yarn_ball' ? 'knock.soft' : floor ? 'knock.thud' : 'knock.clink', { pos: o, gain: Math.min(1, impact / 5) });
       return;
     }
     o.vy = 0; o.wx = o.wy = o.wz = 0; o.bounces = 0;

@@ -140,8 +140,7 @@ export class CatchSequence {
     const cam = this.camera;
     this.phase = 'hold'; this.t = 0;
     this.vac.model.shriek(C.hold);
-    if (Math.random() < 0.6) { audio.play('vac.laugh', { bus: 'voice' }); audio.play('vac.shriek', { delay: 1.15, gain: 0.8 }); }
-    else audio.play('vac.shriek', { gain: 1.3 });
+    if (Math.random() < 0.5) audio.play('vac.laugh'); else audio.play('vac.shriek', { gain: 1.3 }); // one or the other, never both
     cam.position.copy(this.end);
     this.from.copy(cam.quaternion);
     _m.lookAt(this.end, this.faceAt, _up);

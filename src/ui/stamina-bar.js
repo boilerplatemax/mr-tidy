@@ -1,4 +1,4 @@
-// Stamina: a row of paw prints at the bottom of the screen, shown only while stamina is being used or refilling.
+// Stamina: a little moon at the bottom of the screen that wanes as you tire, shown only while stamina is being used or refilling.
 import { TUNING } from '../data/tuning.js';
 
 const S = TUNING.stamina;
@@ -16,7 +16,7 @@ export class StaminaBar {
     const show = this.hold > 0;
     if (show) {
       const v = Math.round(player.stamina * 35);
-      if (v !== this.last) { this.last = v; this.label.set([{ paws: v / 35, count: S.pawCount }], 'center'); }
+      if (v !== this.last) { this.last = v; this.label.set([{ moon: v / 35 }], 'center'); }
     }
     if (show !== this.shown) { this.shown = show; this.label.show(show); }
   }

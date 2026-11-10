@@ -21,10 +21,10 @@ function wallCurtain(id, room, along, a0, a1, w, n, top = 2.15) {
     const p = w + n * d0, q = w + n * d1, c0 = Math.min(p, q), c1 = Math.max(p, q);
     return along === 'x' ? box(sid, room, lo, hi, c0, c1, y0, y1, o) : box(sid, room, c0, c1, lo, hi, y0, y1, o);
   };
-  const mid = (a0 + a1) / 2, gap = 0.035, d = 0.09;
+  const side = along === 'x' ? (n > 0 ? 's' : 'n') : (n > 0 ? 'e' : 'w'), mid = (a0 + a1) / 2, gap = 0.035, d = 0.18; // (heavy drapes, gathered thick)
   return [
-    mk(id + 'P', a0, a1, 0, 0.11, top, top + 0.05, { tex: 'wood_walnut', land: false, collide: false }),
-    mk(id, a0, a1, 0, d, 0, top, { land: false, noVisual: true, occludes: true }),
+    mk(id + 'P', a0, a1, 0, d, top, top + 0.05, { tex: 'wood_walnut' }), // (a boxed rail, flush with the wall: climb the curtains and you can stand on it)
+    mk(id, a0, a1, 0, d, 0, top, { land: false, stripes: [side], climbTo: id + 'P', noVisual: true, occludes: true }),
     mk(id + 'L', a0, mid - gap, 0, d, 0, top, { land: false, collide: false, tex: 'fabric_velvet_curtain' }),
     mk(id + 'R', mid + gap, a1, 0, d, 0, top, { land: false, collide: false, tex: 'fabric_velvet_curtain' }),
   ];
@@ -113,7 +113,7 @@ export const LEVEL = {
     ...wallCurtain('lwin', 'living', 'z', 2.35, 3.65, IN, 1, 2.3),
     box('lampPost', 'living', IN, 0.45, 4.45, 4.65, 0, 1.5, { noVisual: true, land: false, occludes: false }),
     box('gDoor', 'hall', 18 - IN, 18 + IN, -1.1, -0.3, 0, 2.05, { noVisual: true, land: false, occludes: true }), // (her door: always shut as far as anything but the ending is concerned)
-    box('tvUnit', 'living', 5.465, 6 - IN, 1.82, 2.78, 0, 0.8, { noVisual: true }),
+    box('tvUnit', 'living', 5.25, 6 - IN, 1.6, 3.0, 0, 1.05, { noVisual: true }), // a big old set: you can read it from across the room
     // A scratching panel beside the rod: a second, climbed way onto the route (and a kick-off wall).
     box('scratchPanel', 'living', 5.3, 5.8, 5.0, 5.4 - IN, 0, 1.95, { stripes: ['n'], tex: 'fabric_carpet' }),
     box('header', 'living', 5.85, 6.15, 3.9, 4.8, 2.05, 2.12, { tex: 'wood_walnut' }), // the top of the door frame, through the wall
@@ -151,6 +151,7 @@ export const LEVEL = {
     box('dChairW', 'dining', 1.69, 2.11, -4.21, -3.79, 0.42, 0.46, { noVisual: true }),
     box('dChairE', 'dining', 3.89, 4.31, -4.21, -3.79, 0.42, 0.46, { noVisual: true }),
     ...wallCurtain('dc', 'dining', 'x', 4.7, 5.9, -6.6 + IN, 1),
+    box('clockPeg', 'dining', 6 - IN - 0.05, 6 - IN, -4.66, -4.34, 1.43, 1.45, { noVisual: true }), // (what the wall clock hangs on)
     box('dSide', 'dining', 0.72, 1.68, -6.6 + IN, -6.065, 0, 0.8, { tex: 'wood_walnut' }), // the sideboard
     box('dShelf1', 'dining', 2.2, 3.0, -6.6 + IN, -6.325, 1.21, 1.25, { noVisual: true }),
     box('dShelf2', 'dining', 3.4, 4.6, -6.6 + IN, -6.305, 1.66, 1.7, { noVisual: true }),
@@ -174,7 +175,7 @@ export const LEVEL = {
     box('sChair', 'sewing', 12.79, 13.21, -4.01, -3.59, 0, 0.46, { noVisual: true }),
     ...wallCurtain('sc', 'sewing', 'x', 13.1, 14.3, -6 + IN, 1),
     box('sShelf1', 'sewing', 14.125, 14.4 - IN, -5.0, -4.5, 1.21, 1.25, { noVisual: true }),
-    box('sShelf2', 'sewing', 14.125, 14.4 - IN, -5.55, -5.05, 1.71, 1.75, { noVisual: true }),
+    box('sShelf2', 'sewing', 14.125, 14.4 - IN, -5.5, -5.0, 1.71, 1.75, { noVisual: true }),
 
     // ------------------------------------------------------------ hall end and the study
     // the study: bookcases on the back wall, a desk under the wall lamp, an armchair in the corner by the door
@@ -188,7 +189,6 @@ export const LEVEL = {
     box('tSeat', 'study', 14.76, 15.4, -2.3, -1.7, 0, 0.48, { noVisual: true }),
     // storage clutter you can't walk through
     box('sBox', 'storage', 14.05, 14.55, 0.5, 0.9, 0, 0.38, { noVisual: true }),
-    box('sBag', 'storage', 12.11, 12.59, 0.26, 0.64, 0, 0.58, { noVisual: true }),
   ],
 
   // The real models. fit: stretched to fill those solids (see src/world/dress.js); the solids are drawn by these instead of as boxes.
@@ -198,8 +198,8 @@ export const LEVEL = {
     { model: 'cattree_platform_60', fit: ['tree1'] }, { model: 'cattree_platform_60', fit: ['tree2'] }, { model: 'cattree_platform_60', fit: ['tree3'] }, { model: 'cattree_perch_tray', fit: ['tree4'], rot: 180 },
     { model: 'cattree_post_80', fit: ['tree1post'] }, { model: 'cattree_post_80', fit: ['tree2post'] }, { model: 'cattree_post_80', fit: ['tree3post'] }, { model: 'cattree_post_80', fit: ['tree4post'] },
     { model: 'psx_nightstand_oak', fit: ['book1'], rot: 180 }, { model: 'bookcase', fit: ['book2'], rot: 180 }, { model: 'bookcase', fit: ['book3'], rot: 180 }, { model: 'bookcase', fit: ['book4'], rot: 180 },
-    { model: 'tv_console', fit: ['tvUnit'], rot: -90, h: 0.8, tv: true },
-    { model: 'psx_rug_braided', at: [3.0, 0.002, 1.6] }, { model: 'psx_floor_lamp', at: [0.35, 0, 4.55] }, { model: 'ceiling_light', at: [3, 0.6, 2.7] },
+    { model: 'tv_console', fit: ['tvUnit'], rot: -90, h: 0.8 / 1.05 * 0.8, tv: true },
+    { model: 'psx_rug_braided', at: [3.0, 0.002, 1.6] }, { model: 'psx_floor_lamp', at: [0.35, 0, 4.55], rot: 180 }, { model: 'ceiling_light', at: [3, 0.6, 2.7] },
     // kitchen
     { model: 'counter_module', fit: ['c1'], h: 0.9 }, { model: 'counter_module', fit: ['c2a'], h: 0.9 }, { model: 'counter_module', fit: ['c2b'], rot: -90, h: 0.9 }, { model: 'counter_module', fit: ['c3'], rot: -90, h: 0.9 },
     { model: 'fridge', fit: ['fridge'], rot: -90 }, { model: 'dining_chair', fit: ['chair'], h: 0.46 },
@@ -210,20 +210,20 @@ export const LEVEL = {
     { model: 'ceiling_light', at: [5, 0.6, -0.7] }, { model: 'ceiling_light', at: [13, 0.6, -0.7] },
     // storage
     { model: 'psx_wardrobe_oak', fit: ['w2'], rot: 90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['e2'], rot: -90, h: 2.07 }, { model: 'psx_wardrobe_oak', fit: ['s2'], rot: 180, h: 2.07 },
-    { model: 'psx_box_open', at: [14.3, 0, 0.7] }, { model: 'psx_trash_bag', at: [12.35, 0, 0.45] },
+    { model: 'psx_box_open', at: [14.3, 0, 0.7] },
     // dining room
     { model: 'dining_table', at: [3, 0, -4] },
     { model: 'dining_chair', at: [3, 0, -4.75] }, { model: 'dining_chair', at: [3, 0, -3.25], rot: 180 }, { model: 'dining_chair', at: [1.9, 0, -4], rot: 90 }, { model: 'dining_chair', at: [4.1, 0, -4], rot: -90 },
     { model: 'bookcase', at: [IN, 0, -5.2], rot: 90 },
     { model: 'shelf_floating_80', at: [2.6, 1.25, -6.6 + IN] }, { model: 'shelf_floating_120', at: [4.0, 1.7, -6.6 + IN] },
-    { model: 'psx_rug_braided', at: [3.0, 0.002, -4], rot: 90 }, { model: 'psx_picture_landscape', at: [1.2, 0.2, -6.6 + IN] }, { model: 'psx_wall_clock', at: [5.925, 0.1, -4.5], rot: -90 }, { model: 'ceiling_light', at: [3, 0.6, -4] },
+    { model: 'psx_rug_braided', at: [3.0, 0.002, -4], rot: 90 }, { model: 'psx_picture_landscape', at: [1.2, 0.2, -6.6 + IN] }, { model: 'ceiling_light', at: [3, 0.6, -4] },
     // bathroom
     { model: 'psx_sink_unit_white', at: [9.019, 0, -5 + IN + 0.31], squash: [0.96, 0.35] }, { model: 'medicine_cabinet', at: [9.02, 1.7, -5 + IN] },
     { model: 'shelf_floating_60_white', at: [7.1, 1.34, -5 + IN] }, { model: 'radiator', at: [6.75, 0, -1.4 - IN], rot: 180 }, { model: 'ceiling_light', at: [7.8, 0.6, -3.2] },
     // sewing room
     { model: 'psx_bed_single_oak', at: [10.445, 0, -4.85], legs: [0.22, 0.12] }, { model: 'psx_wardrobe_oak', at: [12.04, 0, -5.62] },
     { model: 'psx_table_pine', at: [13.95, 0, -3.8], rot: 90 }, { model: 'psx_chair_ladder_pine', at: [13.0, 0, -3.8], rot: 90 },
-    { model: 'shelf_floating_60', at: [14.4 - IN, 1.25, -4.75], rot: -90 }, { model: 'shelf_floating_60', at: [14.4 - IN, 1.75, -5.3], rot: -90 },
+    { model: 'shelf_floating_60', at: [14.4 - IN, 1.25, -4.75], rot: -90 }, { model: 'shelf_floating_60', at: [14.4 - IN, 1.75, -5.25], rot: -90 },
     { model: 'ceiling_light', at: [12, 0.6, -3.7] },
     // study
     { model: 'bookcase', fit: ['tBookA'] }, { model: 'bookcase', fit: ['tBookB'] }, { model: 'armchair', at: [15.0, 0, -2.0], rot: 90 },
@@ -244,7 +244,9 @@ export const LEVEL = {
 
   // When the power goes (stage 5): what still gives any light. needs: goes out if that object has been knocked over.
   darkLights: [
-    { x: 5.3, y: 0.55, z: 2.3, color: 0x8fb0ff, power: 3.2, dist: 5, flicker: 0.5 }, // the television
+    { x: 5.0, y: 0.65, z: 2.3, color: 0x8fb0ff, power: 3.6, dist: 6, flicker: 0.5 }, // the television (unplugged: it comes on by itself)
+    { x: 7.2, y: 1.05, z: 0.45, color: 0x60ff90, power: 0.8, dist: 2.6, flicker: 0 }, // the oven clock, on its battery
+    { x: 13.7, y: 0.4, z: 1.9, color: 0xffb060, power: 0.7, dist: 2.6, flicker: 0.4, follow: 'vac' }, // the sparks crawling over him: wherever he is
     { x: 2.9, y: 1.05, z: -3.95, color: 0xffa050, power: 3.4, dist: 5.5, flicker: 0.28, needs: 'candle1', flame: [2.6, 1.07, -3.9] }, // a candle on the dining table
     { x: 17.4, y: 0.25, z: -0.7, color: 0xffc27a, power: 2.6, dist: 5, flicker: 0.06 }, // the light under Grandma's door
     { x: 9.45, y: 0.32, z: -2.0, color: 0x90e0a0, power: 1.0, dist: 3, flicker: 0 }, // a night-light in the bathroom
@@ -260,10 +262,10 @@ export const LEVEL = {
 
   // Wall outlets. He starts plugged into the first one, just outside Grandma's door; if the cat swipes the one he's using he
   // ends up in whichever is nearest. pos is on the wall face, n the way the plate faces, node the waypoint the cord runs from.
+  lampOutlet: { pos: [IN, 0.3, 4.81], n: [1, 0, 0], from: [0.05, 0.004, 4.8] }, // the floor lamp's own outlet: taken, so he never uses it
   outlets: [
     { id: 'grandma', room: 'hall', pos: [16.8, 0.3, -IN], n: [0, 0, -1], node: 'H4' },
     { id: 'living1', room: 'living', pos: [6 - IN, 0.3, 1.2], n: [-1, 0, 0], node: 'L1' },
-    { id: 'living2', room: 'living', pos: [IN, 0.3, 4.6], n: [1, 0, 0], node: 'L4' },
     { id: 'kitchen1', room: 'kitchen', pos: [10.8 - IN, 0.3, 1.72], n: [-1, 0, 0], node: 'K3' },
     { id: 'kitchen2', room: 'kitchen', pos: [8.0, 0.3, 5.4 - IN], n: [0, 0, -1], node: 'K2' },
     { id: 'storage1', room: 'storage', pos: [12.8, 0.3, IN], n: [0, 0, 1], node: 'Sd' },
@@ -278,7 +280,7 @@ export const LEVEL = {
   // unless oneWay. grab: true means a clean jump isn't enough, the link is meant to need a ledge grab.
   // Mr. Tidy's waypoint graph, on the floor. Nodes: [x, z]. Edges are two-way and are checked against his body in the route check.
   waypoints: {
-    L1: [5.2, 1.2], L2: [3.05, 1.0], L3: [1.8, 2.0], L4: [2.0, 4.2], L5: [4.4, 3.7], Ld: [5.5, 4.35], // living room
+    L1: [4.85, 1.1], L2: [3.05, 1.0], L3: [1.8, 2.0], L4: [2.0, 4.2], L5: [4.4, 3.7], Ld: [5.5, 4.35], // living room
     Kd: [6.6, 4.35], K1: [6.8, 4.0], K2: [9.5, 4.2], K3: [9.55, 2.3], K4: [8.5, 1.4], K5: [6.7, 1.7], // kitchen
     Hw: [1.2, -0.45], Hl: [3.05, -0.45], H2: [5.6, -0.45], Hb: [7.95, -0.45], Hk: [8.5, -0.45], H3: [11.2, -0.45], Hz: [12.05, -0.45], Hs: [13.75, -0.45], Ht: [16.35, -0.45], H4: [16.8, -0.45], // hallway
     Sd: [13.75, 0.5], S1: [13.75, 2.0], S2: [13.0, 2.3], S3: [14.4, 2.3], // storage
@@ -313,7 +315,7 @@ export const LEVEL = {
     { id: 'globe', type: 'snow_globe', on: 'book4', x: 1.82, z: 5.18 },
     { id: 'clock', type: 'mantel_clock', on: 'book3', x: 1.42, z: 5.18 },
     { id: 'figurine', type: 'cat_figurine', on: 'book2', x: 0.98, z: 5.18 },
-    { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.7, z: 2.1, yaw: -1.57 },
+    { id: 'tvFrame', type: 'picture_frame', on: 'tvUnit', x: 5.62, z: 1.85, yaw: -1.57 },
     { id: 'treeYarn', type: 'yarn_ball', on: 'tree4', x: 1.2, z: 0.55 },
     { id: 'yarn', type: 'yarn_ball', on: 'couchSeat', x: 0.8, z: 3.0 },
     { id: 'floorVaseL', type: 'vase', on: 'floor', topple: true, x: 5.65, z: 3.4 },
@@ -340,6 +342,7 @@ export const LEVEL = {
     { id: 'e2Plate', type: 'dinner_plate', on: 'e2', x: 15.1, z: 2.5 },
     { id: 's2Candle', type: 'candlestick', on: 's2', x: 14.2, z: 3.5 },
     // dining room
+    { id: 'wallClock', type: 'wall_clock', on: 'clockPeg', x: 5.9, z: -4.5, yaw: -1.57 }, // jump at it and bat it on the way up
     { id: 'candle1', type: 'candlestick', on: 'dTable', x: 2.6, z: -3.9 },
     { id: 'cup2', type: 'teacup', on: 'dTable', x: 3.4, z: -3.8 },
     { id: 'frame', type: 'picture_frame', on: 'dShelf1', x: 2.6, z: -6.43 },
@@ -386,6 +389,6 @@ export const LEVEL = {
     // the dining room
     ['dChairN', 'dTable'], ['dChairS', 'dTable'], ['dSide', 'dShelf1'], ['dShelf1', 'dShelf2'],
     // the bathroom and the sewing room
-    ['sChair', 'sDesk'], ['sDesk', 'sShelf1'], ['sShelf1', 'sShelf2'],
+    ['sChair', 'sDesk'], ['sDesk', 'sShelf1'], ['sShelf1', 'sShelf2'], ['sShelf2', 'scP'], ['sWardrobe', 'scP'], ['dShelf2', 'dcP'],
   ],
 };

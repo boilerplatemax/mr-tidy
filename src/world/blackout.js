@@ -9,8 +9,8 @@ import { PS1 } from '../render/ps1-material.js';
 const SG = TUNING.surge, COLOR = new THREE.Color(TUNING.fog.color), DIM = new THREE.Color(0x0a0a0d);
 
 export class Blackout {
-  constructor({ scene, env, house, knock }) {
-    Object.assign(this, { env, house, knock });
+  constructor({ scene, env, house, knock, vac }) {
+    Object.assign(this, { env, house, knock, vac });
     this.k = -1;
     this.lights = LEVEL.darkLights.map((d) => {
       const l = new THREE.PointLight(d.color, 0, d.dist, 1.1);
@@ -38,7 +38,8 @@ export class Blackout {
     for (const L of this.lights) {
       const out = L.d.needs && this.knock.byId.get(L.d.needs)?.knocked;
       const w = 1 + L.d.flicker * (Math.sin(time * 11 + L.seed) * 0.5 + Math.sin(time * 27 + L.seed * 2) * 0.5);
-      L.l.intensity = out ? 0 : L.d.power * w * dark;
+      L.l.intensity = out ? 0 : L.d.power * w * dark * (L.d.follow ? (Math.random() < 0.6 ? 1 : 0.2) : 1);
+      if (L.d.follow === 'vac' && this.vac) L.l.position.set(this.vac.model.root.position.x, 0.45, this.vac.model.root.position.z);
       if (L.flame) L.flame.visible = dark > 0.5 && !out;
     }
     this.eye.intensity = SG.eyeLight * dark;

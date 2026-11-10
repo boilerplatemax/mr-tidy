@@ -646,6 +646,8 @@ function vacChecks(kit) {
   const Lc = TUNING.cord.length, nodes = [...v.nav.nodes.values()];
   const farFrom = (o) => Math.max(...nodes.map((n) => v.nav.lengthOf(v.nav.path(v.nav.nodes.get(o.node), n))));
   const worst = Math.max(...LEVEL.outlets.map(farFrom));
+  { const bad = LEVEL.outlets.filter((o) => { const n = v.nav.nodes.get(o.node), ax = o.pos[0] + o.n[0] * 0.08, az = o.pos[2] + o.n[2] * 0.08, st = Math.ceil(Math.hypot(n.x - ax, n.z - az) / 0.05); for (let k = 0; k <= st; k++) { const t = k / st; if (W.penetration(ax + (n.x - ax) * t, az + (n.z - az) * t, 0.015, 0.005, 0.03) > 0) return true; } return false; });
+    report('every outlet has a clear run of floor to its waypoint', bad.length === 0, bad.map((o) => o.id).join(' ')); }
   report('from any outlet the cord reaches every room', worst < Lc && farFrom(LEVEL.outlets[0]) > Lc * 0.6, `farthest ${worst.toFixed(1)} m of ${Lc}`);
   report('he starts plugged in beside her door', v.cord.outlet.id === 'grandma' && Math.hypot(LEVEL.outlets[0].pos[0] - 18, LEVEL.outlets[0].pos[2] + 0.7) < 1.5);
   report('the patrol lap never ran past the end of the cord', maxPaid <= Lc + 0.05, `most paid out ${maxPaid.toFixed(1)} m`);
@@ -873,6 +875,12 @@ function climbChecks(kit) {
   while (t < 3 && !(P.grounded && P.feetY > 0.3)) { kit.tick(dt); t += dt; }
   I.keys.clear();
   report('floor -> couch arm', P.groundCollider?.id === 'couchArmS');
+
+  // curtains: climb the fabric, end up on the rail
+  put(5.3, 0.001, -6.2, 0); I.keys.add('KeyW'); t = 0;
+  while (t < 4 && !(P.grounded && P.feetY > 1)) { kit.tick(dt); t += dt; }
+  I.keys.clear();
+  report('floor -> curtain -> rail', P.groundCollider?.id === 'dcP', `${t.toFixed(2)} s`);
 
   // the kitchen's climbed way up
   put(9.5, 0.001, 4.75, Math.PI); I.keys.add('KeyW'); t = 0;

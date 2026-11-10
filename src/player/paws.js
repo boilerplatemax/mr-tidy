@@ -71,6 +71,39 @@ export class Paws {
     paw.quaternion.copy(_cq).multiply(_q);
   }
 
+  /** The forearm to a shoulder given in world space (walking: the body's, not the head's). */
+  _aimArmWorld(paw, wx, wy, wz) {
+    _a.set(wx, wy, wz); this.camera.worldToLocal(_a);
+    _a.sub(paw.position);
+    const l = _a.length();
+    _a.applyQuaternion(_r.copy(paw.quaternion).invert()).normalize();
+    paw.userData.leg.quaternion.setFromUnitVectors(_zAxis, _a);
+    paw.userData.leg.scale.set(1, 1, l / (V.legLen * V.plantScale));
+  }
+
+  /**
+   * Walking: each front paw steps the way a cat's does, planted on the floor ahead and swinging forward again, out of
+   * sight below the view unless you look down ('natural'), or a little higher and nearer so they're in view ('raised').
+   */
+  _gait(player, alpha, dt, raised) {
+    const G = V.gait, cam = this.camera.position, yaw = player.yaw, fx = -Math.sin(yaw), fz = -Math.cos(yaw), rx = Math.cos(yaw), rz = -Math.sin(yaw);
+    const speed = Math.hypot(player.vel.x, player.vel.z), run = player.gait === 'run' ? 1 : 0, stride = run ? 0.42 : 0.26;
+    this.gaitDist = (this.gaitDist || 0) + speed * dt;
+    this.gaitAmt = (this.gaitAmt || 0) + ((speed > 0.2 ? 1 : 0) - (this.gaitAmt || 0)) * (1 - Math.exp(-8 * dt));
+    const feet = player.prevEyeFeet + (player.eyeFeet - player.prevEyeFeet) * alpha, up = raised ? G.raised[0] : 0, near = raised ? G.raised[1] : 0;
+    const reach = G.reach[run] * this.gaitAmt, lift = G.lift[run] * this.gaitAmt;
+    for (const [paw, side] of [[this.left, -1], [this.right, 1]]) {
+      const ph = ((this.gaitDist / (stride * 2)) + (side > 0 ? 0.5 : 0)) % 1;
+      let f, y;
+      if (ph < G.stance) { f = reach * (1 - 2 * ph / G.stance); y = 0; } // on the floor, sliding back under the cat
+      else { const u = (ph - G.stance) / (1 - G.stance); f = reach * (-1 + 2 * u); y = Math.sin(u * Math.PI) * lift; } // up and forward
+      const ahead = G.centre - near + f;
+      _x.set(rx, 0, rz); _y.set(0, 1, 0); _z.set(-fx, 0, -fz);
+      this._place(paw, player.prev.x + (player.pos.x - player.prev.x) * alpha + fx * ahead + rx * side * G.side, feet + 0.012 + y + up, player.prev.z + (player.pos.z - player.prev.z) * alpha + fz * ahead + rz * side * G.side);
+      this._aimArmWorld(paw, cam.x + rx * side * 0.06 - fx * 0.02, cam.y - 0.13, cam.z + rz * side * 0.06 - fz * 0.02);
+    }
+  }
+
   /** The forearm runs from the wrist back to the shoulder, just behind the eye: however you look, there's no end to see. */
   _aimArm(paw, side) {
     _a.set(side * V.shoulder[0], V.shoulder[1], V.shoulder[2]).sub(paw.position);
@@ -141,32 +174,26 @@ export class Paws {
 
   /** The experiment: which way of showing the paws while walking. */
   cycleMode() {
-    const O = V.order, next = O[(O.indexOf(settings.pawMode) + 1) % O.length];
+    const O = V.order, cur = O.includes(settings.pawMode) ? settings.pawMode : 'natural', next = O[(O.indexOf(cur) + 1) % O.length];
     setSetting('pawMode', next);
     return next;
   }
 
-  /** The rig: walking, running and so on, always there (how much depends on the mode); a swipe plays its own clip over the top. */
+  /** The swipe: the rig's own clip, rising into view, and lingering a moment as it drops away. */
   _driveRig(player, alpha, dt, swiping, hidden) {
     if (!this.rig) return;
-    const mode = V.modes[settings.pawMode] || null;
     this.linger = swiping ? V.linger : Math.max(0, this.linger - dt);
-    const showing = (mode || swiping || this.linger > 0) && !hidden;
-    this.rig.visible = !!showing;
+    const showing = (swiping || this.linger > 0) && !hidden;
+    this.rig.visible = showing;
     if (!showing) return;
-    const moving = player.grounded && Math.hypot(player.vel.x, player.vel.z) > 0.25 ? 1 : 0;
-    this.move += (moving - this.move) * (1 - Math.exp(-9 * dt));
-    let off = mode ? mode[0] + (mode[1] - mode[0]) * this.move : -V.offDrop * (1 - this.linger / V.linger);
-    if (swiping) off = 0;
-    this.drop += (off - this.drop) * (1 - Math.exp(-(swiping ? 30 : 12) * dt));
+    this.drop += ((swiping ? 0 : -V.offDrop * (1 - this.linger / V.linger)) - this.drop) * (1 - Math.exp(-(swiping ? 30 : 12) * dt));
     this.rig.position.y = this.drop;
-    const gait = !moving ? 'idle' : player.gait === 'run' ? 'run' : player.slink > 0.5 ? 'slink' : 'walk';
-    for (const [name, a] of Object.entries(this.acts)) a.setEffectiveWeight(swiping ? 0 : name === gait ? 1 : 0);
+    for (const a of Object.values(this.acts)) a.setEffectiveWeight(0);
     if (swiping) {
       const a = player.prevSwipeT >= 0 ? player.prevSwipeT + (player.swipeT - player.prevSwipeT) * alpha : player.swipeT;
       this.swipeClip.setEffectiveWeight(1); this.swipeClip.time = Math.min(1, a / SW.time) * this.swipeClip.getClip().duration;
-      this.mixer.update(0);
-    } else { this.swipeClip.setEffectiveWeight(0); this.mixer.update(dt); }
+    }
+    this.mixer.update(0);
   }
 
   /** Per rendered frame, after the camera is placed. hidden: third-person debug view. */
@@ -177,7 +204,13 @@ export class Paws {
     this.grip += ((gripping || climbing ? 1 : 0) - this.grip) * (1 - Math.exp(-V.ease * dt));
     this.left.visible = (gripping || climbing) && !hidden;
     this.right.visible = (gripping || climbing) && !hidden;
-    if (gripping || climbing) { if (this.rig) this.rig.visible = false; } else this._driveRig(player, alpha, dt, swiping, hidden);
+    if (gripping || climbing) { if (this.rig) this.rig.visible = false; } else {
+      this._driveRig(player, alpha, dt, swiping, hidden);
+      const mode = settings.pawMode === 'off' ? 'off' : settings.pawMode === 'raised' || settings.pawMode === 'full' ? 'raised' : 'natural';
+      const walk = mode !== 'off' && player.grounded && !swiping && this.linger <= 0 && !hidden && player.mode === 'move';
+      this.left.visible = this.right.visible = walk;
+      if (walk) this._gait(player, alpha, dt, mode === 'raised');
+    }
     if (hidden) return;
     if (gripping) { this._plantHang(player, alpha, dt); this._keepBoth(); this._aimArm(this.left, -1); this._aimArm(this.right, 1); }
     else if (climbing) { this._plantClimb(player, alpha, dt); this._keepBoth(); this._aimArm(this.left, -1); this._aimArm(this.right, 1); }

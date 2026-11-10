@@ -34,7 +34,7 @@ import { Blackout } from './world/blackout.js';
 import { Ending } from './world/ending.js';
 
 const params = new URLSearchParams(location.search);
-const _portraitV = new THREE.Vector3();
+const _portraitV = new THREE.Vector3(), _portraitP = new THREE.Vector3();
 const R = TUNING.render;
 
 // ---------------------------------------------------------------- renderer, scene, camera
@@ -70,14 +70,15 @@ player.onSwipe = () => { knock.swipe(player, camera); vac.swipeOutlet(camera); p
 const S = house.spawn;
 player.teleport(S.x, S.y, S.z, S.yaw);
 
-const blackout = new Blackout({ scene, env, house, knock });
+const blackout = new Blackout({ scene, env, house, knock, vac });
 /** Looking at a portrait from nearby, its nameplate shows as a caption (it can't be read at this resolution). */
 function portraitWords() {
   const v = camera.getWorldDirection(_portraitV), e = camera.position;
   if (ended || catchSeq.active || !input.live) return;
   for (const p of house.portraits) {
     const dx = p.x - e.x, dy = p.y - e.y, dz = p.z - e.z, d = Math.hypot(dx, dy, dz);
-    if (d < TUNING.hud.portraitRange && (dx * v.x + dy * v.y + dz * v.z) / d > TUNING.hud.portraitCos) subtitles.show(p.text, 'portrait:' + p.text, 2.2, '', true);
+    _portraitP.set(p.x, p.y, p.z - 0.12);
+    if (d < TUNING.hud.portraitRange && (dx * v.x + dy * v.y + dz * v.z) / d > TUNING.hud.portraitCos && world.countOccluders(e, _portraitP, 1) === 0) subtitles.show(p.text, 'portrait:' + p.text, 2.2, '', true);
   }
 }
 const marker = new LandingMarker(camera);
@@ -88,10 +89,11 @@ const paws = new Paws(camera);
 audio.world = world;
 audio.indoorBoxes = house.indoor;
 subtitles.isIndoor = (p) => audio.isIndoor(p);
-audio.onCaption = (label, pos) => subtitles.sound(label, pos, audio.listenerPos, player.yaw);
+const CAPTIONED = /^(grandma\.|vac\.say|tv\.)/; // only speech and a few of Grandma's sounds are captioned: noises speak for themselves
+audio.onCaption = (label, pos, slot) => { if (CAPTIONED.test(slot)) subtitles.sound(label, pos, audio.listenerPos, player.yaw); };
 audio.onStart.push(() => {
   house.startSound(); grandma.startSound(); vac.startSound();
-  audio.play('amb.clock', { pos: { x: 5.9, y: 1.8, z: -4.5 }, refDistance: 3, rolloff: 0.7 }); // somewhere, never quite placeable
+  clockVoice = audio.play('amb.clock', { pos: { x: 5.9, y: 1.6, z: -4.5 }, refDistance: 3, rolloff: 0.7 }); // somewhere, never quite placeable
   audio.play('amb.static', { pos: { x: 5.55, y: 0.5, z: 2.3 }, refDistance: 1.4, rolloff: 1.4 }); // the television, left on
 });
 
@@ -106,6 +108,7 @@ let roomShown = false;
 const endScreen = new EndScreen(() => { resetRun(); input.requestLock(); });
 /** A whole new run, without a reload. */
 function resetRun() {
+  audio.stopOneShots(); // (nothing left over from the last run)
   blackout.reset(); ending.reset(); grandma.holdScreen = false;
   ended = false; runTime = 0;
   catchSeq.reset(); endScreen.hide();
@@ -115,7 +118,7 @@ function resetRun() {
   player.teleport(S.x, S.y, S.z, S.yaw); player.pitch = 0;
   debug.thirdPerson = false;
 }
-let runTime = 0, ended = false, introT = -1;
+let runTime = 0, ended = false, introT = -1, clockVoice = null;
 const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet. Make some noise.'], [7.8, "Knock things over. Wake Grandma. Don't let Mr. Tidy catch you."]];
 const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60); return [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`, `Times spotted  ${vac.spotted}`]; };
 const ending = new Ending({ scene, camera, vac, getDoor: () => grandmaDoor(), onDone: () => endScreen.show('Good Kitty', stats()) });
@@ -156,6 +159,7 @@ function tick(dt) {
     if (!catchSeq.active && !ending.active) player.tick(dt);
     knock.tick(dt);
     debris.tick(dt);
+    if (clockVoice && knock.byId.get('wallClock')?.knocked) { clockVoice.stop(0.05); clockVoice = null; } // (the ticking stops when the clock's on the floor)
     grandma.tick(dt, player.pos.x, player.pos.z);
     vac.tick(dt);
     if (!ended) runTime += dt;

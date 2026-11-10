@@ -205,7 +205,7 @@ export class Vacuum {
 
   /** Plug into the outlet closest along the floor, and lay the cord from it to him. */
   _chooseOutlet() {
-    const here = this.nav.nearest(this.x, this.z);
+    const here = this._nearestClear(); // (a waypoint he can actually get to: not the one on the far side of a wall)
     let best = this.cord.outlet, bd = Infinity;
     for (const o of LEVEL.outlets) { const d = this.nav.lengthOf(this.nav.path(this.nav.nodes.get(o.node), here)); if (d < bd) { bd = d; best = o; } }
     this.cord.setOutlet(best);
@@ -295,8 +295,7 @@ export class Vacuum {
   // ---- he heard something: he stops dead, the motor falls away, the nozzle lifts toward it
   _startAlert(x, z) {
     this.state = 'ALERT'; this.alertT = A.time[this.anger - 1]; this.alertCd = A.cooldown; this.alertX = x; this.alertZ = z;
-    audio.play('vac.listen', { follow: this.model.hoseSocket, refDistance: 3, rolloff: 0.6 });
-    if (this.heardCd <= 0) { this.heardCd = A.stingEvery; audio.play('sting.heard'); }
+    if (this.heardCd <= 0) { this.heardCd = A.stingEvery; audio.play('vac.listen', { follow: this.model.hoseSocket, refDistance: 3, rolloff: 0.6 }); audio.play('sting.heard'); } // (the motor dropping away is the cue every time; the sounds only now and then)
   }
 
   _tickAlert(dt) {
@@ -366,7 +365,7 @@ export class Vacuum {
     }
     if (this.fogPhase === 'spray') { // pouring out of the nozzle as it swings
       this.sprayT -= dt;
-      if (this.sprayT <= 0) { this.sprayT = F.sprayEvery; const a = this.hose.pts[this.hose.n - 1], dx = t.x - a.x, dy = t.y - a.y, dz = t.z - a.z, l = Math.hypot(dx, dy, dz) || 1; this.cloud.emit(t.x, t.y, t.z, dx / l, dy / l, dz / l, F.spraySpeed); }
+      if (this.sprayT <= 0) { this.sprayT = F.sprayEvery * (0.6 + Math.random() * 0.8); const a = this.hose.pts[this.hose.n - 1], dx = t.x - a.x, dy = t.y - a.y, dz = t.z - a.z, l = Math.hypot(dx, dy, dz) || 1; this.cloud.emit(t.x, t.y, t.z, dx / l, dy / l, dz / l, F.spraySpeed); }
       if (this.fogT < F.spray) return;
       this.fogPhase = 'recover'; this.fogT = 0;
       return;
@@ -573,6 +572,27 @@ export class Vacuum {
     return true;
   }
 
+  /** The nearest waypoint with nothing in the way of his body. */
+  _nearestClear() {
+    let best = null, bd = Infinity;
+    for (const n of this.nav.nodes.values()) { const d = (n.x - this.x) ** 2 + (n.z - this.z) ** 2; if (d < bd && this._clear(n.x, n.z)) { bd = d; best = n; } }
+    return best || this.nav.nearest(this.x, this.z);
+  }
+
+  /** Stuck? If he's been trying to move and hasn't, he finds another way; failing that he's put somewhere he can go from. */
+  _stuckCheck(dt) {
+    const S = TUNING.stuck, moving = ['PATROL', 'INVESTIGATE', 'SEARCH', 'CHASE'].includes(this.state) && !this.sweep && !this.direct;
+    if (!moving) { this.stuckT = 0; this.stuckX = this.x; this.stuckZ = this.z; return; }
+    if (Math.hypot(this.x - this.stuckX, this.z - this.stuckZ) > S.move) { this.stuckT = 0; this.stuckTries = 0; this.stuckX = this.x; this.stuckZ = this.z; return; }
+    this.stuckT += dt;
+    if (this.stuckT < S.after) return;
+    this.stuckT = 0; this.stuckTries = (this.stuckTries || 0) + 1;
+    const n = this._nearestClear();
+    if (this.stuckTries > S.tries) { this.x = this.px = n.x; this.z = this.pz = n.z; this.stuckTries = 0; }
+    this._arrived(n); this.path = [n]; this.pathI = 0;
+    this._resumePatrol();
+  }
+
   /** He's been heading straight for the cat, off the graph: pick the graph back up at the nearest waypoint he can reach. */
   _rejoin() {
     this.direct = false;
@@ -759,8 +779,9 @@ export class Vacuum {
       return c;
     }
     if (this.state === 'FOG') { // straight up, and then swinging round as it pours out
-      const h = this._hole(), s0 = this.fogPhase === 'spray' ? Math.sin(this.fogT * 3.2) * 0.8 : 0, a = this.heading + s0;
-      c.goal.set(h.x + Math.sin(a) * 0.5, Math.min(1.25, LEVEL.ceiling - 0.2), h.z + Math.cos(a) * 0.5);
+      const h = this._hole(), sp = this.fogPhase === 'spray', ph = this.fogT + (this.sprayPh ??= Math.random() * 9);
+      const a = this.heading + (sp ? Math.sin(ph * F.sprayRate[0]) * F.sprayArc + Math.sin(ph * 5.3) * 0.25 : 0), r = sp ? 0.75 + 0.35 * Math.sin(ph * 1.7) : 0.4, y = sp ? 0.85 + 0.45 * (0.5 + 0.5 * Math.sin(ph * F.sprayRate[1])) : 1.1;
+      c.goal.set(h.x + Math.sin(a) * r, Math.min(y, LEVEL.ceiling - 0.2), h.z + Math.cos(a) * r); // waving all over, low and high
       c.mode = 'approach'; c.speed = H.riseSpeed; c.hover = true;
       return c;
     }
@@ -931,6 +952,7 @@ export class Vacuum {
       this.heading = wrap(this.heading + Math.max(-turn, Math.min(turn, diff)));
       return;
     }
+    this._stuckCheck(dt);
     if (this.state === 'SURGE') { this._tickSurge(dt); return; }
     if (this.state === 'ALERT') { this._tickAlert(dt); return; }
     if (this.state === 'PAUSE') { this._tickPause(dt); return; }

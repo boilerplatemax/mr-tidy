@@ -33,7 +33,7 @@ const DEFAULTS = {
   sensitivity: 1.0,
   invertY: false,
   headBob: true,
-  pawMode: 'peek', // always-visible paws while walking (an experiment: P cycles)
+  pawMode: 'natural', // always-visible paws while walking (an experiment: P cycles)
   subtitles: true, // captions for speech and important sounds
   volume: 1.0,
 };

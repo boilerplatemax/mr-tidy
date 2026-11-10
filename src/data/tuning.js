@@ -42,7 +42,7 @@ export const TUNING = {
   lighting: {
     blackout: { // the power's gone (stage 5)
       fog: 0x030405, fogNear: 1.2, fogFar: 9, skyTop: 0x030405,
-      hemiSky: 0x24304a, hemiGround: 0x050505, hemi: 0.22,
+      hemiSky: 0x2a3550, hemiGround: 0x070708, hemi: 0.34,
       sun: 0x5a70a0, sunIntensity: 0.05, sunDir: [0.3, 0.8, 0.4], ambient: 0x050507,
       indoorSun: 1.0, indoorSky: 1.0, indoorFill: 0x000000,
     },
@@ -230,6 +230,7 @@ export const TUNING = {
     lookSpeed: 1.3, // rad/s looking around
   },
   surge: { time: 2.4, flickerUntil: 1.9, eyeLight: 0.7, eyeDist: 2.6, arcs: 5 }, // stage 5: s he stands there pulling the power out of the house; s the lights stutter; the little light the cat sees by; arcs around him
+  stuck: { after: 2.5, move: 0.04, tries: 2 }, // he hasn't moved this far in this long while trying to: find another way; after this many goes, he's moved
   stun: { time: 0.65, perKg: 0.3, max: 1.2, cooldown: 5 }, // something dropped on him: s he reels, plus this much per kg, at most; s before it can work again
   hide: { range: 2.6, chance: [0, 0, 0.35, 0.55, 0.7], time: 4 }, // the tub and behind the closed curtains: he goes looking when he reaches where he lost you. m he checks from; odds he finds you, by stage; s he then knows
   sting: { // eye contact and being spotted
@@ -246,7 +247,7 @@ export const TUNING = {
   },
   fog: { // the dust cloud (src/vacuum/dust-cloud.js)
     minAnger: 4, cooldown: 40, minDist: 2.5, lostFor: 0.4, // furious only; s before he can do it again (from when the last cloud has gone); only if you're this far off, or he lost you this long ago
-    wind: 1.5, coughs: [0.1, 0.65, 1.15], spray: 2.6, sprayEvery: 0.045, spraySpeed: 3.4, recover: 0.5, // s of telegraph (planted, coughing up dust at these moments); s spraying it out of the hose; s between puffs; m/s; s standing still after
+    sprayArc: 1.5, sprayRate: [2.3, 3.1], wind: 1.5, coughs: [0.1, 0.65, 1.15], spray: 2.6, sprayEvery: 0.045, spraySpeed: 3.4, recover: 0.5, // s of telegraph (planted, coughing up dust at these moments); s spraying it out of the hose; s between puffs; m/s; s standing still after
     radius: 30, grow: 6, hold: 9, fade: 3.5, density: 1.15, // m it spreads from him (the whole house); s to fill; s at full; s to clear; how thick (per metre)
     color: 0x8a7a60, moteColor: 0xbfae8a, moteSize: 0.018, motes: 140, moteBox: 3, moteAlpha: 0.75, puffs: 46, puffSize: 2.2, puffLife: 3.2, puffAlpha: 0.36,
   },
@@ -297,7 +298,7 @@ export const TUNING = {
   },
   catch: { // the catch: the most important moment in the game (src/vacuum/catch.js)
     // The ride: you're reeled across the floor along a route of its own that keeps the camera out of everything.
-    rideSpeed: 1.9, rideMin: 1.1, rideMax: 2.4, // m/s on average; shortest and longest it can take (s)
+    rideSpeed: 3.2, rideMin: 0.7, rideMax: 1.4, // m/s on average; shortest and longest it can take (s)
     clearance: 0.12, minY: 0.12, // m the camera keeps from every surface (more than the near plane reaches); m it stays above the floor
     smooth: 4, step: 0.04, // the route is resampled every step m and averaged over this many samples either way, to round its corners
     lookEase: 5, // 1/s how fast the view comes round to him. It looks at him the whole way: steady, however the route bends
@@ -325,7 +326,7 @@ export const TUNING = {
     radius: 0.009, y: 0.012, slack: 0.018, // m: thickness, height off the floor, how much it wanders
     color: 0x2a2a2c, plugColor: 0x141414,
     // Swipe the outlet he's plugged into: the cord whips back, he's dead for a moment, then he plugs into the nearest outlet.
-    retract: 1.0, off: 5.0, extend: 1.2, // s: the cord reeling back, powered off, the cord going out to the new outlet
+    retract: 2.6, off: 5.0, extend: 1.2, // s: the cord reeling back, powered off, the cord going out to the new outlet
     unplugAnger: 3, // the anger stage unplugging him leaves him at, up or down
     lock: 18, // s after plugging back in before that outlet can be hit again (so nobody can stand there and keep him off forever)
   },
@@ -395,7 +396,7 @@ export const TUNING = {
     kickCost: 0.1, // per kick-off
     springCost: 0.1, // extra for a fully charged spring
     regen: 1.6, // per second while standing on any flat surface
-    barBottom: 12, pawCount: 5, // HUD px; paw prints in the row
+    barBottom: 12, // HUD px (the stamina meter is a moon that wanes)
     barHold: 0.5, // s the bar stays after refilling
   },
   // ---------------------------------------------------------------- the swipe and knockable physics (src/world/knockables.js)
@@ -425,7 +426,7 @@ export const TUNING = {
     chunkSize: [0.05, 0.09], decalSize: 0.34, // m: the big pieces that a "break" leaves; a stain
     chatter: 3, roll: 1.3, // s dentures chatter across the floor; s a lid or head keeps rolling
     paperPieces: 5, woolPieces: 4, buttons: 20, feathers: 8, puffLife: 0.7, // how far the trails run (0.6 m a piece) and how much spills
-    rollers: { toilet_roll: { len: 7, step: 0.07, width: 0.095, r0: 0.056, r1: 0.034, uniform: false }, yarn_ball: { len: 9, step: 0.05, width: 0.012, r0: 0.049, r1: 0.022, uniform: true } }, // things that unwind as they roll: m it holds; m between points; m wide; radius full and spent; shrinks every way
+    rollers: { toilet_roll: { len: 7, step: 0.07, width: 0.095, r0: 0.056, r1: 0.034, uniform: false }, yarn_ball: { len: 9, step: 0.05, width: 0.022, r0: 0.049, r1: 0.006, uniform: true, vanish: true } }, // things that unwind as they roll: m it holds; m between points; m wide; radius full and spent; shrinks every way
     rollFriction: 1.15, rollStart: 2.4, rollStop: 0.12, // m/s²; how fast it sets off; m/s at which it stops. Hit it again and it goes again
     handsetLeash: 0.34, // m: the phone's handset stays on its cord // the toilet roll: m of paper; m/s; m between points on the strip; points; m wide; radius full and bare
     vacBounce: 1.6, vacThrow: 1.0, // m/s an object comes off him at, up and outward
@@ -441,8 +442,9 @@ export const TUNING = {
   },
   paws: {
     plantScale: 0.72, pawScale: 0.92, glow: 0x2a241e, legLen: 0.15, // planted paws: the forearm's scale, the pad's size on top of that, its length in the model
-    shoulder: [0.055, -0.1, 0.07], // in camera space: where the forearms go to, just behind the eye. They run back to the body however you look
-    modes: { off: null, peek: [-0.052, -0.034], low: [-0.03, -0.014], full: [0, 0] }, order: ['peek', 'low', 'full', 'off'], // experiment (P cycles): where the walking paws sit, m below their pose [standing, moving]
+    shoulder: [0.065, -0.22, 0.03], // in camera space: where the forearms go to, just behind the eye. They run back to the body however you look
+    gait: { centre: 0.17, side: 0.055, reach: [0.06, 0.11], lift: [0.03, 0.05], stance: 0.62, raised: [0.07, 0.05] }, // walking: m ahead of the cat the paws work about; m apart; m they swing (walk, run); m they lift; share of the step on the ground; how much higher and nearer the 'raised' mode puts them
+    order: ['natural', 'raised', 'off'], // experiment (P cycles): where the walking paws sit, m below their pose [standing, moving]
     linger: 0.16, offDrop: 0.14, // s a swiping paw lingers as it drops away; m it drops
      // a little light of their own, so an underside isn't black; m: the forearm's length in the model
     hangDist: 0.13, hangFollow: 0.3, hangNarrow: 0.55, hangTurn: 0.45, hangMargin: 0.03, // as you look along the ledge: eye-to-edge distance (m), how far the paws shift along it (m), how much closer together they get, how far they turn with the view, m kept from the ledge's end

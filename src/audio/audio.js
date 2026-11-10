@@ -228,7 +228,7 @@ export class AudioEngine {
     const v = new Voice(this, slot, opts);
     this.voices.add(v);
     const cap = SOUNDS[slot].subtitle;
-    if (cap && opts.caption !== false) this.onCaption?.(cap, v.pos);
+    if (cap && opts.caption !== false) this.onCaption?.(cap, v.pos, slot);
     return v;
   }
 
@@ -268,6 +268,9 @@ export class AudioEngine {
       if (v.occlTimer <= 0) { v.occlTimer = A.occlusion.update; v.updateOcclusion(); }
     }
   }
+
+  /** Everything that plays once and stops (screams, crashes): cut, for a new run. Loops belong to their owners. */
+  stopOneShots() { for (const v of [...this.voices]) if (!v.src.loop) v.stop(0.02); }
 
   suspend() { this.ctx?.suspend(); }
   resume() { this.ctx?.resume(); }

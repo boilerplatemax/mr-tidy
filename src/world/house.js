@@ -189,9 +189,6 @@ export function buildHouse({ scene, world }) {
     const pane = new THREE.Mesh(new THREE.PlaneGeometry(W0, H0), glass); pane.position.fromArray(pos(0)); pane.rotation.y = yaw; pane.renderOrder = 3; scene.add(pane);
     const night = new THREE.Mesh(new THREE.PlaneGeometry(7, 4), nightMat); night.position.fromArray(pos(3.2)); night.position.y = 1.7; night.rotation.y = yaw; scene.add(night);
     const sky = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.5), cloudMat); sky.position.fromArray(pos(3.1)); sky.position.y = 2.6; sky.rotation.y = yaw; sky.renderOrder = 2; scene.add(sky);
-    // the moonlight that gets in through the gap, lying across the floor
-    const beam = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 1.7).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x8ea8dc, transparent: true, opacity: 0.22, depthWrite: false, fog: false }));
-    beam.position.set((w.axis === 'x' ? mid : w.at) + w.n[0] * 0.95, 0.008, (w.axis === 'x' ? w.at : mid) + w.n[1] * 0.95); beam.rotation.y = yaw; scene.add(beam);
   }
 
   // ---- the portraits down the hallway: the cats who came before
@@ -245,11 +242,13 @@ async function loadOutlets(scene) {
   const { loadGLB } = await import('../render/geometry.js');
   let g;
   try { g = await loadGLB('game-assets/models/house/wall_outlet.glb'); } catch { return; }
-  for (const o of LEVEL.outlets) {
+  for (const o of [...LEVEL.outlets, { ...LEVEL.lampOutlet, lamp: true }]) {
     const m = g.scene.clone(true), plug = m.getObjectByName('plug');
-    if (plug) plug.visible = false;
+    if (plug && !o.lamp) plug.visible = false; // (the lamp's is plugged in; the vacuum's plug comes with his cord)
     m.position.set(o.pos[0], o.pos[1], o.pos[2]);
     m.rotation.y = Math.atan2(o.n[0], o.n[2]);
     scene.add(m);
   }
+  { const L = LEVEL.lampOutlet, mat = new THREE.MeshLambertMaterial({ color: 0x2a2a2c }), a = new THREE.Vector3(...L.from), b = new THREE.Vector3(L.pos[0] + 0.03, L.pos[1] - 0.04, L.pos[2]); // the lamp's flex, along the floor and up to the socket
+    for (const [p, q] of [[a, new THREE.Vector3(b.x, 0.006, b.z)], [new THREE.Vector3(b.x, 0.006, b.z), b]]) { const l = p.distanceTo(q), c = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, l, 4), mat); c.position.copy(p).lerp(q, 0.5); c.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), q.clone().sub(p).normalize()); scene.add(c); } }
 }
