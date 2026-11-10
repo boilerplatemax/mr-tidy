@@ -2,6 +2,8 @@
 // and dirtied by the stage it belongs to: chirpy and helpful at first, low and broken by the end.
 export const LINES = {
   hello: [1, ['Hello, feline!']],
+  hi: [1, ['Oh! Hello there, kitty.', 'Hello again!', "Lovely quiet night, isn't it?", 'Evening, puss.']],
+  chat: [1, ['Ha! That tickles.', 'Careful with those claws!', 'Would you like to help me tidy?', 'I keep it all nice for Grandma.', "Shh. She's sleeping.", 'Have you been a good kitty?', 'No messes tonight, all right?', 'Mind my cord, little one.', "We're friends, aren't we?"]],
   mess1: [1, ["I'll get that!", 'Everything can be replaced.', "We'll keep this between us.", 'No harm done!', 'Oopsie-daisy!', 'Grandma never needs to know.', 'Accidents happen!', 'Nobody saw a thing.']],
   mess2: [2, ["You shouldn't do that.", 'Tsk. Tsk. Tsk.', 'That was an heirloom.', 'Please. Stop.', 'Another one?', 'I am not angry.']],
   mess3: [3, ['A clean home is a happy home.', 'Messes must be removed.', 'Stop. Making. Messes.']],

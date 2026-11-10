@@ -250,10 +250,19 @@ export const TUNING = {
     eyeCos: 0.94, cooldown: 28, freeze: 0.32, // how squarely you must be looking at him; s between stingers; s he freezes, staring back
     shriekEvery: 16, shriekFace: 1.3, // s between shrieks; s his mouth stays open
   },
+  friend: { greetRange: 3.5, greetTime: 2.4, greetEvery: 22, chatEvery: 1.2 }, // nothing broken yet: m away he says hello from; s he stops for it; s between hellos; s between chats when you bat him
+  lunge: { // the berserker lunge: he coils, then hurls himself at a cat on the floor with the hose rammed out straight in front
+    minAnger: 3, min: 0.9, max: 3.4, maxY: 0.6, // from the angry stage; m from the hole the cat must be; m up, at most
+    coil: 0.55, speed: 4.4, time: 0.42, recover: 0.9, // s of winding up (a dead giveaway); m/s and s of the lunge; s standing there after
+    reach: 1.55, hoseSpeed: 10, lead: 0.35, // m the hose is rammed out to; m/s it goes; how much of where the cat is going he allows for
+    cooldown: [0, 0, 9, 6, 4.5], chance: 0.45, // s before the next, by stage; odds he goes for it when he could (if not, he thinks again in a moment)
+  },
   creep: { // the hose comes for a cat hiding up high: slowly, from a long way off, with the motor nearly silent
     minAnger: 3, minHeight: 0.35, // from the angry stage, for a cat up on anything (it has replaced the strike)
     after: 1.1, // s of knowing where you are up there before it starts
-    range: 8, length: 9, speed: 0.72, replan: 0.5, maxTime: 16, // m it can reach and stretch to; m/s; s between re-routes; s before it gives up
+    range: 15, length: 17, speed: 0.72, replan: 0.6, maxTime: 30, // m it can reach (into the next room, and the one after) and stretch to; m/s; s between re-routes; s before it gives up
+    perKnock: 0.07, maxBoost: 3, // the more that has been knocked over, the faster it comes: + this share of its speed per knock-over, up to this many times as fast
+    under: 0.9, // s of knowing you're under something (a table, a bed, a chair) before it comes in after you
     motor: 0.22, // how quiet the motor goes
     floorY: 0.6, // m: a cat below this has come down, and he goes after it instead
     cooldown: [0, 0, 16, 10, 8], // s before he tries again, by stage
@@ -261,6 +270,7 @@ export const TUNING = {
   fog: { // the dust cloud (src/vacuum/dust-cloud.js)
     minAnger: 4, cooldown: 40, minDist: 2.5, lostFor: 0.4, // furious only; s before he can do it again (from when the last cloud has gone); only if you're this far off, or he lost you this long ago
     sprayArc: 1.5, sprayRate: [2.3, 3.1], wind: 1.5, coughs: [0.1, 0.65, 1.15], spray: 2.6, sprayEvery: 0.045, spraySpeed: 3.4, recover: 0.5, // s of telegraph (planted, coughing up dust at these moments); s spraying it out of the hose; s between puffs; m/s; s standing still after
+    swaySpeed: 3.2, wobble: { amp: 0.16, rate: 6.5, wave: 7 }, // m/s the nozzle swings about; the whole hose flailing the while like an inflatable tube man: m out, how fast, how many ripples along it
     radius: 30, grow: 6, hold: 9, fade: 3.5, density: 1.15, // m it spreads from him (the whole house); s to fill; s at full; s to clear; how thick (per metre)
     color: 0x8a7a60, moteColor: 0xbfae8a, moteSize: 0.018, motes: 140, moteBox: 3, moteAlpha: 0.75, puffs: 46, puffSize: 2.2, puffLife: 3.2, puffAlpha: 0.36,
   },
@@ -286,7 +296,7 @@ export const TUNING = {
   hose: { // the snake out of the hole (src/vacuum/hose.js, src/vacuum/voxels.js)
     minLength: 1.6, // m: the hose is never shorter than this. When the tip is close, the excess hangs and bows aside like a chain
     slackPull: 0.02, damping: 0.92, sag: 6, aside: 14, chainPasses: 6, // the chain: how much a slack hose keeps to its route, how fast swinging dies down, m/s² of droop, of bowing sideways; how stiffly the links hold
-    length: 3.8, segments: 36, radius: 0.028, tubeSegments: 84, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
+    length: 3.8, segments: 48, radius: 0.028, tubeSegments: 112, tubeSides: 6, // m it can stretch to; points along it; m; how smooth the tube is
     camClear: 0.3, // m the hose and nozzle bend away from the camera, whatever they're doing
     color: 0x0c0c0e, nozzleColor: 0x8a8a90, nozzleR: 0.04, nozzleLen: 0.12,
     restReach: 0.55, follow: 14, floorY: 0.05, // m in front of him that the nozzle rests; how fast it catches up

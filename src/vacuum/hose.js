@@ -190,6 +190,17 @@ export class Hose {
     }
   }
 
+  /** Flailing: ripples run up the body from the hole to the nozzle, side to side and up and down (the ends stay put). */
+  _wobble({ amp, rate, wave }) {
+    const a = this.trail[0], b = this.tipPos, n = this.n;
+    _sw.set(a.z - b.z, 0, b.x - a.x); if (_sw.lengthSq() < 1e-6) _sw.set(1, 0, 0); _sw.normalize();
+    for (let i = 1; i < n; i++) {
+      const u = i / n, env = Math.sin(Math.PI * u) * amp, ph = this.t * rate - u * wave;
+      this.want[i].addScaledVector(_sw, Math.sin(ph) * env);
+      this.want[i].y += Math.sin(ph * 0.7 + 1.3) * env * 0.6;
+    }
+  }
+
   /** Where the nozzle rests: on the floor in front of him, or as far as it can get before a wall. */
   _restTarget(base, s, c, out) {
     out.set(base.x, H.floorY, base.z);
@@ -265,6 +276,7 @@ export class Hose {
     else this._approach(dt, cmd);
     if (this.trail.length > 1) this.trail[this.trail.length - 1].copy(this.tipPos);
     this._resample();
+    if (cmd?.wobble) this._wobble(cmd.wobble);
     P[n].copy(this.tipPos);
     { let L = 0; const T = this.trail; for (let i = 1; i < T.length; i++) L += T[i].distanceTo(T[i - 1]); this._chain(dt, L); }
     if (cmd && cmd.hover && this.arrived) { // hovering: the nozzle sways and sniffs

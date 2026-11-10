@@ -167,6 +167,9 @@ export function buildVacuum() {
   out.shriek = (seconds) => { out.shriekT = seconds; };
   /** A cough: he jolts back. */
   out.cough = () => { out.kick = 0.26; };
+  /** A happy little wiggle (batted while he's still friendly; saying hello). */
+  out.giggle = (seconds) => { out.giggleT = seconds; };
+  out.giggleT = 0;
   // electricity crawling over him, once he's taken the house's power
   const ARC = TUNING.surge.arcs, arcPos = new Float32Array(ARC * 8 * 6), arcGeo = new THREE.BufferGeometry();
   arcGeo.setAttribute('position', new THREE.BufferAttribute(arcPos, 3));
@@ -210,6 +213,7 @@ export function buildVacuum() {
     } else if (out.flick > 0 && false) { // (no flickering between faces: it read badly)
       out.flick -= dt; show(out.flick > 0 && Math.floor(out.flick * 22) % 2 ? Math.max(1, out.stage - 1) : out.stage);
     }
+    if (out.giggleT > 0) { out.giggleT -= dt; tz += Math.sin(out.giggleT * 34) * 0.1 * Math.min(1, out.giggleT * 3); tx -= 0.03; }
     root.rotation.z += (tz - root.rotation.z) * Math.min(1, 26 * dt); root.rotation.x += (tx - root.rotation.x) * Math.min(1, 26 * dt);
   };
 
