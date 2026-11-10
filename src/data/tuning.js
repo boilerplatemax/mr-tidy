@@ -148,7 +148,7 @@ export const TUNING = {
 
   curb: { x: 40, z: 0, camY: 0.32, from: 3.2, to: 1.05, push: 7.5, eyes: [[8.6, 8.85], [9.2, 9.6]], length: 10.4, lamp: 14 }, // the secret ending, out the front: where; the camera's height and how it creeps in (m, s); when his eyes come on (s); how long it lasts; the streetlamp
   bonus: { anger: 1 }, // each of his spare parts you break: knock-overs added toward his anger (they never wake Grandma)
-  tail: { scale: 1.9, tilt: -1.0, x: 0.24, z: -0.24, hidden: -0.6, shown: -0.2, lean: 0.6, from: 1.2, full: 3.5, rise: 9, fall: 5 }, // the tail-peek experiment: size; how it's tipped toward the view; m out to the side and ahead; how far below the view it hides and how high it comes; rad it leans in; rad/s of turning where it starts showing and where it's all there; 1/s in and out
+  tail: { scale: 1.9, tilt: -1.0, x: 0.72, z: -0.24, hidden: -0.6, shown: -0.2, lean: 0, from: 3.4, full: 6, rise: 9, fall: 6 }, // the tail-peek experiment: size; how it's tipped toward the view; m out to the side (far enough that even its swish stays in the outer quarter of the view) and ahead; how far below the view it hides and how high it comes; rad it leans in; rad/s of turning where it starts showing and where it's all there; 1/s in and out
   tutorial: { gateHeight: 1.25, zoomFov: 30, tvDist: 1.0, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch, from tvDist m square in front of the screen)
     arriveAfter: 3, show: 17, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs
     gates: { fall: 0.6, lie: 1.4, fade: 1.6, sink: 0.05 } }, // once they're over: s to fall; s lying there; s sinking away as they fade; m they sink
@@ -164,7 +164,7 @@ export const TUNING = {
     props: [{ model: 'psx_bed_single_oak', at: [-1.15, 0, -0.6] }, { model: 'psx_nightstand_oak', at: [-0.3, 0, -1.45] }, { model: 'psx_wardrobe_oak', at: [1.2, 0, -1.36] }, { model: 'psx_rug_braided', at: [-0.1, 0.002, 0.55] }, { model: 'psx_picture_landscape', at: [-1.15, 0.1, -1.69] }, { model: 'door_wood', at: [1.86, 0, 0.625], rot: 90 }],
     vacDist: [1.15, 0.9, 0.7], vacUp: 0.08, push: 0.18, sink: [0.16, 0.08], vacAngles: [0.45, -0.45, 0.8, -0.8, 0.15, -0.15, 1.2, -1.2], // rad off his heading the camera tries, in order. sink: m the camera and where it looks drop as he slumps (to keep his dead face in view) // m: how far in front of him the camera can stand (it tries the first, then closer); above his face; how far it creeps in
   },
-  assets: { tail: 'game-assets/models/cat_tail.glb', grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb' }, // if the vac fails to load, a primitive stands in
+  assets: { tail: 'game-assets/models/cat_tail.glb', grandma: 'game-assets/models/grandma.glb', forelegs: 'game-assets/models/cat_forelegs.glb', vacuum: 'game-assets/models/shopvac.glb', knockables: 'game-assets/models/knockables_v2.glb', marmalade: null }, // if the vac fails to load, a primitive stands in. marmalade: a picture of her for the end screens (e.g. 'game-assets/textures/portraits/portrait_marmalade.png'); null draws her
 
   // ---------------------------------------------------------------- Mr. Tidy (src/vacuum/)
   vac: {
@@ -495,7 +495,7 @@ export const TUNING = {
 
   hud: {
     portraitRange: 1.5, portraitCos: 0.9, // m and how squarely you must look at a portrait to read its plate
-    wakeIcon: false, // the small sleeping-face icon. Off for now
+    wakeIcon: true, wakeShow: 3.5, wakeFade: 0.8, wakeNear: 2.6, // Grandma's face and how close she is to waking: on; s it stays up after a knock-over wakes her a little more; s it fades in and out over; m from her door it shows
     lines: 240, // the HUD's own pixel grid (lines), whatever the render resolution: the pixel font stays one size
   },
   subtitles: { seconds: 3.2, maxLines: 3 }, // how long a caption stays; how many stack

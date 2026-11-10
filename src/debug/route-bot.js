@@ -143,9 +143,9 @@ function huntChecks(kit) {
   report('gives up on a cat out of reach', up && gave && v.state !== 'CHASE', v.state);
 
   // the chase, and the cat outrunning him at his angriest
-  reset('Hk', 4); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57);
+  reset('Hk', 4); v.heading = -1.57; v.path = [v.nav.nodes.get('H2')]; v.pathI = 0; cat(6, -0.45, 0.001, 1.57); v.lungeCd = 99; // (his chasing speed, not the lunge)
   for (let i = 0; i < 30 && v.state === 'PATROL'; i++) kit.tick(dt);
-  const chasing = v.state === 'CHASE' || v.state === 'HOSE_REACH'; I.keys.add('KeyW'); I.keys.add('ShiftLeft');
+  const chasing = v.state === 'CHASE' || v.state === 'HOSE_REACH' || v.state === 'LUNGE'; I.keys.add('KeyW'); I.keys.add('ShiftLeft');
   const d0 = Math.abs(v.x - P.pos.x);
   for (let i = 0; i < 40; i++) kit.tick(dt);
   const d1 = Math.abs(v.x - P.pos.x); I.keys.clear();
@@ -166,7 +166,7 @@ function huntChecks(kit) {
   reset('H2', 3); v.heading = 1.57; cat(7.2, -0.45);
   { const m = { id: 't', x: 6.2, z: -0.45, room: 'x', decal: -1, cubes: [], cleaned: false }; kit.debris.messes.push(m); v._startClean(m); }
   run(0.8);
-  const dropped = ['CHASE', 'HOSE_REACH', 'SUCK', 'CREEP'].includes(v.state) && !kit.debris.messes[kit.debris.messes.length - 1].cleaned; const m0 = kit.debris.messes.pop(); m0.cleaned = true;
+  const dropped = ['CHASE', 'HOSE_REACH', 'SUCK', 'CREEP', 'LUNGE'].includes(v.state) && !kit.debris.messes[kit.debris.messes.length - 1].cleaned; const m0 = kit.debris.messes.pop(); m0.cleaned = true;
   report('catching beats cleaning', dropped, v.state);
 
   // caught by his body, on the floor only
@@ -392,7 +392,7 @@ function attackChecks(kit) {
     put('L4', 3, 0, cat[0], cat[1] - 0.001, cat[2]); v.creepCd = 0; hunt(cat[0], cat[2]); hold(C.after + 1, () => v.state === 'CREEP'); { const f = P.tick; P.tick = () => {}; P.feetY = 0; hold(0.1); P.tick = f; }
     report('coming down to the floor ends it', v.state !== 'CREEP' && !caughtBy, v.state); P.resetMotion(); }
   // ---- the dust cloud
-  { const dist = 3.2; put('H2', 4, 1.57, 5.6 + dist, 0, -0.45); v.fogCd = 0; hunt(5.6 + dist, -0.45); v.reachCd = 99; v.blastCd = 99;
+  { const dist = 3.2; put('H2', 4, 1.57, 5.6 + dist, 0, -0.45); v.fogCd = 0; hunt(5.6 + dist, -0.45); v.reachCd = 99; v.blastCd = 99; v.lungeCd = 99;
     const fired = hold(0.4, () => v.state === 'FOG'); const x = v.x; let windT = 0; while (v.fogPhase === 'wind' && windT < 3) { kit.tick(dt); windT += dt; }
     report('furious and at a distance, he fills the place with dust after a warning', fired && Math.abs(windT - TUNING.fog.wind) < 0.1 && v.cloud.active && v.x === x, `${windT.toFixed(2)} s`);
     const Fg = TUNING.fog, c = v.cloud, early = c.amountAt(0.5, 1, 4.8);
@@ -570,7 +570,7 @@ function vacChecks(kit) {
     if (v.tether.length < count) retraces++; count = v.tether.length; wasRetracing = v._retracing(); void wasRetracing;
     if (W.penetration(v.x, v.z, V.radius - 0.03, 0.03, V.height) > 0) { hit++; hitAt = `${v.x.toFixed(2)},${v.z.toFixed(2)} on ${v.path[Math.max(0, v.pathI - 1)]?.id}-${v.path[v.pathI]?.id}`; }
     if (i % 60 === 0) { if (v.state !== 'PAUSE' && Math.hypot(v.x - tx, v.z - tz) < 0.05) { run0++; stalled = Math.max(stalled, run0); } else run0 = 0; tx = v.x; tz = v.z; }
-    if (i % 10 === 0) { for (const p of v.hose.pts) if (W.penetration(p.x, p.z, 0.015, p.y - 0.01, p.y + 0.01, null, p.y - 0.01) > 0) hoseIn++; cordIn += cordCrossings(v, W); }
+    if (i % 10 === 0) { for (const p of v.hose.pts) if (p.distanceTo(v.hose.pts[0]) > 0.05 /* (not the hole itself: nose to a wall, a resting hose is all at the hole) */ && W.penetration(p.x, p.z, 0.015, p.y - 0.01, p.y + 0.01, null, p.y - 0.01) > 0) hoseIn++; cordIn += cordCrossings(v, W); }
   }
   report('over a whole lap, the cord and hose stay out of walls and furniture', hoseIn === 0 && cordIn === 0, `${hoseIn} hose, ${cordIn} cord`);
   report('a full patrol lap, moving, never inside anything', hit === 0 && stalled <= 3 && seen.size >= 15, `${(i / 60).toFixed(0)} s, ${seen.size} waypoints, ${stalled} stalls, ${hit} overlaps ${hitAt}`);
@@ -665,7 +665,8 @@ function restartChecks(kit) {
   kit.resetRun();
   report('Restart: everything back as it started', fresh());
   for (let i = 0; i < 120; i++) kit.tick(dt);
-  report('and he is patrolling, the cat is free', v.state === 'PATROL' && (v.x !== v.nav.nodes.get('L1').x || v.z !== v.nav.nodes.get('L1').z) && !kit.ended);
+  report('and he is patrolling, the cat is free', (v.state === 'PATROL' || v.state === 'GREET') && // (nothing broken yet: he may stop to say hello)
+    (v.x !== v.nav.nodes.get('L1').x || v.z !== v.nav.nodes.get('L1').z) && !kit.ended);
   return rows;
 }
 

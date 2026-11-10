@@ -196,7 +196,7 @@ export const LEVEL = {
   // The real models. fit: stretched to fill those solids (see src/world/dress.js); the solids are drawn by these instead of as boxes.
   dress: [
     // living room
-    { model: 'couch', fit: ['couchSeat', 'couchBack', 'couchArmN', 'couchArmS'], rot: 90 },
+    { model: 'couch', fit: ['couchSeat', 'couchBack', 'couchArmN', 'couchArmS'], rot: 90, hide: ['doily_L', 'doily_R'] }, // (no doilies: flat white cards on the arms, hiding the print)
     { model: 'cattree_platform_60', fit: ['tree1'] }, { model: 'cattree_platform_60', fit: ['tree2'] }, { model: 'cattree_platform_60', fit: ['tree3'] }, { model: 'cattree_perch_tray', fit: ['tree4'], rot: 180 },
     { model: 'cattree_post_80', fit: ['tree1post'] }, { model: 'cattree_post_80', fit: ['tree2post'] }, { model: 'cattree_post_80', fit: ['tree3post'] }, { model: 'cattree_post_80', fit: ['tree4post'] },
     { model: 'psx_nightstand_oak', fit: ['book1'], rot: 180 }, { model: 'bookcase', fit: ['book2'], rot: 180 }, { model: 'bookcase', fit: ['book3'], rot: 180 }, { model: 'bookcase', fit: ['book4'], rot: 180 },

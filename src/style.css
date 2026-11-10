@@ -105,14 +105,50 @@ html, body {
 /* nothing of the game's own overlays shows on the title */
 body.on-title #hud, body.on-title #subtitles { display: none; }
 
-/* the end-of-run screen (src/ui/end-screen.js) */
-#end { position: absolute; inset: 0; z-index: 12; background: rgba(0, 0, 0, .78); display: flex; align-items: center; justify-content: center; --px: 2; }
+/* the end-of-run screen (src/ui/end-screen.js): a dim room, Marmalade's portrait in its gilt frame, the words beside it */
+#end {
+  position: absolute; inset: 0; z-index: 12; display: flex; align-items: center; justify-content: center; --px: 2;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, .55) 70%, rgba(0, 0, 0, .9) 100%),
+    repeating-linear-gradient(90deg, rgba(120, 70, 70, .07) 0 2px, transparent 2px 22px), /* the wallpaper, just */
+    rgba(10, 7, 6, .86);
+  animation: end-in .9s ease-out both;
+}
+#end.gone { background:
+    radial-gradient(ellipse at 50% 45%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, .6) 70%, rgba(0, 0, 0, .95) 100%),
+    repeating-linear-gradient(90deg, rgba(90, 80, 70, .06) 0 2px, transparent 2px 22px),
+    rgba(6, 6, 7, .9); }
+@keyframes end-in { from { opacity: 0; } to { opacity: 1; } }
 #end[hidden] { display: none; }
-#end .box { display: flex; flex-direction: column; align-items: center; gap: calc(5px * var(--px)); }
-#end .pix { width: calc(var(--w) * var(--px) * 1px); height: calc(var(--h) * var(--px) * 1px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
-#end .pix.big { width: calc(var(--w) * var(--px) * 3px); height: calc(var(--h) * var(--px) * 3px); margin-bottom: calc(4px * var(--px)); }
-#end button { background: #2a261e; border: 1px solid #4a4334; padding: calc(3px * var(--px)) calc(10px * var(--px)); cursor: pointer; margin-top: calc(4px * var(--px)); }
-#end button:hover { background: #3a3428; }
+#end .card {
+  display: flex; align-items: center; gap: calc(14px * var(--px)); max-width: calc(100vw - 32px); box-sizing: border-box;
+  padding: calc(10px * var(--px)) calc(14px * var(--px));
+  background: linear-gradient(#1a1410, #120e0b);
+  border: calc(2px * var(--px)) solid #3b2a1c; outline: 1px solid #8a6a3a; outline-offset: calc(-4px * var(--px));
+  box-shadow: 0 0 0 1px #0a0705, 0 calc(6px * var(--px)) calc(24px * var(--px)) rgba(0, 0, 0, .7);
+  animation: card-in .9s cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes card-in { from { transform: translateY(calc(6px * var(--px))); opacity: 0; } to { transform: none; opacity: 1; } }
+#end .hang { display: flex; flex-direction: column; align-items: center; gap: calc(4px * var(--px)); flex-shrink: 0; }
+#end .portrait { position: relative; aspect-ratio: 4 / 5; box-sizing: border-box; padding: calc(3px * var(--px));
+  background: linear-gradient(135deg, #e0b35a, #8a5e22 45%, #d6a64e 70%, #6e4818); /* the gilt frame */
+  box-shadow: inset 0 0 0 1px #3a2610, 0 calc(2px * var(--px)) calc(6px * var(--px)) rgba(0, 0, 0, .6); }
+#end .portrait .art { display: block; width: 100%; height: 100%; image-rendering: pixelated; box-shadow: inset 0 0 0 1px #000; }
+#end .portrait.gone .art { filter: grayscale(.75) sepia(.35) brightness(.72) contrast(1.05); }
+#end .portrait .ribbon { position: absolute; top: calc(4px * var(--px)); right: calc(-7px * var(--px)); width: calc(34px * var(--px)); height: calc(5px * var(--px));
+  background: #0b0b0c; transform: rotate(40deg); transform-origin: center; box-shadow: 0 1px 0 rgba(255, 255, 255, .06); }
+#end .plate { width: calc(64px * var(--px)); image-rendering: pixelated; }
+#end.gone .plate { filter: grayscale(.4) brightness(.8); }
+#end .words { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3px * var(--px)); min-width: 0; }
+#end .pix { width: calc(var(--w) * var(--px) * 1px); height: calc(var(--h) * var(--px) * 1px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; max-width: 100%; }
+#end .pix.big { width: calc(var(--w) * var(--px) * 3px); height: calc(var(--h) * var(--px) * 3px); }
+#end .pix.mid { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
+#end .rule { align-self: stretch; height: 1px; margin: calc(3px * var(--px)) 0; background: linear-gradient(90deg, #8a6a3a, rgba(138, 106, 58, 0)); }
+#end.gone .rule { background: linear-gradient(90deg, #6a5a48, rgba(106, 90, 72, 0)); }
+#end .stats { display: flex; flex-direction: column; gap: calc(1px * var(--px)); }
+#end button { background: #2a2018; border: 1px solid #6a5032; padding: calc(3px * var(--px)) calc(10px * var(--px)); cursor: pointer; margin-top: calc(6px * var(--px)); }
+#end button:hover { background: #3a2c1e; border-color: #a07a44; }
+@media (max-width: 560px) { #end .card { flex-direction: column; } #end .words { align-items: center; } #end .rule { background: linear-gradient(90deg, rgba(138, 106, 58, 0), #8a6a3a, rgba(138, 106, 58, 0)); } }
 
 /* the hard cut to black at the end of a catch (src/vacuum/catch.js) */
 #cut { position: absolute; inset: 0; z-index: 11; background: #000; }

@@ -123,7 +123,7 @@ function resetRun() {
   tutorial.reset(); tutorial.opened(); if (tv && tutorialRun) tv.set('off');
   audio.stopOneShots(); // (nothing left over from the last run)
   blackout.reset(); ending.reset(); grandma.holdScreen = false;
-  ended = false; runTime = 0;
+  ended = false; runTime = 0; wakeIcon?.reset();
   catchSeq.reset(); endScreen.hide();
   audio.resume(); startClock();
   knock.reset(); debris.reset(); grandma.reset(); vac.reset();
@@ -153,7 +153,7 @@ grandma.onWin = () => {
   grandma.holdScreen = true; player.resetMotion(); ending.start();
 };
 const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
-  endScreen.show('Mr. Tidy keeps a clean house.', stats(), 'Try again', { small: true, images: [['game-assets/textures/portraits/portrait_09_empty.png', 64], ['game-assets/textures/portraits/nameplate_player_dead.png', 64]] });
+  endScreen.show('Mr. Tidy keeps a clean house.', stats(), 'Try again', { small: true, mood: 'gone' });
 } });
 ending.vox = catchSeq.vox; // (free space, to put the camera in front of him)
 vac.onCatch = (how) => { ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
@@ -232,7 +232,7 @@ function frame(alpha, dt, frameMs) {
   audio.update(dt, camera);
   subtitles.update(dt);
   hudLayer.sync();
-  wakeIcon?.set(grandma.stage);
+  wakeIcon?.frame(grandma.stage, grandma.wake, !onTitle && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.hud.wakeNear, onTitle || ended || catchSeq.active || ending.active || curb.active || tutorial.active, dt);
   { const near = !onTitle && player.pos.z > -1.4 && player.pos.z < 0 && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.grandma.labelNear; if (near !== roomShown) { roomShown = near; roomLabel.show(near); } }
   ps1.render(scene, camera);
   overlay.frame(frameMs, dt);

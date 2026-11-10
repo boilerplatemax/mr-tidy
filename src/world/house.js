@@ -162,7 +162,9 @@ export function buildHouse({ scene, world }) {
     const flr = new THREE.Mesh(new THREE.PlaneGeometry(2, 3).rotateX(-Math.PI / 2), dim); flr.position.set(19, 0, -0.7); scene.add(flr);
     const bed = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 1), dim); bed.position.set(19.1, 0.25, -0.4); scene.add(bed); }
 
-  // ---- windows: real holes, with a frame in them and the night outside, seen in the gap between the curtains
+  // ---- windows: real holes, with a frame in them and the night outside, seen in the gap between the curtains. No distance
+  // fog on the night out there, but his dust cloud does come between you and it (or the windows glow through the murk)
+  const inDust = (m) => { makePS1(m); m.defines = { ...m.defines, PS1_CLOUD: '' }; m.userData.ps1WarpMul.value = 0.2; return m; };
   const nightMat = (() => {
     const c = document.createElement('canvas'); c.width = 128; c.height = 72; const g = c.getContext('2d');
     for (let y = 0; y < 72; y++) { const k = y / 72; g.fillStyle = 'rgb(' + Math.round(10 + 34 * k) + ',' + Math.round(16 + 42 * k) + ',' + Math.round(40 + 64 * k) + ')'; g.fillRect(0, y, 128, 1); }
@@ -170,16 +172,16 @@ export function buildHouse({ scene, world }) {
     g.fillStyle = '#e8ecd8'; g.beginPath(); g.arc(92, 18, 7, 0, 7); g.fill(); g.fillStyle = '#10182e'; g.beginPath(); g.arc(95, 16, 6, 0, 7); g.fill(); // the moon
     g.fillStyle = '#05070c'; for (let x = 0; x < 128; x += 1) { const h = 14 + Math.abs(Math.sin(x * 0.22)) * 10 + Math.abs(Math.sin(x * 0.57)) * 6; g.fillRect(x, 72 - h, 1, h); } // the trees at the end of the garden
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; pixelTexture(t);
-    return new THREE.MeshBasicMaterial({ map: t, fog: false });
+    return inDust(new THREE.MeshBasicMaterial({ map: t, fog: false }));
   })();
-  const frameMat2 = lambert(0xc8c0ac), glass = new THREE.MeshBasicMaterial({ color: 0x9fb8e0, transparent: true, opacity: 0.1, depthWrite: false, fog: false });
+  const frameMat2 = lambert(0xc8c0ac), glass = inDust(new THREE.MeshBasicMaterial({ color: 0x9fb8e0, transparent: true, opacity: 0.1, depthWrite: false, fog: false }));
   const clouds = (() => {
     const c = document.createElement('canvas'); c.width = 128; c.height = 32; const g = c.getContext('2d');
     g.fillStyle = 'rgba(120,132,160,0.55)'; for (let i = 0; i < 26; i++) g.fillRect((i * 53) % 128, (i * 11) % 28, 14 + (i * 7) % 26, 2 + (i * 3) % 3);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.wrapS = THREE.RepeatWrapping; pixelTexture(t);
     return t;
   })();
-  const cloudMat = new THREE.MeshBasicMaterial({ map: clouds, transparent: true, depthWrite: false, fog: false });
+  const cloudMat = inDust(new THREE.MeshBasicMaterial({ map: clouds, transparent: true, depthWrite: false, fog: false }));
   const addBar = (w, a, y0, y1, depth, along) => { const wide = w.axis === 'x'; const g = new THREE.BoxGeometry(wide ? along : depth, y1 - y0, wide ? depth : along), m = new THREE.Mesh(g, frameMat2); m.position.set(wide ? a : w.at, (y0 + y1) / 2, wide ? w.at : a); scene.add(m); };
   for (const w of LEVEL.windows) {
     const mid = (w.from + w.to) / 2, midY = (w.bottom + w.top) / 2, W0 = w.to - w.from, H0 = w.top - w.bottom, b = 0.03, d = T * 0.8;

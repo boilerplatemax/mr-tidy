@@ -28,7 +28,7 @@ Open <http://localhost:8080> and click **Begin**.
 | W into a grey-green striped surface, or jump at one | Climb: W up, S down, A / D sideways, stamina drains (holding still drains slowly) |
 | Space while climbing | Kick off, the way you're looking or with A / D to the side |
 | C while climbing | Let go |
-| Left click | Swipe: bats whatever is in front of you. Hit the outlet Mr. Tidy is plugged into to knock him out for a few seconds |
+| Left click | Swipe: bats whatever is in front of you. Hit the outlet Mr. Tidy is plugged into to knock him out for a few seconds. Bat him before anything is broken and he chats |
 | P | Try the different ways of showing your paws while you walk (peek, low, full, off) |
 | Esc | Pause and settings |
 
@@ -54,7 +54,11 @@ Everything that affects feel is in `src/data/tuning.js`. The numbers that matter
 | `catch.rideSpeed`, `catch.catchDist`, `catch.hold` | How the catch lands |
 | `alert.time`, `alert.dip`, `sting.cooldown` | How long he stops to listen, how far the motor drops, how often the stingers play |
 | `roam.think`, `roam.pauseChance`, `roam.backChance`, `roam.hunchChance` | How unpredictable his rounds are |
-| `creep.after`, `creep.speed`, `creep.range` | The slow hose that comes for a cat hiding up high |
+| `creep.after`, `creep.speed`, `creep.range`, `creep.perKnock`, `creep.under` | The slow hose that comes for a cat hiding up high or under furniture, and how much faster it gets as things break |
+| `lunge.coil`, `lunge.speed`, `lunge.chance`, `lunge.cooldown` | The berserker lunge: how long the wind-up warns you, how hard he throws himself, how often |
+| `friend.greetRange`, `friend.greetEvery` | His hellos while nothing is broken |
+| `hud.wakeShow`, `hud.wakeNear` | How long Grandma's wake meter stays up after a knock-over, and how near her door it shows |
+| `assets.marmalade` | A picture of Marmalade for the end screens (unset: she's drawn in code) |
 | `blast.lobChance`, `blast.lobAbove` | When the dust shot is a lob |
 | `dust.tumble`, `dust.knock`, `dust.time` | What being hit does to you |
 | `fog.grow`, `fog.hold`, `fog.density`, `fog.cooldown`, `fog.sight` | The dust cloud, and how much it blinds him |

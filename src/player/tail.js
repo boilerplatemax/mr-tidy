@@ -1,5 +1,5 @@
-// An experiment (Settings: "Tail peeks as you turn"): turning quickly, the cat's tail swings into the bottom corner of the
-// view on the far side, swishing, and slips away again when you stop. On the viewmodel layer, like the paws.
+// An experiment (Settings: "Tail peeks as you turn"): only on a hard, fast turn, the cat's tail swings up at the very edge
+// of the view on the far side (never the middle), swishing, and slips away again when you stop. On the viewmodel layer, like the paws.
 import * as THREE from 'three';
 import { TUNING } from '../data/tuning.js';
 import { settings } from '../data/settings.js';
@@ -14,7 +14,7 @@ export class Tail {
     loadGLB(TUNING.assets.tail).then((g) => {
       this.rig = new THREE.Group(); this.rig.add(g.scene);
       g.scene.rotation.set(TL.tilt, Math.PI, 0); g.scene.scale.setScalar(TL.scale);
-      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive?.setHex(0x2a241e); o.material.fog = false; } o.layers.set(LAYER_VIEWMODEL); o.frustumCulled = false; });
+      g.scene.traverse((o) => { if (o.isMesh) { o.material.emissive?.setHex(0x2a241e); o.material.fog = false; o.material.side = THREE.DoubleSide; } o.layers.set(LAYER_VIEWMODEL); o.frustumCulled = false; });
       this.rig.visible = false; camera.add(this.rig);
       this.mixer = new THREE.AnimationMixer(g.scene);
       const swish = THREE.AnimationClip.findByName(g.animations, 'swish'); if (swish) this.mixer.clipAction(swish).play();
@@ -34,7 +34,8 @@ export class Tail {
     this.amt += (want - this.amt) * (1 - Math.exp(-(want > this.amt ? TL.rise : TL.fall) * dt));
     this.rig.visible = this.amt > 0.02;
     if (!this.rig.visible) return;
-    this.rig.position.set(this.side * TL.x, TL.hidden + (TL.shown - TL.hidden) * this.amt, TL.z);
+    this.rig.position.set(this.side * TL.x, TL.hidden + (TL.shown - TL.hidden) * this.amt, TL.z); // out at the very edge: it never reaches the middle
+    this.rig.scale.x = this.side; // (the model curls one way: mirrored on the left, so both sides look the same)
     this.rig.rotation.set(0, 0, -this.side * TL.lean);
     this.mixer.update(dt);
   }

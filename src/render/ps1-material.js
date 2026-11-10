@@ -211,7 +211,7 @@ function onBeforeCompile(shader, renderer) {
     .replace('#include <common>', '#include <common>\n' + FRAG_HEAD)
     .replace('#include <map_fragment>', FRAG_MAP)
     .replace('#include <fog_fragment>', `#include <fog_fragment>
-  #ifdef USE_FOG
+  #if defined( USE_FOG ) || defined( PS1_CLOUD )
   if ( uPs1CloudAmt > 0.002 ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPs1CloudColor, ps1Cloud() );
   #endif
   if ( uPs1RingOn > 0.5 ) { float ps1D = distance( vPs1World, uPs1RingPos ); if ( ps1D > uPs1RingRad.x && ps1D < uPs1RingRad.y ) gl_FragColor.rgb = mix( gl_FragColor.rgb, uPs1RingColor, 0.85 ); }`)
