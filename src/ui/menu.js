@@ -81,7 +81,8 @@ export class Menu {
     el.innerHTML = `<div class="panel"><div class="title"></div><div class="sub"></div>
       <div class="main"><button id="resume" type="button"></button><button id="settings" type="button"></button></div>
       <div class="note"></div><div class="tabs"></div><div class="body"></div>
-      <div class="foot"><button id="back" type="button" class="small"></button><button id="reset" type="button" class="small"></button></div></div>`;
+      <div class="foot"><button id="back" type="button" class="small"></button><button id="reset" type="button" class="small"></button></div></div>
+      <div class="hint"></div>`;
     document.body.append(el);
     const $ = this.$ = (s) => el.querySelector(s);
     $('.title').append(Object.assign(pixText(TUNING.game.title, GOLD, { bold: true }), { className: 'pix big' }));
@@ -93,6 +94,16 @@ export class Menu {
     $('#back').onclick = (e) => { e.stopPropagation(); this._go(this.view === 'cat' && !this.started ? 'cats' : 'home'); };
     el.addEventListener('click', (e) => { if (e.target === el && this.started) onBegin(); }); // paused: a click outside the panel resumes (on the title it does nothing)
     el.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Esc: in the settings, back a page; paused, close the menu and play on. (A browser won't hand the mouse back for a
+    // key press, Esc least of all, so if it says no the menu stays shut with just "Click to play": one click and you're in.
+    // Esc again opens it back up.)
+    $('.hint').append(pixText('Click to play', INK, { bold: true }));
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape' || el.hidden || performance.now() - this.shownAt < 300) return; // (the Esc that let the mouse go isn't also this one)
+      if (this.closed) { this.show(this.started); return; }
+      if (this.view !== 'home') { $('#back').click(); return; }
+      if (this.started) { this.closed = true; el.classList.add('closed'); onBegin(); }
+    });
     for (const name of [...Object.keys(TABS), 'Controls']) {
       const b = document.createElement('button'); b.type = 'button'; b.dataset.tab = name;
       b.onclick = (e) => { e.stopPropagation(); this.tab = name; this._go('cat'); };
@@ -201,7 +212,8 @@ export class Menu {
 
   /** started: false = the title screen, true = the pause screen. note: a small line under the buttons (title only). */
   show(started, note = '') {
-    this.el.hidden = false;
+    this.el.hidden = false; this.shownAt = performance.now();
+    this.closed = false; this.el.classList.remove('closed');
     this._scale();
     const $ = this.$;
     this.started = started; this.view = 'home';
@@ -212,7 +224,7 @@ export class Menu {
     $('.note').replaceChildren(...(!started && note ? [para(note, 400, DIM)] : []));
     this.render();
   }
-  hide() { this.el.hidden = true; document.body.classList.remove('on-title'); }
+  hide() { this.el.hidden = true; this.closed = false; this.el.classList.remove('closed'); document.body.classList.remove('on-title'); }
 
   /** Dev: every category at this window size: does the panel scroll, does anything stick out? */
   fitReport() {

@@ -75,6 +75,12 @@ html, body {
   --rose: #6e3a3e; --rose-hi: #a2605c; --gilt: #b88c4a; --cream: #efe0c4; --red: #c4302a;
 }
 #pause[hidden], #pause [hidden] { display: none !important; }
+/* shut with Esc, if the browser wouldn't give the mouse back: no menu, a light veil and "Click to play" */
+#pause .hint { display: none; pointer-events: none; }
+#pause.closed { background: rgba(4, 1, 2, .35); cursor: pointer; }
+#pause.closed .panel { display: none; }
+#pause.closed .hint { display: block; }
+#pause.closed .hint .pix { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
 #pause .pix { width: calc(var(--w) * var(--px) * 1px); height: calc(var(--h) * var(--px) * 1px); image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
 #pause .pix.mid { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }
 #pause .pix.big { width: calc(var(--w) * var(--px) * 2px); height: calc(var(--h) * var(--px) * 2px); }

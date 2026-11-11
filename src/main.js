@@ -194,7 +194,7 @@ const menu = new Menu(() => input.requestLock()); // the click is a user gesture
 input.on('firstClick', () => { audio.start(THREE.Vector3); if (!params.has('play') && !tutorialRun) { tutorialRun = true; tutorial.start(); } else { introT = 0; todo.start(9.5); } });
 input.on('pause', () => { if (ended) return; menu.show(input.started); audio.suspend(); }); // (the end screen takes the mouse back itself)
 input.on('resume', () => { menu.hide(); audio.resume(); });
-input.on('lockFailed', () => { if (!ended && input.paused) { menu.show(input.started); audio.suspend(); } }); // (the browser said no to the mouse, e.g. a click too soon after letting it go: the menu, so one more click starts it)
+input.on('lockFailed', () => { if (!ended && input.paused && !menu.closed) { /* (shut with Esc: it stays shut, "Click to play") */ menu.show(input.started); audio.suspend(); } }); // (the browser said no to the mouse, e.g. a click too soon after letting it go: the menu, so one more click starts it)
 menu.show(false);
 
 if (params.has('play')) { // headless / tests: no click, no pointer lock
