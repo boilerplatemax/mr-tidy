@@ -1,3 +1,6 @@
 # local check output
 page-check.png
 *.shot.png
+
+# recorded clips for posting (Tools/clips/record.mjs): big media, kept out of git
+/clips/

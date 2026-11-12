@@ -194,6 +194,10 @@ body.on-title #hud, body.on-title #subtitles { display: none; }
   box-shadow: inset 0 0 0 1px #3a2610, 0 calc(2px * var(--px)) calc(6px * var(--px)) rgba(0, 0, 0, .6); }
 #end .portrait .art { display: block; width: 100%; height: 100%; image-rendering: pixelated; box-shadow: inset 0 0 0 1px #000; }
 #end .portrait.gone .art { filter: grayscale(.75) sepia(.35) brightness(.72) contrast(1.05); }
+/* the framed pictures (cat-portrait / cat-portrait-cracked): their own gilt frame, so none of ours; the cracked one only a little dimmed */
+#end .portrait.framed { aspect-ratio: auto; padding: 0; background: none; box-shadow: 0 calc(2px * var(--px)) calc(6px * var(--px)) rgba(0, 0, 0, .6); }
+#end .portrait.framed .art { height: auto; box-shadow: none; }
+#end .portrait.framed.gone .art { filter: brightness(.88) saturate(.8); }
 #end .plate { width: calc(64px * var(--px)); image-rendering: pixelated; }
 #end.gone .plate { filter: grayscale(.4) brightness(.8); }
 #end .words { display: flex; flex-direction: column; align-items: flex-start; gap: calc(3px * var(--px)); min-width: 0; }

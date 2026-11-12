@@ -133,10 +133,10 @@ export class AudioEngine {
   }
 
   /** Must be called from a user gesture (the first click). Vector3: THREE.Vector3 (keeps this file free of three). */
-  async start(Vector3) {
+  async start(Vector3, useCtx = null) { // (useCtx: an OfflineAudioContext, for clip capture: rendered in step with the frames)
     if (this.ctx) return;
     this._v = new Vector3();
-    const ctx = this.ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
+    const ctx = this.ctx = useCtx || new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' });
     this.master = ctx.createGain();
     this.master.gain.value = A.master * settings.volume;
     const comp = ctx.createDynamicsCompressor();
@@ -272,8 +272,8 @@ export class AudioEngine {
   /** Everything that plays once and stops (screams, crashes): cut, for a new run. Loops belong to their owners. */
   stopOneShots() { for (const v of [...this.voices]) if (!v.src.loop) v.stop(0.02); }
 
-  suspend() { this.ctx?.suspend(); }
-  resume() { this.ctx?.resume(); }
+  suspend() { if (!this.offline) this.ctx?.suspend(); }
+  resume() { if (!this.offline) this.ctx?.resume(); }
 }
 
 export const audio = new AudioEngine();

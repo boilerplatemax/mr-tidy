@@ -197,7 +197,7 @@ input.on('resume', () => { menu.hide(); audio.resume(); });
 input.on('lockFailed', () => { if (!ended && input.paused && !menu.closed) { /* (shut with Esc: it stays shut, "Click to play") */ menu.show(input.started); audio.suspend(); } }); // (the browser said no to the mouse, e.g. a click too soon after letting it go: the menu, so one more click starts it)
 menu.show(false);
 
-if (params.has('play')) { // headless / tests: no click, no pointer lock
+if (params.has('play') || params.has('capture')) { // headless / tests / clip capture (src/debug/capture.js): no click, no pointer lock
   input.allowUnlocked = true; input.started = true;
   input.setPaused(false); menu.hide();
 }
@@ -207,6 +207,7 @@ const debug = new Debug({ input, player, world, scene, camera, overlay, env, ps1
 
 // ---------------------------------------------------------------- the loop
 const titleCam = TUNING.house.titleCamera;
+let capHook = null;
 let wallTime = 0;
 function tick(dt) {
   player.snapView(); // last tick's view offsets, so the frame can interpolate them (see src/core/loop.js)
@@ -269,6 +270,7 @@ function frame(alpha, dt, frameMs) {
   wakeIcon?.frame(grandma.stage, grandma.wake, !onTitle && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.hud.wakeNear, onTitle || ended || catchSeq.active || ending.active || curb.active || tutorial.active, dt);
   todo.frame(dt, knock.count, vac.anger, onTitle || ended || catchSeq.active || ending.active || curb.active || tutorial.active || closeup.active);
   { const near = !onTitle && !ended && !ending.active && !catchSeq.active && !curb.active && !closeup.active && player.pos.z > -1.4 && player.pos.z < 0 && grandma.distanceTo(player.pos.x, player.pos.z) < TUNING.grandma.labelNear; if (near !== roomShown) { roomShown = near; roomLabel.show(near); } }
+  capHook?.(camera, dt); // (clip capture only: a film camera, see src/debug/capture.js)
   ps1.render(scene, camera);
   overlay.frame(frameMs, dt);
   window.__kitReady = true;
@@ -299,7 +301,8 @@ async function reveal() {
 }
 
 // ---------------------------------------------------------------- dev / headless handles
-window.__kit = { closeup, todo, ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, tail, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
+window.__kit = { paws, hudLayer, blackout, staminaBar, wakeIcon, set capHook(f) { capHook = f; }, get tv() { return tv; }, closeup, todo, ps1, scene, camera, env, world, input, player, audio, subtitles, menu, overlay, house, settings, loop, tick, debug, knock, debris, noise, marker, grandma, endScreen, vac, catchSeq, ending, tutorial, curb, tail, resetRun, get runTime() { return runTime; }, get ended() { return ended; } };
 if (params.has('play')) window.__routeBot = () => import('./debug/route-bot.js').then((b) => b.runRouteBot(window.__kit));
 window.__startAudio = () => audio.start(THREE.Vector3); // headless only (normally the first click)
+if (params.has('capture')) import('./debug/capture.js').then((m) => m.startCapture(window.__kit, params)).catch((e) => { document.title = 'CAPTURE_ERROR: ' + e.message; console.error(e); }); // (clips for posting: Tools/clips/record.mjs)
 window.__menuFit = () => menu.fitReport();

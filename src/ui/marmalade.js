@@ -63,14 +63,51 @@ function dither(g, w, h) {
   g.putImageData(d, 0, 0);
 }
 
+// The framed pictures (TUNING.assets.portraitWin / portraitLose): big paintings, shrunk to a PS1-sized handful of pixels
+// (portraitRes wide, halving down for a clean result) and dithered to 15-bit like the rest of the game.
+const framed = new Map(); // mood -> Promise<canvas | null>
+function framedArt(mood) {
+  const A = TUNING.assets, src = mood === 'gone' ? A.portraitLose : A.portraitWin;
+  if (!src) return Promise.resolve(null);
+  if (!framed.has(mood)) framed.set(mood, new Promise((ok) => {
+    const i = new Image();
+    i.onload = () => {
+      const w = A.portraitRes || 116, h = Math.round((w * i.naturalHeight) / i.naturalWidth);
+      let cur = i, cw = i.naturalWidth, ch = i.naturalHeight;
+      while (cw / 2 > w * 1.5) { cw = Math.round(cw / 2); ch = Math.round(ch / 2); const c = document.createElement('canvas'); c.width = cw; c.height = ch; const g = c.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, cw, ch); cur = c; }
+      const out = document.createElement('canvas'); out.width = w; out.height = h;
+      const g = out.getContext('2d', { willReadFrequently: true }); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, w, h);
+      dither(g, w, h);
+      ok(out);
+    };
+    i.onerror = () => ok(null);
+    i.src = src;
+  }));
+  return framed.get(mood);
+}
+framedArt('alive'); framedArt('gone'); // (ready before anyone needs them)
+
 /**
- * The portrait as a canvas element, w CSS px wide (times --px). mood: 'alive' or 'gone' (faded).
+ * The portrait as a canvas element, w CSS px wide (times --px). mood: 'alive' (the win's picture) or 'gone' (the cracked one).
  */
 export function marmaladePortrait(w, mood = 'alive') {
   const wrap = document.createElement('div'); wrap.className = 'portrait ' + mood;
+  if (TUNING.assets.portraitWin) { // the framed pictures: they bring their own gilt frame
+    wrap.classList.add('framed');
+    wrap.style.width = `calc(${w}px * var(--px))`;
+    const art = document.createElement('canvas'); art.className = 'art'; art.width = 4; art.height = 5;
+    wrap.append(art);
+    framedArt(mood).then((c) => { if (!c) { wrap.classList.remove('framed'); art.replaceWith(fallback(mood)); return; } art.width = c.width; art.height = c.height; art.getContext('2d').drawImage(c, 0, 0); });
+    return wrap;
+  }
   wrap.style.width = `calc(${w}px * var(--px))`;
-  const art = draw(); art.className = 'art'; dither(art.getContext('2d'), W, H);
-  wrap.append(art);
-  tryFile().then((img) => { if (img) { art.width = img.naturalWidth; art.height = img.naturalHeight; const g = art.getContext('2d'); g.drawImage(img, 0, 0); dither(g, art.width, art.height); } }); // (her own picture, at its own resolution, dithered like the game)
+  wrap.append(fallback(mood));
   return wrap;
+}
+
+/** The old one: drawn in code, or TUNING.assets.marmalade. */
+function fallback() {
+  const art = draw(); art.className = 'art'; dither(art.getContext('2d'), W, H);
+  tryFile().then((img) => { if (img) { art.width = img.naturalWidth; art.height = img.naturalHeight; const g = art.getContext('2d'); g.drawImage(img, 0, 0); dither(g, art.width, art.height); } }); // (her own picture, at its own resolution, dithered like the game)
+  return art;
 }
