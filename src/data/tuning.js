@@ -149,7 +149,7 @@ export const TUNING = {
   curb: { x: 40, z: 0, camY: 0.32, from: 3.2, to: 1.05, push: 7.5, eyes: [[8.6, 8.85], [9.2, 9.6]], length: 10.4, lamp: 14 }, // the secret ending, out the front: where; the camera's height and how it creeps in (m, s); when his eyes come on (s); how long it lasts; the streetlamp
   bonus: { anger: 1 }, // each of his spare parts you break: knock-overs added toward his anger (they never wake Grandma)
   tail: { scale: 1.9, tilt: -1.0, x: 0.72, z: -0.24, hidden: -0.6, shown: -0.2, lean: 0, from: 3.4, full: 6, rise: 9, fall: 6 }, // the tail-peek experiment: size; how it's tipped toward the view; m out to the side (far enough that even its swish stays in the outer quarter of the view) and ahead; how far below the view it hides and how high it comes; rad it leans in; rad/s of turning where it starts showing and where it's all there; 1/s in and out
-  tutorial: { gateHeight: 1.25, zoomFov: 30, tvDist: 1.0, moveFor: 1.2, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch, from tvDist m square in front of the screen)
+  tutorial: { gateHeight: 1.25, zoomFov: 30, tvDist: 1.0, moveFor: 3, turn: 1.3, // (zoomFov: degrees the view narrows to while you watch, from tvDist m square in front of the screen)
     arriveAfter: 3, show: 17, egg: 7.5, upAt: 1.45, // m to walk; s the view turns to the TV; s after the last prompt that he turns up; s the programme runs; s the cartoon the aerial brings in runs; m up that counts as "up by the remote", however you got there
     gates: { fall: 0.6, lie: 1.4 }, // once they're over: s to fall; s lying there before they flicker out (TUNING.flicker)
     lamp: { power: 2.6, dist: 5.5, color: 0xffc888 } }, // the living-room floor lamp, on until you pull its plug: its light (it goes with the power, too)
@@ -207,6 +207,11 @@ export const TUNING = {
     searchTime: 4.5, // s he looks around where he last saw you
     searchTurn: 2.0, searchArc: 1.1, // how fast he looks around; rad either side
     chaseSpeed: [1.3, 1.3, 2.9, 3.35, 3.5], // m/s. The cat runs at 3.6, so it can always just outrun him (only just)
+    // The warm-up (playtest 2026-11-11): straight after he turns he's a bit weaker, so the start isn't a wall. Through knock-over
+    // `until` (the 5 free ones, then 5 more) he's at full ease, back to full strength over the next `ramp`. While easy: share
+    // of chase speed; rad his dust shots go wide (either way); share of the lead he aims ahead with; notice time and blast
+    // cooldown multiplied by these
+    warmup: { until: 10, ramp: 4, chase: 0.84, aimOff: 0.13, lead: 0.45, notice: 1.6, cooldown: 1.5 },
     replan: 0.15, // s between re-thinking the route while chasing
     catchReach: 0.26, // m past his body at which he catches the cat
     solidShare: 0.85, // how much of the cat's radius his body keeps out: it can brush him, not go through him
@@ -396,7 +401,7 @@ export const TUNING = {
     windDown: 1.2, // s for the motor to die when Grandma wakes
   },
   cord: { // the power cord: one outlet, by Grandma's door, and a fixed length (src/vacuum/cord.js)
-    sparkTime: 0.45, // s the live plug sparks when the cat touches it (the blackout)
+    sparkTime: 0.9, // s the live plug crackles when the cat touches it (the blackout: only the plug, not him or the cord)
     length: 32, // m. Every room is in reach, but not by every route: when he'd run out he goes back the way he came
     spacing: 0.2, capacity: 420, round: 0.6, roundTight: 0.14, roundSteps: 8, wander: 0.05, wanderRate: 1.7, // (the last five: m it curves round a waypoint, and round a tight spot off the graph; points per curve; m it drifts off a straight line; how fast)
     // m between points on the tube; the most points it can have

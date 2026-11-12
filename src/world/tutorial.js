@@ -22,9 +22,12 @@ const STEPS = [
   ['remote', 'Left click to swipe the remote.', 'remote'],
   ['show', '', null],
   ['plug', ['Grandma left her lamp on.', 'Swipe its plug out of the wall.', 'Unplugging things stops them.'], 'plug'],
-  ['go', ['Knock things over till Grandma wakes.', 'Careful... something is coming.'], null],
+  ['go', ['Knock things over. Make a mess.', 'Careful... something is coming.'], null], // (not "wake Grandma": that's only the job once he's turned)
 ];
-const TIP_EVERY = 3.5; // s each tip stays up before the next one
+// s each tip stays up: long enough to read and act on, more for a longer one. They go round in order, with a short blank
+// between, so a change reads as the next tip and not as the words jumping about.
+const tipFor = (s) => 5.5 + s.length * 0.06, TIP_GAP = 0.35;
+const MIN_STEP = 2.5; // s a step stays up at the least, even if the cat's already done it (it used to flash past)
 const _q = new THREE.Quaternion(), _m = new THREE.Matrix4(), _up = new THREE.Vector3(0, 1, 0), _t = new THREE.Vector3(), _p = new THREE.Vector3();
 
 function arrowSprite() {
@@ -97,10 +100,14 @@ export class Tutorial {
   _tip() {
     const words = [].concat(STEPS[this.i]?.[1] || []);
     if (!words.length) return;
-    const k = Math.floor(this.t / TIP_EVERY) % words.length;
-    if (k === this.tipAt) return;
-    this.tipAt = k;
-    this.tip.set([{ text: words[k] }, { text: 'ENTER: skip the tutorial', dim: true }], 'center');
+    const lens = words.map((w) => tipFor(w) + (words.length > 1 ? TIP_GAP : 0)), all = lens.reduce((a, b) => a + b, 0);
+    let u = this.t % all, k = 0;
+    while (u >= lens[k]) { u -= lens[k]; k++; }
+    const gap = words.length > 1 && u >= lens[k] - TIP_GAP, key = gap ? -1 - k : k;
+    if (key === this.tipAt) return;
+    this.tipAt = key;
+    const n = words.length > 1 ? ` (${k + 1}/${words.length})` : '';
+    this.tip.set([{ text: gap ? ' ' : words[k] + n }, { text: 'ENTER: skip the tutorial', dim: true }], 'center');
   }
 
   _next() { this._goTo(this.i + 1); }
@@ -163,10 +170,12 @@ export class Tutorial {
     // goes by where the cat has got to, not by the order the lessons come in or the way it went)
     const remote = this.knock.byId.get('remote');
     if (this.i <= this._index('remote') && remote && remote.state !== 'rest') { if (set.pokeRemote(null)) this._watch(); return; } // (batted off, from anywhere)
+    if (this.step === 'move') this.moved += Math.hypot(P.pos.x - P.prev.x, P.pos.z - P.prev.z);
+    if (this.t < MIN_STEP) return; // (each tip gets a moment on screen before the next step takes it away)
     if (this.i <= this._index('up')) {
       const reached = P.grounded && P.feetY >= T.upAt ? 'up' : on ? 'jump' : null;
       if (reached && this._index(reached) >= this.i) { this._goTo(this._index(reached) + 1); return; }
-      if (this.step === 'move') { this.moved += Math.hypot(P.pos.x - P.prev.x, P.pos.z - P.prev.z); if (this.moved > T.moveFor) this._next(); }
+      if (this.step === 'move' && this.moved > T.moveFor) this._next();
       return;
     }
     if (this.step === 'plug' && !lamp.on) { this._next(); return; } // (already done)

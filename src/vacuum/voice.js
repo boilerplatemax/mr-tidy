@@ -24,8 +24,10 @@ export const LINES = {
   calm: [1, ['Ahh. Spotless again.', 'There we are. All tidy.', 'Silly me. Where was I?', 'Deep breaths, Mister Tidy.']],
   search: [3, ['Come out, kitty kitty.', 'Here, kitty kitty...', 'I can smell you.', "Where's my little mess?", 'You cannot hide forever.', 'Kitty? Kiiitty?']],
   search5: [5, ['I know you are here.', 'Come out, come out.', 'There is nowhere to hide.']],
-  fog: [3, ['Time to dust.', 'Breathe it in, kitty.', 'Let me tidy the air.']], // the dust storm, announced
-  fog5: [5, ['Dust to dust.', 'Breathe it in.', 'Nowhere to hide in the dust.']],
+  // the dust storm, announced, so it's plain the fog is him (he's emptying his bag into the house), and a word as it pours out
+  fog: [3, ["I'm gonna DUST it up!", 'Time for a little dusting!', "Let's clear the air. With DUST.", 'Bag full! Time to empty it!', 'Dust-busting time, kitty!']],
+  fog5: [5, ['Dust to dust, kitty.', 'Another one bites the dust.', "I'll dust you right up.", 'Empty the bag. Fill the house.']],
+  fogOut: [3, ["Bit dusty in here, isn't it?", 'Hold your breath, kitty.', 'Can you see me? I can see you.', 'All my dust. Just for you.']],
   lurk: [3, ['I see you.', 'Peekaboo.', 'Shh. Shh.', 'I was only watching.']], // (stared out of a lurk, as he slips away)
   lurk5: [5, ['I see you.', 'Always watching.', 'Sleep tight, kitty.']],
 };
@@ -33,5 +35,8 @@ export const LINES = {
 /** The Mr. Tidy Hour: [seconds in, line]. Read by the same voice, at its friendliest. */
 export const SHOW = [[0.5, 'The Mister Tidy Hour!'], [3.4, 'Meet Mister Tidy. Your helpful friend!'], [7.4, 'He tidies up. Every mess. Every night.'], [11.4, 'A clean home is a happy home!'], [14.6, 'Keep it clean.']];
 
+/** The cartoon the aerial brings in, "Puss and the Wool": [seconds in, line], read by the same voice and captioned. */
+export const EGG = [[0.2, 'Puss and the Wool!'], [1.8, 'Bat, bat, bat goes Puss!'], [3.9, 'Oh dear. Round and round...'], [5.7, 'All tied up. The end!']];
+
 /** Every line as [slot, stage, text]. */
-export const ALL_LINES = [...SHOW.map(([, text], i) => [`tv.say.${i}`, i === SHOW.length - 1 ? 4 : 1, text])].concat(Object.entries(LINES).flatMap(([key, [stage, texts]]) => texts.map((text, i) => [`vac.say.${key}.${i}`, stage, text])));
+export const ALL_LINES = [...SHOW.map(([, text], i) => [`tv.say.${i}`, i === SHOW.length - 1 ? 4 : 1, text]), ...EGG.map(([, text], i) => [`tv.egg.${i}`, 1, text])].concat(Object.entries(LINES).flatMap(([key, [stage, texts]]) => texts.map((text, i) => [`vac.say.${key}.${i}`, stage, text])));

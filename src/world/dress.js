@@ -6,7 +6,8 @@ import { LEVEL } from '../data/level.js';
 import { loadGLB } from '../render/geometry.js';
 import { makePS1, pixelTexture } from '../render/ps1-material.js';
 import { audio } from '../audio/audio.js';
-import { SHOW } from '../vacuum/voice.js';
+import { SHOW, EGG } from '../vacuum/voice.js';
+import { subtitles } from '../ui/subtitles.js';
 import { TUNING } from '../data/tuning.js';
 import { lampParts } from './house.js';
 
@@ -122,7 +123,7 @@ export const tv = {
   set(st) {
     this.state = st;
     if (st === 'show') { show.t = SHOW_LEN; show.said = 0; }
-    if (st === 'egg') show.t = EGG_LEN;
+    if (st === 'egg') { show.t = EGG_LEN; show.said = 0; }
     if (st === 'off') show.t = 0;
   },
   /** The remote (a knockable now: o is it), batted where it lies: the programme comes on. */
@@ -172,7 +173,13 @@ function near(camera, p, reach, cone) {
 
 /** Per fixed tick: the programme runs, and he narrates it. */
 export function tvTick(dt) {
-  if (tv.state === 'egg') { show.t -= dt; if (show.t <= 0) tv.set('on'); return; }
+  if (tv.state === 'egg') { // the cartoon: narrated, and (unlike the programme) captioned, since it has no words of its own to speak of
+    show.t -= dt;
+    const u = EGG_LEN - show.t;
+    while (show.said < EGG.length && u >= EGG[show.said][0]) { audio.play(`tv.egg.${show.said}`, { pos: { x: 5.3, y: 0.6, z: 2.3 }, refDistance: 2.5 }); subtitles.line('TV', EGG[show.said][1], 2.2); show.said++; }
+    if (show.t <= 0) tv.set('on');
+    return;
+  }
   if (tv.state !== 'show') return;
   show.t -= dt;
   const u = SHOW_LEN - show.t;

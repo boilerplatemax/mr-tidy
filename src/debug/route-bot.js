@@ -258,6 +258,10 @@ function attackChecks(kit) {
   const v = kit.vac, P = kit.player, I = kit.input, K = kit.knock, H = TUNING.hose, B = TUNING.blast, D = TUNING.dust, W = kit.world, dt = 1 / 60, rows = [], V3 = kit.camera.position.constructor;
   const report = (name, ok, note) => rows.push(`${ok ? 'ok  ' : 'FAIL'} ATTACK ${name}${note ? ' (' + note + ')' : ''}`);
   P.noclip = false; let caughtBy = null; const onCatch0 = v.onCatch; v.onCatch = (how) => { caughtBy = how; };
+  const WU = TUNING.vac.warmup, wu0 = WU.until; // the warm-up: easy straight after he turns, full strength a few knock-overs later
+  { const c0 = K.count, a0 = v.anger; v.anger = 3; K.count = WU.until; const easy = v._ease(); K.count = WU.until + WU.ramp; const full = v._ease(); v.anger = 5; K.count = 6; const surge = v._ease(); K.count = c0; v.anger = a0;
+    rows.push(`${easy === 1 && full === 0 && surge === 0 ? 'ok  ' : 'FAIL'} ATTACK the warm-up: weaker for the first knock-overs after he turns, then full strength, none once the power is his (${easy}, ${full}, ${surge})`); }
+  WU.until = -1e9; // (the rest of these check him at full strength)
   const put = (id, anger, heading, x, y, z, blastCd = 99) => {
     freshVac(kit, id, anger); v.hose.reset(); v.blastCd = blastCd; caughtBy = null; v.heading = heading; v.prevHeading = heading; I.keys.clear(); P.frozen = false; P.resetMotion();
     P.teleport(x, y + 0.001, z, 0); for (let i = 0; i < 4 && !P.grounded; i++) P.tick(dt);
@@ -424,6 +428,7 @@ function attackChecks(kit) {
   { for (const anger of [1, 3]) { put('H2', anger, 0, 5.3, 0, -0.45); v.frozen = false; P.frozen = false; P.yaw = -Math.PI / 2; I.keys.add('KeyW'); I.keys.add('ShiftLeft'); caughtBy = null; const eg = () => v.onCatch; void eg; let min = 9; hold(1, () => { min = Math.min(min, Math.hypot(P.pos.x - v.x, P.pos.z - v.z)); return caughtBy; }); I.keys.clear();
       report(`the cat cannot run through him (stage ${anger})`, anger === 3 ? !!caughtBy : min >= TUNING.vac.radius + 0.05, `closest ${min.toFixed(2)} m`); } }
   v.onCatch = onCatch0; v.caught = false; freshVac(kit, 'L1', 1); v.hose.reset(); P.noclip = true;
+  WU.until = wu0;
   return rows;
 }
 
@@ -1052,8 +1057,10 @@ async function tutorialChecks(kit) {
   report('you are shut in the living room, and knocking things over is practice', T.walls.every((b) => b.enabled) && kit.knock.practice);
   { const K = kit.knock, o = K.byId.get('cup1'), c0 = K.count, w0 = kit.grandma.wake; K._knockOver(o); report('practice: it breaks, but nobody counts it or hears it', K.count === c0 && kit.grandma.wake === w0 && o.knocked); kit.debris.reset(); } // (no mess left for him to rush to: the next checks time his arrival)
   P.teleport(2.5, 0.001, 1.6, 0); I.keys.add('KeyW'); for (let i = 0; i < 60; i++) kit.tick(dt); I.keys.clear();
+  report('a moment of walking is not enough: the tip stays up a while', T.step === 'move', T.step);
+  I.keys.add('KeyW'); for (let i = 0; i < 120; i++) { kit.tick(dt); if (i % 30 === 0) P.teleport(2.5, 0.001, 1.6, 0); } I.keys.clear(); for (let i = 0; i < 40; i++) kit.tick(dt);
   report('walking moves it on', T.step === 'jump', T.step);
-  for (const [id, want] of [['tree1', 'up'], ['tree4', 'remote']]) { const b = kit.house.byId.get(id); P.teleport((b.min[0] + b.max[0]) / 2, b.max[1] + 0.001, (b.min[2] + b.max[2]) / 2 - 0.02, 0); for (let i = 0; i < 6; i++) kit.tick(dt); report(`up on ${id} moves it on (any way up counts)`, T.step === want, T.step); }
+  for (const [id, want] of [['tree1', 'up'], ['tree4', 'remote']]) { const b = kit.house.byId.get(id); P.teleport((b.min[0] + b.max[0]) / 2, b.max[1] + 0.001, (b.min[2] + b.max[2]) / 2 - 0.02, 0); for (let i = 0; i < 160; i++) kit.tick(dt); report(`up on ${id} moves it on (any way up counts)`, T.step === want, T.step); }
   const R = LEVEL.remote; P.teleport(R[0], R[1] + 0.001, R[2] - 0.15, 0); kit.tick(dt); cam.position.set(R[0] - 0.25, R[1] + 0.25, R[2] - 0.15); cam.lookAt(R[0], R[1] + 0.02, R[2]); cam.updateMatrixWorld(true); T.onSwipe(cam);
   report('batting the remote puts the programme on, and holds you still', T.step === 'show' && P.frozen && T.tv.state === 'show', T.tv.state);
   for (let i = 0; i < 60 * (TUNING.tutorial.show + 2); i++) { kit.tick(dt); kit.frame?.(1, dt, 16); }

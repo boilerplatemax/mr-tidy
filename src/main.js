@@ -164,7 +164,7 @@ function pickStart() {
   return { x, z, yaw, outlet };
 }
 let tutWas = false, runTime = 0, ended = false, introT = -1, clockVoice = null, staticVoice = null;
-const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet. Make some noise.'], [7.8, "Knock things over. Wake Grandma. Don't let Mr. Tidy catch you."]];
+const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet. Make some noise.'], [7.8, "Knock things over. Don't let Mr. Tidy catch you."]];
 const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60); return [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`, `Times spotted  ${vac.spotted}`]; };
 const tvProxy = { get state() { return tv?.state; }, set: (st) => tv?.set(st), pokeRemote: (c) => tv?.pokeRemote(c), pokePlug: (c) => tv?.pokePlug(c) };
 var tutorialRun = false; // (the tutorial runs once, on the first run of a session)

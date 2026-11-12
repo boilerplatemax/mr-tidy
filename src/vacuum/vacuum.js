@@ -239,7 +239,9 @@ export class Vacuum {
     this.surgeT += dt;
     { const u = Math.min(1, this.surgeT / SG.flickerUntil); this.dark = u * u * (3 - 2 * u); } // the lights sink, all the way down
     if (was < SG.flickerUntil && this.surgeT >= SG.flickerUntil) { audio.play('power.out'); this.arcV = audio.play('vac.arc', { follow: this.model.hoseSocket, refDistance: 1.2, rolloff: 1.1 }); }
-    if (this.surgeT >= SG.time) { this.arcFade = SG.arcAfter; this.arcV?.stop(SG.arcAfter); this.arcV = null; this.state = this.surgeReturn; this.loseT = 0; if (this.state === 'CHASE') { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; } }
+    const cutEnd = SG.cutOutlet + SG.cutVac; // the electricity is only for the cut: when it's over, so is the crackle
+    if (was < cutEnd && this.surgeT >= cutEnd) { this.arcFade = SG.arcAfter; this.arcV?.stop(SG.arcAfter); this.arcV = null; }
+    if (this.surgeT >= SG.time) { this.arcV?.stop(SG.arcAfter); this.arcV = null; this.state = this.surgeReturn; this.loseT = 0; if (this.state === 'CHASE') { this.lastX = this.player.pos.x; this.lastZ = this.player.pos.z; } }
   }
 
   /** The stinger when he spots you. */
@@ -344,7 +346,7 @@ export class Vacuum {
     if (this.plugLock > 0) { audio.play('knock.clink', { pos: p }); return false; } // jammed in for now
     if (this.anger >= 5) { // the power's all his now: the plug's live, and it throws the cat back
       audio.play('vac.surgeBuzz', { pos: p, gain: 1.2 }); audio.play('vac.stun', { pos: p, rate: 1.6 });
-      this.model.arcsOn(1); this.arcFade = SG.arcAfter; this.cord.sparks(p);
+      this.cord.sparks(p); // (on the plug only: he stays dark)
       if ((this.shockSaid ?? 0) <= this.time) { this.shockSaid = this.time + 8; subtitles.show("It's live with his power now. You can't unplug him.", 'shock', 3.2, '', true); }
       const P = this.player; P.shock?.(eye.x - p.x, eye.z - p.z);
       this._investigate(p.x, p.z);
@@ -391,6 +393,10 @@ export class Vacuum {
     this.path = [here]; this.pathI = 0;
     this.lastPaid = this._paid();
   }
+
+  /** The warm-up after he first turns: 1 for the first few knock-overs (he's slower, his aim's off), easing to 0 (his full
+   *  strength) a few knock-overs later. Numbers in TUNING.vac.warmup. */
+  _ease() { const W = V.warmup, n = this.knock.count; return this.anger >= 5 ? 0 : n <= W.until ? 1 : Math.max(0, 1 - (n - W.until) / W.ramp); }
 
   /** Metres of cord down right now, including the stretch to where he is between waypoints. */
   _paid() {
@@ -673,6 +679,7 @@ export class Vacuum {
       this.cloud.release(t.x, Math.max(0.4, t.y), t.z);
       this.fogCd = F.cooldown; this.fogPhase = 'spray'; this.fogT = 0; this.sprayT = 0;
       audio.play('vac.exhale', { pos: t });
+      this._say('fogOut', true, false, true); // (and a word as it pours out, so it's plain where the fog's from)
       return;
     }
     if (this.fogPhase === 'spray') { // pouring out of the nozzle as it swings
@@ -908,7 +915,7 @@ export class Vacuum {
     if (this.ignoreT > 0) { this.ignoreT -= dt; this.seeT = 0; return; } // recently gave up on this cat
     if (this.state === 'LURK' && this.lurkPhase !== 'go' && Math.hypot(this.player.pos.x - this.x, this.player.pos.z - this.z) > LK.close) { this.seeT = 0; return; } // (watching: he only comes for you if you come too close)
     this.seeT = this.seesCat ? this.seeT + dt : Math.max(0, this.seeT - dt);
-    if (this.seeT >= V.noticeTime[this.anger - 1] * (this.player.slink > 0.5 ? V.slinkNotice : 1)) this._startChase();
+    if (this.seeT >= V.noticeTime[this.anger - 1] * (1 + (V.warmup.notice - 1) * this._ease()) * (this.player.slink > 0.5 ? V.slinkNotice : 1)) this._startChase();
   }
 
   _startChase() {
@@ -1072,7 +1079,7 @@ export class Vacuum {
       if (this.blastT < B.aim) return;
       this._shoot(this.blast, 0);
       this.volley = B.volley[this.anger - 1] - 1; this.volleyT = B.volleyGap;
-      this.blastCd = B.cooldown[this.anger - 1];
+      this.blastCd = B.cooldown[this.anger - 1] * (1 + (V.warmup.cooldown - 1) * this._ease());
       this.blastPhase = 'recover'; this.blastT = 0;
       return;
     }
@@ -1089,15 +1096,16 @@ export class Vacuum {
 
   /** One shot, at where the cat is plus some of where it's going. spread: rad off to the side. */
   _shoot(blast, spread) {
-    const P = this.player, o = this._blastO.copy(this.hose.tip), t = this._catChest(this._goal);
+    const P = this.player, o = this._blastO.copy(this.hose.tip), t = this._catChest(this._goal), ease = this._ease(), lead = B.lead * (1 - (1 - V.warmup.lead) * ease);
+    spread += ease * V.warmup.aimOff * (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5); // (the warm-up: his aim's off)
     if (spread) { const dx = t.x - o.x, dz = t.z - o.z, c = Math.cos(spread), sn = Math.sin(spread); t.x = o.x + dx * c - dz * sn; t.z = o.z + dx * sn + dz * c; }
     if (this.lob) { // a high arc that comes down on it: up to a peak above both ends, and down again
       const g = B.lobGravity, top = Math.min(LEVEL.ceiling - B.lobCeiling, Math.max(o.y, t.y) + B.lobApex), up = Math.sqrt(2 * g * Math.max(0.05, top - o.y)), T = up / g + Math.sqrt(2 * g * Math.max(0.02, top - t.y)) / g;
-      t.x += P.vel.x * T * B.lead; t.z += P.vel.z * T * B.lead;
+      t.x += P.vel.x * T * lead; t.z += P.vel.z * T * lead;
       blast.fire(o, this._v.set((t.x - o.x) / T, up, (t.z - o.z) / T), g, true);
     } else {
       const d = o.distanceTo(t), fly = d / B.speed;
-      t.x += P.vel.x * fly * B.lead; t.z += P.vel.z * fly * B.lead;
+      t.x += P.vel.x * fly * lead; t.z += P.vel.z * fly * lead;
       t.y += 0.5 * B.gravity * fly * fly; // allowing for the droop
       blast.fire(o, this._v.copy(t).sub(o).normalize().multiplyScalar(B.speed));
     }
@@ -1304,7 +1312,7 @@ export class Vacuum {
         if (n !== this.chaseNode) { this.chaseNode = n; this.routeTo(n); }
       }
     }
-    const speed = this.burstT > 0 ? BU.speed : V.chaseSpeed[this.anger - 1];
+    const speed = (this.burstT > 0 ? BU.speed : V.chaseSpeed[this.anger - 1]) * (1 - (1 - V.warmup.chase) * this._ease());
     if (this.direct) { // the cord still only goes so far
       if (this._paid() < C.length - 0.05 && Math.hypot(this.directX - this.x, this.directZ - this.z) > V.arrive) this._steer(dt, this.directX, this.directZ, speed);
       return;
@@ -1478,8 +1486,8 @@ export class Vacuum {
   frame(alpha, dt = 1 / 60) {
     const r = this.model.root;
     this.model.animate(dt, this.state === 'ALERT' || this.freezeT > 0);
-    // electricity crawls over him only in the surge's cut, and a moment after: in the dark it's his eyes that do it
-    this.model.arcsOn(this.state === 'SURGE' && this.surgeT >= SG.cutOutlet ? 1 : this.arcFade > 0 ? this.arcFade / SG.arcAfter : 0);
+    // electricity crawls over him only in the surge's cut, fading as it ends: in the dark it's his eyes that do it
+    this.model.arcsOn(this.state === 'SURGE' && this.surgeT >= SG.cutOutlet && this.surgeT < SG.cutOutlet + SG.cutVac ? 1 : this.arcFade > 0 ? this.arcFade / SG.arcAfter : 0);
     this.cloud.frame(dt, this.camera.position);
     r.position.set(this.px + (this.x - this.px) * alpha, 0, this.pz + (this.z - this.pz) * alpha);
     r.rotation.y = this.prevHeading + wrap(this.heading - this.prevHeading) * alpha;

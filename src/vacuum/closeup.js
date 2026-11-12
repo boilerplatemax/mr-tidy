@@ -72,7 +72,7 @@ export class Closeup {
     return { pos: new THREE.Vector3(x + nx * 0.5, 0.4, z + nz * 0.5), look: new THREE.Vector3(along.x, 0.1, along.z) };
   }
 
-  _release() { this.title.hidden = true; this.player.frozen = false; this.camera.fov = R.fov; this.camera.updateProjectionMatrix(); }
+  _release() { this.title.hidden = true; this.sparkGroup.visible = false; this.sparkT = -1; this.player.frozen = false; this.camera.fov = R.fov; this.camera.updateProjectionMatrix(); }
 
   /** Per rendered frame while active (instead of the player's own view). */
   update(dt) {
