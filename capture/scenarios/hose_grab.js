@@ -7,12 +7,10 @@ export default {
   },
   async script(c) {
     c.titles([[0, 'I THOUGHT I WAS\nHIGH ENOUGH', 3.2]]);
-    await c.lookAt(c.V.x, 0.3, c.V.z, 0.6);
-    for (let i = 0; i < 120 && !c.kit.catchSeq.active; i++) {
-      if (i === 30 && c.V.state !== 'CREEP') c.V._startCreep();
-      const t = c.V.hose.active ? c.V.hose.tip : { x: c.V.x, y: 0.3, z: c.V.z };
-      await c.lookAt(t.x, t.y, t.z, 0.1);
-    }
+    const V = c.V;
+    await c.watchVac(3.0, { rate: 4 });
+    if (V.state !== 'CREEP') V._startCreep();
+    await c.track(() => (V.hose.active ? [(V.hose.tip.x + V.x) / 2, (V.hose.tip.y + 0.3) / 2, (V.hose.tip.z + V.z) / 2] : c.vacPt()), 9, { rate: 4, stop: () => c.kit.catchSeq.active }); // (him and the hose both in frame)
     await c.wait(7);
   },
 };

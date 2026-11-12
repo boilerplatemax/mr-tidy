@@ -125,7 +125,7 @@ class Director {
   constructor(kit, overlay, fps) {
     Object.assign(this, { kit, overlay, fps });
     this.P = kit.player; this.I = kit.input; this.V = kit.vac; this.K = kit.knock; this.LEVEL = LEVEL; this.TUNING = TUNING; this.THREE = THREE;
-    this.time = 0; this.tickT = 0; this.over = false; this.ctrls = []; this.waits = []; this.log = [];
+    this.time = 0; this.tickT = 0; this.over = false; this.ctrls = []; this.waits = []; this.log = []; this.hand = 1;
     this.cam = null; this.camK = 0; this.camBlend = 0; this.camFrom = null; this.camT = 0;
     this._m = new THREE.Matrix4(); this._q = new THREE.Quaternion(); this._a = new THREE.Vector3(); this._b = new THREE.Vector3(); this._up = new THREE.Vector3(0, 1, 0);
     this.fpPos = new THREE.Vector3(); this.fpQuat = new THREE.Quaternion();
@@ -142,6 +142,42 @@ class Director {
     if (this.kit.catchSeq.active && !this._caught) { this._caught = true; this.note('CAUGHT'); }
     for (const k of [...this.ctrls]) if (k.fn(dt) === true) { this.ctrls.splice(this.ctrls.indexOf(k), 1); k.done(); }
     for (const w of [...this.waits]) if (this.tickT >= w.at) { this.waits.splice(this.waits.indexOf(w), 1); w.done(); }
+    // a hand on the mouse: the view never sits dead still (a slow wander of a few hundredths of a radian, on top of
+    // whatever the controllers are doing; c.steady() turns it off)
+    if (this.hand > 0 && !this.P.frozen) {
+      const t = this.tickT, n = (a, b, c) => Math.sin(t * a + 1.3) * 0.6 + Math.sin(t * b + 4.1) * 0.3 + Math.sin(t * c + 2.2) * 0.1;
+      const ny = n(0.9, 2.3, 5.1) * 0.018 * this.hand, np = n(1.1, 2.9, 6.3) * 0.011 * this.hand;
+      this.P.yaw += ny - (this._ny ?? ny); this.P.pitch += np - (this._np ?? np); this._ny = ny; this._np = np;
+    }
+  }
+  /** The hand-held wander on the view: 1 normal, 0 none. */
+  steady(k = 0) { this.hand = k; }
+  /**
+   * Follow a moving point with the view, the way a hand on a mouse does: it eases after it (rate: how quick, 1/s) and
+   * lags a little. target(): [x, y, z]. For s seconds, or until stop() is true. Leaves the keys alone, so it can run
+   * alongside walk().
+   */
+  track(target, s = 3, { rate = 5, stop = null } = {}) {
+    const P = this.P, t0 = this.tickT;
+    return this.ctrl((dt) => {
+      const [x, y, z] = target(), eyeY = this.cam ? P.feetY + 0.25 : this.kit.camera.position.y;
+      const wy = yawTo(P.pos.x, P.pos.z, x, z), wp = clamp(Math.atan2(y - eyeY, Math.hypot(x - P.pos.x, z - P.pos.z)), -1.2, 1.2), k = 1 - Math.exp(-rate * dt);
+      P.yaw += wrap(wy - P.yaw) * k; P.pitch += (wp - P.pitch) * k;
+      return this.tickT - t0 >= s || stop?.() ? true : undefined;
+    });
+  }
+  /** Where he is, to look at: the middle of his body (all of him in frame), or his face. */
+  vacPt(face = false) { const r = this.V.model.root.position; return [r.x, face ? this.V.model.faceCenterY() : 0.26, r.z]; }
+  /** Follow him with the view. */
+  watchVac(s = 3, opts = {}) { return this.track(() => this.vacPt(opts.face), s, opts); }
+  /** Running away: a look back over the shoulder at him (still moving away, backwards), then on again. */
+  async glanceBack(s = 0.7) {
+    const P = this.P, y0 = P.yaw, p0 = P.pitch;
+    this.release('KeyW', 'ShiftLeft'); this.hold('KeyS');
+    await this.track(() => this.vacPt(), 0.25, { rate: 16 });
+    await this.watchVac(s, { rate: 9 });
+    this.release('KeyS');
+    await this.turn(y0, p0, 0.22);
   }
   /** Let resolved waits run their next lines (promise jobs) before the next frame. */
   async flush() { for (let i = 0; i < 4; i++) await Promise.resolve(); }
