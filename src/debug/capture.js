@@ -32,7 +32,9 @@ export async function startCapture(kit, params) {
   Math.random = mulberry32(Number(params.get('seed')) || sc.seed || 7); // (the same scene, the same way, every time)
   kit.loop.stop();
   if (params.get('hud') !== '1') { const st = document.createElement('style'); st.textContent = '.hud-todo,.hud-wake,.hud-stamina,.hud-room{visibility:hidden!important}'; document.head.append(st); }
-  const overlay = makeOverlay(params.get('wm') !== '0');
+  const clean = params.get('clean') === '1'; // (clean=1: none of the added words and no watermark: only the game's own subtitles)
+  const overlay = makeOverlay(params.get('wm') !== '0' && !clean);
+  if (clean) overlay.cue = () => {};
 
   // the sound: an offline context as long as the scene (and a little over), stepped with the frames
   const seconds = sc.seconds + 1;

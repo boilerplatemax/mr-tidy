@@ -1,6 +1,6 @@
 // A walk along the piano keys at 3 a.m., then up on top of it: the clock goes.
 export default {
-  title: 'Piano', seconds: 14, gif: [1.5, 6],
+  title: 'Piano', seconds: 16, gif: [1.5, 6],
   setup(c) { c.placeOn('pStool', Math.PI / 2 + 0.2, -0.3, 17.0, 1.75); c.vacAt('Q2', 2, 0); c.calmVac(); c.V.frozen = true; },
   async script(c) {
     c.titles([[0, '3 AM CONCERT', 2.5]]);
@@ -11,8 +11,9 @@ export default {
     await c.walk([[17.42, 1.6]], { run: true, pitch: -0.45 });
     c.titles([[0, 'ENCORE', 1.6]]);
     await c.jump('piano', 0.45, { edge: false, aimX: 17.72, aimZ: 1.75 });
+    await c.walk([[17.72, 1.58]], { tol: 0.05 });
     await c.lookAtThing('pianoClock', 0.4, 0.05);
-    for (let i = 0; i < 4 && !c.K.byId.get('pianoClock').knocked; i++) await c.swipe();
+    for (let i = 0; i < 6 && !c.K.byId.get('pianoClock').knocked; i++) { await c.swipe(); await c.lookAtThing('pianoClock', 0.15, 0.05); }
     await c.lookAt(17.0, 0, 1.3, 0.5);
     await c.wait(3);
   },

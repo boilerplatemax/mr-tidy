@@ -22,7 +22,9 @@ const preview = Number(opt('preview', 0)); // --preview 0.5: no video, a still e
 const FPS = Number(opt('fps', 30)), [W, H] = opt('size', preview ? '960x540' : '1920x1080').split('x').map(Number), formats = !flag('no-formats'), keep = flag('keep');
 const PORT = 8080;
 
-const dirs = { raw: 'clips/raw', final: 'clips/final', gif: 'clips/gif', stills: 'clips/stills' };
+const clean = flag('clean'); // --clean: no added captions or watermark, into clips/clean/
+const OUT = clean ? 'clips/clean' : 'clips';
+const dirs = { raw: OUT + '/raw', final: OUT + '/final', gif: OUT + '/gif', stills: OUT + '/stills' };
 for (const d of Object.values(dirs)) fs.mkdirSync(path.join(ROOT, d), { recursive: true });
 
 function findFfmpeg() {
@@ -65,7 +67,7 @@ const report = [];
 for (const name of want) {
   const t0 = Date.now(); logs.length = 0;
   console.log(`\n== ${name}`);
-  await send('Page.navigate', { url: `http://localhost:${PORT}/?capture=${name}&fps=${FPS}` });
+  await send('Page.navigate', { url: `http://localhost:${PORT}/?capture=${name}&fps=${FPS}${clean ? '&clean=1' : ''}` });
   let st = null;
   for (let i = 0; i < 400; i++) { await sleep(250); st = await js(`document.title.startsWith('CAPTURE_') ? document.title : null`).catch(() => null); if (st) break; }
   if (st !== 'CAPTURE_READY') { console.log(`  failed to start: ${st} ${logs.join(' | ')}`); report.push({ name, error: st || 'never ready' }); continue; }
@@ -126,14 +128,14 @@ if (sheet.length) {
   const ins = sheet.flatMap((f) => ['-i', f]);
   const lay = sheet.map((_, i) => `${(i % cols) * 480}_${Math.floor(i / cols) * 270}`).join('|');
   const scale = sheet.map((_, i) => `[${i}:v]scale=480:270[s${i}]`).join(';') + ';' + sheet.map((_, i) => `[s${i}]`).join('') + `xstack=inputs=${sheet.length}:layout=${lay}:fill=black`;
-  if (sheet.length > 1) ff([...ins, '-filter_complex', scale, '-frames:v', '1', path.join(ROOT, 'clips/contact_sheet.png')]);
-  else fs.copyFileSync(sheet[0], path.join(ROOT, 'clips/contact_sheet.png'));
+  if (sheet.length > 1) ff([...ins, '-filter_complex', scale, '-frames:v', '1', path.join(ROOT, OUT + '/contact_sheet.png')]);
+  else fs.copyFileSync(sheet[0], path.join(ROOT, OUT + '/contact_sheet.png'));
   void rows;
 }
 const md = ['# Clip report', '', `${new Date().toISOString()} · ${W}x${H} @ ${FPS} fps`, '', '| clip | length | 16:9 size | mean volume | frozen | notes |', '|---|---|---|---|---|---|',
   ...report.map((r) => r.error ? `| ${r.name} | - | - | - | - | FAILED: ${r.error} |` : `| ${r.name} | ${r.secs.toFixed(1)} s | ${(r.size / 1e6).toFixed(1)} MB | ${r.vol} dB | ${r.frz} | ${[r.err && 'script error: ' + r.err, ...r.warnings].filter(Boolean).join('; ') || 'ok'} |`)];
-const prev = fs.existsSync(path.join(ROOT, 'clips/report.md')) ? fs.readFileSync(path.join(ROOT, 'clips/report.md'), 'utf8') : '';
-fs.writeFileSync(path.join(ROOT, 'clips/report.md'), md.join('\n') + '\n\n' + prev.split('\n').filter((l) => !l.startsWith('# Clip report')).join('\n').slice(0, 20000));
+const prev = fs.existsSync(path.join(ROOT, OUT + '/report.md')) ? fs.readFileSync(path.join(ROOT, OUT + '/report.md'), 'utf8') : '';
+fs.writeFileSync(path.join(ROOT, OUT + '/report.md'), md.join('\n') + '\n\n' + prev.split('\n').filter((l) => !l.startsWith('# Clip report')).join('\n').slice(0, 20000));
 
 ws.close(); chrome.kill(); server?.kill();
 await sleep(400); try { fs.rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may still hold it */ }
