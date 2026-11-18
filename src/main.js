@@ -163,6 +163,7 @@ function pickStart() {
   const outlet = far.length ? far[Math.floor(Math.random() * far.length)] : 0;
   return { x, z, yaw, outlet };
 }
+let crouchTip = false; // (the first time he spots you, once a session: how to hide)
 let tutWas = false, runTime = 0, ended = false, introT = -1, clockVoice = null, staticVoice = null;
 const INTRO = [[0.8, "Grandma's asleep. The house is quiet."], [4.3, 'Too quiet. Make some noise.'], [7.8, "Knock things over. Don't let Mr. Tidy catch you."]];
 const stats = () => { const m = Math.floor(runTime / 60), s = Math.floor(runTime % 60); return [`Time  ${m}:${String(s).padStart(2, '0')}`, `Objects broken  ${knock.count}`, `Times spotted  ${vac.spotted}`]; };
@@ -189,6 +190,7 @@ const catchSeq = new CatchSequence({ camera, vac, onEnd: () => {
 } });
 ending.vox = catchSeq.vox; // (free space, to put the camera in front of him)
 vac.onCatch = (how) => { closeup.reset(); ended = true; player.resetMotion(); player.frozen = true; catchSeq.start(how); };
+grandma.onStir = (s) => { if (!ended && !tutorial.active) subtitles.show(TUNING.grandma.stir[s - 1], 'stir' + s, 3.4, '', true); }; // (a quiet word at 25 / 50 / 75%: she's coming round)
 grandma.onScreen = () => endScreen.show('Good Kitty', stats(), 'Play again', { broken: knock.broken });
 const menu = new Menu(() => input.requestLock()); // the click is a user gesture: lock + (first time) start audio
 input.on('firstClick', () => { audio.start(THREE.Vector3); if (!params.has('play') && !tutorialRun) { tutorialRun = true; tutorial.start(); } else { introT = 0; todo.start(9.5); } });
@@ -225,6 +227,7 @@ function tick(dt) {
     grandma.tick(dt, player.pos.x, player.pos.z);
     vac.tick(dt);
     if (!ended) runTime += dt;
+    if (!crouchTip && vac.spotted > 0 && !ended && !tutorial.active && !closeup.active) { crouchTip = true; subtitles.show("Hold C to crouch. Crouched behind something, he can't see you.", 'crouchTip', 5, '', true); }
     house.tick(dt, player.pos);
   }
   input.consumeEdges();

@@ -17,7 +17,7 @@ export class Grandma {
     this.soundPos = { x: D.x + G.soundBehind, y: 0.5, z: this.door.z }; // behind the door, so the wall muffles it
     this.wake = 0; this.stage = 0; this.awake = false; this.t = 0; this.shown = false;
     this.voice = null; this.level = 0; this.levelT = 0;
-    this.onWin = null; this.onScreen = null;
+    this.onWin = null; this.onScreen = null; this.onStir = null; // onStir(stage 1..3): she came up a stage (main.js puts up a caption)
     this.free = G.freeKnocks;
     noise.on((ev) => { if (ev.kind !== 'crash') return; if (this.free > 0) { this.free--; return; } this.add(this.valueOf(ev.x, ev.z, ev.loud)); }); // (the first few she sleeps right through)
   }
@@ -41,6 +41,7 @@ export class Grandma {
     if (s === 4) { this._wakeUp(); return; }
     audio.play(CUES[s - 1], { pos: this.soundPos, refDistance: G.refDistance, rolloff: G.rolloff });
     this._playSnore(G.crossfade);
+    this.onStir?.(s);
   }
 
   _playSnore(fade) {

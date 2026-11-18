@@ -419,7 +419,8 @@ export const TUNING = {
     freeKnocks: 5, // the first knock-overs of a run she sleeps right through
     farScale: 0.6, nearScale: 1.5, // what a crash is worth far from her door / right at it
     range: 17, // m from the door at which a crash counts as far
-    thresholds: [25, 50, 75], // wake values where the snoring lightens and a cue plays
+    thresholds: [25, 50, 75], // wake values where the snoring lightens and a cue plays (and a quiet caption, stir)
+    stir: ['Grandma stirs in her sleep.', "Grandma's snoring falters...", "Grandma's nearly awake!"], // the caption at each threshold, once a run, so you can tell she's coming round
     crossfade: 1.0, // s between snoring stages
     winBeat: 1.4, // s from her waking to the Good Kitty screen
     soundBehind: 0.6, // m behind the door the snoring comes from (the wall muffles it)
@@ -572,7 +573,7 @@ export const TUNING = {
     lines: 240, // the HUD's own pixel grid (lines), whatever the render resolution: the pixel font stays one size
   },
   subtitles: { seconds: 3.2, maxLines: 3 }, // how long a caption stays; how many stack
-  todo: { x: 6, y: 6, knocks: 5, show: 9, bump: 3, showEvil: 8, evilDelay: 4.5 }, // Marmalade's to-do list (src/ui/todo.js): HUD px from the top left; knock-overs to tick it; s it shows at the start; s it pops up after each knock-over; s it shows when he's turned (and "Wake Grandma" is added), s after he turns
+  todo: { x: 6, y: 6, knocks: 5, show: 9, bump: 3, showEvil: 10, evilDelay: 4.5 }, // Marmalade's to-do list (src/ui/todo.js): HUD px from the top left; knock-overs to tick it; s it shows at the start; s it pops up after each knock-over; s it shows when he's turned (and "Wake Grandma" is added), s after he turns
 
   // ---------------------------------------------------------------- audio (src/audio/audio.js)
   audio: {

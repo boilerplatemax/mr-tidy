@@ -1,6 +1,7 @@
 // Marmalade's to-do list: a little note in the corner after the tutorial, so there's a reason to start knocking things
-// over. It ticks off as you go, then goes away. When he turns nasty it comes back once with one new job on it (wake
-// Grandma), and then leaves you to it: by then it's plain she's asleep and has to be woken.
+// over (just that: five of them, nothing about Grandma yet). It ticks off as you go, then goes away. When he turns nasty
+// it comes back once with the new jobs on it, marked NEW (wake Grandma, louder near her room; and hide from him, C to
+// crouch), and then leaves you to it.
 import { TUNING } from '../data/tuning.js';
 
 const T = TUNING.todo;
@@ -18,8 +19,8 @@ export class TodoList {
 
   _rows(knocks, evil) {
     const n = Math.min(knocks, T.knocks), done = n >= T.knocks;
-    const rows = [{ text: 'TO-DO LIST', color: '#e8c878' }, { check: true, text: 'Nap', dim: true }, { check: done, text: `Knock things over (${n}/${T.knocks})`, dim: done }, { check: true, text: 'Look innocent', dim: true }];
-    if (evil) rows.push({ check: false, text: 'Wake Grandma', color: '#f0a090' });
+    const rows = [{ text: 'TO-DO LIST', color: '#e8c878' }, { check: true, text: 'Nap', dim: true }, { check: done, text: `Knock over ${T.knocks} things (${n}/${T.knocks})`, dim: done }, { check: true, text: 'Look innocent', dim: true }];
+    if (evil) rows.push({ check: false, text: 'NEW: Wake Grandma!', color: '#f0a090' }, { text: '   (louder near her room)', dim: true }, { check: false, text: 'NEW: Hide (hold C to crouch)', color: '#f0a090' });
     return rows;
   }
 

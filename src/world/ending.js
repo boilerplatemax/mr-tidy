@@ -106,8 +106,40 @@ export class Ending {
     this._clip('idle', true);
   }
 
+  /**
+   * Under cover of the cut, room for him to die in: he's eased off any wall and turned to the open floor, so his face,
+   * the slump forward and the hose dropping beside him don't go through anything (he was often left nose to a wall).
+   * Tries where he is first, then up to 0.45 m off (only along a clear path), each with his own heading, then turned.
+   */
+  _roomForVac() {
+    const v = this.vac, W = this.world;
+    if (!W) return;
+    const top = TUNING.vac.height * (v.model.k ?? 1), body = TUNING.vac.radius + 0.03;
+    const SAMPLES = [[0.3, 0], [0.42, 0], [0.55, 0], [0.32, 0.2], [0.32, -0.2], [0.42, 0.38], [0.42, -0.38], [0.15, 0.32], [0.15, -0.32]]; // [m forward, m to the side]: his face, and the floor the hose drops onto
+    const crowded = (x, z, a) => {
+      if (W.penetration(x, z, body, 0.03, top) > 0) return 99;
+      const fx = Math.sin(a), fz = Math.cos(a);
+      let n = 0;
+      for (const [fw, sd] of SAMPLES) if (W.penetration(x + fx * fw + fz * sd, z + fz * fw - fx * sd, 0.06, 0.02, top) > 0) n += sd ? 1 : 3; // (in front of his face counts most)
+      return n;
+    };
+    let best = { x: v.x, z: v.z, a: v.heading, s: crowded(v.x, v.z, v.heading) };
+    if (best.s === 0) return;
+    for (const d of [0, 0.15, 0.3, 0.45]) for (let i = 0; i < (d ? 8 : 1); i++) {
+      const m = (i / 8) * Math.PI * 2, x = v.x + Math.sin(m) * d, z = v.z + Math.cos(m) * d;
+      if (d && !v._clear(x, z)) continue;
+      for (let j = 0; j < 16; j++) {
+        const a = v.heading + (j & 1 ? 1 : -1) * Math.ceil(j / 2) * (Math.PI / 8);
+        const s = crowded(x, z, a) + d * 2 + Math.ceil(j / 2) * 0.05; // (the least moved and turned, among the clear ones)
+        if (s < best.s) best = { x, z, a, s };
+      }
+    }
+    v.x = v.px = best.x; v.z = v.pz = best.z; v.heading = v.prevHeading = best.a;
+  }
+
   /** Somewhere in front of him with room for a camera and a clear view of his face: he turns to it (it's a cut). */
   _placeVacCam() {
+    this._roomForVac();
     const v = this.vac, y = v.model.faceCenterY(), face = _look.set(v.x, y, v.z);
     let best = null;
     for (const d of E.vacDist) {
